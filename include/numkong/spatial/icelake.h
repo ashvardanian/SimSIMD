@@ -19,7 +19,7 @@
 #ifndef NK_SPATIAL_ICELAKE_H
 #define NK_SPATIAL_ICELAKE_H
 
-#if NK_TARGET_X86_
+#if NK_TARGET_X8664_
 #if NK_TARGET_ICELAKE
 
 #include "numkong/types.h"
@@ -1063,5 +1063,5 @@ nk_angular_e3m2_icelake_cycle:
 #endif
 
 #endif // NK_TARGET_ICELAKE
-#endif // NK_TARGET_X86_
+#endif // NK_TARGET_X8664_
 #endif // NK_SPATIAL_ICELAKE_H

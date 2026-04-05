@@ -18,7 +18,7 @@
 #ifndef NK_REDUCE_GENOA_H
 #define NK_REDUCE_GENOA_H
 
-#if NK_TARGET_X86_
+#if NK_TARGET_X8664_
 #if NK_TARGET_GENOA
 
 #include "numkong/reduce/serial.h"
@@ -197,5 +197,5 @@ NK_PUBLIC void nk_reduce_moments_e5m2_genoa(                            //
 #endif
 
 #endif // NK_TARGET_GENOA
-#endif // NK_TARGET_X86_
+#endif // NK_TARGET_X8664_
 #endif // NK_REDUCE_GENOA_H

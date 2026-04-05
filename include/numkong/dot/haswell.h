@@ -86,7 +86,7 @@
 #ifndef NK_DOT_HASWELL_H
 #define NK_DOT_HASWELL_H
 
-#if NK_TARGET_X86_
+#if NK_TARGET_X8664_
 #if NK_TARGET_HASWELL
 
 #include "numkong/types.h"
@@ -1719,5 +1719,5 @@ NK_INTERNAL void nk_dot_u1x128_finalize_haswell( //
 #endif
 
 #endif // NK_TARGET_HASWELL
-#endif // NK_TARGET_X86_
+#endif // NK_TARGET_X8664_
 #endif // NK_DOT_HASWELL_H

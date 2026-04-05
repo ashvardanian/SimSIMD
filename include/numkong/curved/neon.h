@@ -24,7 +24,7 @@
 #ifndef NK_CURVED_NEON_H
 #define NK_CURVED_NEON_H
 
-#if NK_TARGET_ARM_
+#if NK_TARGET_ARM64_
 #if NK_TARGET_NEON
 
 #include "numkong/types.h"
@@ -325,5 +325,5 @@ NK_PUBLIC void nk_bilinear_f16c_neon(nk_f16c_t const *a_pairs, nk_f16c_t const *
 #endif
 
 #endif // NK_TARGET_NEON
-#endif // NK_TARGET_ARM_
+#endif // NK_TARGET_ARM64_
 #endif // NK_CURVED_NEON_H

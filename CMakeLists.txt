@@ -365,6 +365,10 @@ include(cmake/nk_x86_isa_probes.cmake)
 # See cmake/nk_arm_isa_probes.cmake for details and probe definitions.
 include(cmake/nk_arm_isa_probes.cmake)
 
+# Arm 32-bit ISA runtime probes — detect NEON capability at configure time.
+# See cmake/nk_arm32_isa_probes.cmake for details and probe definitions.
+include(cmake/nk_arm32_isa_probes.cmake)
+
 # LoongArch ISA runtime probes — detect LASX capability at configure time.
 # See cmake/nk_loongarch_isa_probes.cmake for details and probe definitions.
 include(cmake/nk_loongarch_isa_probes.cmake)

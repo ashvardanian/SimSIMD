@@ -59,7 +59,7 @@
 #ifndef NK_DOT_NEONFHM_H
 #define NK_DOT_NEONFHM_H
 
-#if NK_TARGET_ARM_
+#if NK_TARGET_ARM64_
 #if NK_TARGET_NEONFHM
 
 #include "numkong/types.h"
@@ -354,5 +354,5 @@ NK_INTERNAL void nk_dot_e5m2x16_finalize_neonfhm(                               
 #endif
 
 #endif // NK_TARGET_NEONFHM
-#endif // NK_TARGET_ARM_
+#endif // NK_TARGET_ARM64_
 #endif // NK_DOT_NEONFHM_H

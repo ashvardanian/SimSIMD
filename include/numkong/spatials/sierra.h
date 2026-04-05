@@ -9,7 +9,7 @@
 #ifndef NK_SPATIALS_SIERRA_H
 #define NK_SPATIALS_SIERRA_H
 
-#if NK_TARGET_X86_
+#if NK_TARGET_X8664_
 #if NK_TARGET_SIERRA
 
 #include "numkong/spatial/haswell.h"
@@ -92,5 +92,5 @@ nk_define_cross_normalized_symmetric_(euclidean, e2m3, sierra, e2m3, f32, /*norm
 #endif
 
 #endif // NK_TARGET_SIERRA
-#endif // NK_TARGET_X86_
+#endif // NK_TARGET_X8664_
 #endif // NK_SPATIALS_SIERRA_H

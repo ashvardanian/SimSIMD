@@ -13,7 +13,7 @@
 #ifndef NK_DOTS_SMEBI32_H
 #define NK_DOTS_SMEBI32_H
 
-#if NK_TARGET_ARM_
+#if NK_TARGET_ARM64_
 #if NK_TARGET_SMEBI32
 
 #include "numkong/types.h"
@@ -470,5 +470,5 @@ NK_PUBLIC void nk_dots_symmetric_u1_smebi32(nk_u1x8_t const *vectors, nk_size_t 
 #endif
 
 #endif // NK_TARGET_SMEBI32
-#endif // NK_TARGET_ARM_
+#endif // NK_TARGET_ARM64_
 #endif // NK_DOTS_SMEBI32_H

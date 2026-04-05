@@ -32,7 +32,7 @@
 #ifndef NK_SPATIAL_SVE_H
 #define NK_SPATIAL_SVE_H
 
-#if NK_TARGET_ARM_
+#if NK_TARGET_ARM64_
 #if NK_TARGET_SVE
 
 #include "numkong/types.h"
@@ -241,5 +241,5 @@ NK_PUBLIC void nk_angular_f64_sve(nk_f64_t const *a, nk_f64_t const *b, nk_size_
 #endif
 
 #endif // NK_TARGET_SVE
-#endif // NK_TARGET_ARM_
+#endif // NK_TARGET_ARM64_
 #endif // NK_SPATIAL_SVE_H

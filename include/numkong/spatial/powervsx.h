@@ -32,7 +32,7 @@
 #ifndef NK_SPATIAL_POWERVSX_H
 #define NK_SPATIAL_POWERVSX_H
 
-#if NK_TARGET_POWER_
+#if NK_TARGET_POWER64_
 #if NK_TARGET_POWERVSX
 
 #include "numkong/types.h"
@@ -734,5 +734,5 @@ NK_INTERNAL void nk_euclidean_through_u32_from_dot_powervsx_(nk_b128_vec_t dots,
 #endif
 
 #endif // NK_TARGET_POWERVSX
-#endif // NK_TARGET_POWER_
+#endif // NK_TARGET_POWER64_
 #endif // NK_SPATIAL_POWERVSX_H

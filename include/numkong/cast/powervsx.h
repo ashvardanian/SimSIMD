@@ -66,7 +66,7 @@
 #ifndef NK_CAST_POWERVSX_H
 #define NK_CAST_POWERVSX_H
 
-#if NK_TARGET_POWER_
+#if NK_TARGET_POWER64_
 #if NK_TARGET_POWERVSX
 
 #include "numkong/types.h"
@@ -445,5 +445,5 @@ NK_PUBLIC void nk_cast_powervsx(void const *from, nk_dtype_t from_type, nk_size_
 #endif
 
 #endif // NK_TARGET_POWERVSX
-#endif // NK_TARGET_POWER_
+#endif // NK_TARGET_POWER64_
 #endif // NK_CAST_POWERVSX_H

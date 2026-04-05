@@ -32,7 +32,7 @@ if sys.platform == "darwin":
 
 def is_64bit_x86() -> bool:
     """Detect x86-64 architecture with environment override support."""
-    override = os.environ.get("NK_TARGET_X86_")
+    override = os.environ.get("NK_TARGET_X8664_")
     if override is not None:
         return override == "1"
     arch = platform.machine().lower()
@@ -41,16 +41,25 @@ def is_64bit_x86() -> bool:
 
 def is_64bit_arm() -> bool:
     """Detect ARM64 architecture with environment override support."""
-    override = os.environ.get("NK_TARGET_ARM_")
+    override = os.environ.get("NK_TARGET_ARM64_")
     if override is not None:
         return override == "1"
     arch = platform.machine().lower()
     return (arch in ("arm64", "aarch64")) and (sys.maxsize > 2**32)
 
 
+def is_32bit_arm() -> bool:
+    """Detect ARM32 architecture with environment override support."""
+    override = os.environ.get("NK_TARGET_ARM32_")
+    if override is not None:
+        return override == "1"
+    arch = platform.machine().lower()
+    return arch in ("armv7l", "armv7", "armhf", "arm")
+
+
 def is_64bit_riscv() -> bool:
     """Detect RISC-V 64-bit architecture with environment override support."""
-    override = os.environ.get("NK_TARGET_RISCV_")
+    override = os.environ.get("NK_TARGET_RISCV64_")
     if override is not None:
         return override == "1"
     arch = platform.machine().lower()
@@ -59,7 +68,7 @@ def is_64bit_riscv() -> bool:
 
 def is_64bit_loongarch() -> bool:
     """Detect LoongArch 64-bit architecture with environment override support."""
-    override = os.environ.get("NK_TARGET_LOONGARCH_")
+    override = os.environ.get("NK_TARGET_LOONGARCH64_")
     if override is not None:
         return override == "1"
     arch = platform.machine().lower()
@@ -68,7 +77,7 @@ def is_64bit_loongarch() -> bool:
 
 def is_64bit_power() -> bool:
     """Detect Power 64-bit architecture with environment override support."""
-    override = os.environ.get("NK_TARGET_POWER_")
+    override = os.environ.get("NK_TARGET_POWER64_")
     if override is not None:
         return override == "1"
     arch = platform.machine().lower()
@@ -155,6 +164,16 @@ PROBE_TABLE_ARM: ProbeTable = [
     ("SMEFA64", "probes/arm_sme_fa64.c", ["-march=armv8-a+sme+sme-fa64"], []),
 ]
 
+# ARM32 probes: a subset of NEON features available on 32-bit Arm.
+# Uses -mfpu=neon for baseline NEON, -mfpu=auto for extensions that
+# require the architecture level to imply the FPU.
+PROBE_TABLE_ARM32: ProbeTable = [
+    ("NEON", "probes/arm_neon.c", ["-mfpu=neon"], []),
+    ("NEONSDOT", "probes/arm_neon_sdot.c", ["-march=armv8.2-a+dotprod", "-mfpu=auto"], []),
+    ("NEONHALF", "probes/arm_neon_half.c", ["-march=armv8.2-a+fp16", "-mfpu=auto"], []),
+    ("NEONFHM", "probes/arm_neon_fhm.c", ["-march=armv8.2-a+fp16fml", "-mfpu=auto"], []),
+]
+
 PROBE_TABLE_RISCV: ProbeTable = [
     ("RVV", "probes/riscv_rvv.c", ["-march=rv64gcv"], []),
     ("RVVHALF", "probes/riscv_rvv_half.c", ["-march=rv64gcv_zvfh"], []),
@@ -183,6 +202,7 @@ def probe_all_isas() -> list[tuple[str, str]]:
     tables: list[tuple[bool, ProbeTable]] = [
         (is_64bit_x86(), PROBE_TABLE_X86),
         (is_64bit_arm(), PROBE_TABLE_ARM),
+        (is_32bit_arm(), PROBE_TABLE_ARM32),
         (is_64bit_riscv(), PROBE_TABLE_RISCV),
         (is_64bit_loongarch(), PROBE_TABLE_LOONGARCH),
         (is_64bit_power(), PROBE_TABLE_POWER),

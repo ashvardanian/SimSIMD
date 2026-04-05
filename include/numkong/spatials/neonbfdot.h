@@ -9,7 +9,7 @@
 #ifndef NK_SPATIALS_NEONBFDOT_H
 #define NK_SPATIALS_NEONBFDOT_H
 
-#if NK_TARGET_ARM_
+#if NK_TARGET_ARM64_
 #if NK_TARGET_NEONBFDOT
 
 #include "numkong/spatial/neon.h"
@@ -56,5 +56,5 @@ nk_define_cross_normalized_symmetric_(euclidean, bf16, neonbfdot, bf16, f32, /*n
 #endif
 
 #endif // NK_TARGET_NEONBFDOT
-#endif // NK_TARGET_ARM_
+#endif // NK_TARGET_ARM64_
 #endif // NK_SPATIALS_NEONBFDOT_H

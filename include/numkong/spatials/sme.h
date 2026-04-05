@@ -9,7 +9,7 @@
 #ifndef NK_SPATIALS_SME_H
 #define NK_SPATIALS_SME_H
 
-#if NK_TARGET_ARM_
+#if NK_TARGET_ARM64_
 #if NK_TARGET_SME
 
 #include "numkong/dots/serial.h"
@@ -1882,5 +1882,5 @@ NK_PUBLIC void nk_euclideans_symmetric_u4_sme(                                  
 #endif
 
 #endif // NK_TARGET_SME
-#endif // NK_TARGET_ARM_
+#endif // NK_TARGET_ARM64_
 #endif // NK_SPATIALS_SME_H

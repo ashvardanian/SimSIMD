@@ -11,7 +11,7 @@
 #ifndef NK_NUMKONG_H
 #define NK_NUMKONG_H
 
-#include "numkong/capabilities.h" // Runtime detection, like `nk_capabilities_x86_`
+#include "numkong/capabilities.h" // Runtime detection, like `nk_capabilities_x8664_`
 #include "numkong/scalar.h"       // Scalar math: sqrt, rsqrt, fma, saturating, order, like `nk_f32_sqrt`
 #include "numkong/cast.h"         // Type conversions, like `nk_cast`
 #include "numkong/set.h"          // Hamming, Jaccard, like `nk_hamming_u1`

@@ -13,7 +13,7 @@
 #ifndef NK_SPATIAL_NEONFP8_H
 #define NK_SPATIAL_NEONFP8_H
 
-#if NK_TARGET_ARM_
+#if NK_TARGET_ARM64_
 #if NK_TARGET_NEONFP8
 
 #include "numkong/types.h"
@@ -254,5 +254,5 @@ nk_angular_e3m2_neonfp8_cycle:
 #endif
 
 #endif // NK_TARGET_NEONFP8
-#endif // NK_TARGET_ARM_
+#endif // NK_TARGET_ARM64_
 #endif // NK_SPATIAL_NEONFP8_H

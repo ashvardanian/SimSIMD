@@ -28,7 +28,7 @@
 #ifndef NK_SPATIAL_NEON_H
 #define NK_SPATIAL_NEON_H
 
-#if NK_TARGET_ARM_
+#if NK_TARGET_ARM64_
 #if NK_TARGET_NEON
 
 #include "numkong/types.h"
@@ -842,5 +842,5 @@ NK_INTERNAL void nk_euclidean_through_u32_from_dot_neon_(nk_b128_vec_t dots, nk_
 
 #pragma endregion F16 and BF16 Floats
 #endif // NK_TARGET_NEON
-#endif // NK_TARGET_ARM_
+#endif // NK_TARGET_ARM64_
 #endif // NK_SPATIAL_NEON_H

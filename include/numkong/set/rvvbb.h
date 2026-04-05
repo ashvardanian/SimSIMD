@@ -18,7 +18,7 @@
 #ifndef NK_SET_RVVBB_H
 #define NK_SET_RVVBB_H
 
-#if NK_TARGET_RISCV_
+#if NK_TARGET_RISCV64_
 #if NK_TARGET_RVVBB
 
 #include "numkong/types.h"
@@ -113,5 +113,5 @@ NK_PUBLIC void nk_jaccard_u1_rvvbb(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_si
 #endif
 
 #endif // NK_TARGET_RVVBB
-#endif // NK_TARGET_RISCV_
+#endif // NK_TARGET_RISCV64_
 #endif // NK_SET_RVVBB_H

@@ -9,7 +9,7 @@
 #ifndef NK_PROBABILITY_SKYLAKE_H
 #define NK_PROBABILITY_SKYLAKE_H
 
-#if NK_TARGET_X86_
+#if NK_TARGET_X8664_
 #if NK_TARGET_SKYLAKE
 
 #include "numkong/types.h"
@@ -320,5 +320,5 @@ nk_jsd_f16_skylake_cycle:
 #endif
 
 #endif // NK_TARGET_SKYLAKE
-#endif // NK_TARGET_X86_
+#endif // NK_TARGET_X8664_
 #endif // NK_PROBABILITY_SKYLAKE_H

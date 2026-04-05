@@ -62,7 +62,7 @@
 #ifndef NK_ATTENTION_SAPPHIREAMX_H
 #define NK_ATTENTION_SAPPHIREAMX_H
 
-#if NK_TARGET_X86_
+#if NK_TARGET_X8664_
 #if NK_TARGET_SAPPHIREAMX
 
 #include "numkong/types.h"
@@ -1359,5 +1359,5 @@ NK_PUBLIC void nk_attention_causal_bf16_sapphireamx(nk_bf16_t const *q, void con
 #endif
 
 #endif // NK_TARGET_SAPPHIREAMX
-#endif // NK_TARGET_X86_
+#endif // NK_TARGET_X8664_
 #endif // NK_ATTENTION_SAPPHIREAMX_H

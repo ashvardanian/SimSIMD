@@ -14,7 +14,7 @@
 #ifndef NK_SCALAR_LOONGSONASX_H
 #define NK_SCALAR_LOONGSONASX_H
 
-#if NK_TARGET_LOONGARCH_
+#if NK_TARGET_LOONGARCH64_
 #if NK_TARGET_LOONGSONASX
 
 #include "numkong/types.h"
@@ -70,5 +70,5 @@ NK_PUBLIC nk_f64_t nk_f64_rsqrt_loongsonasx(nk_f64_t x) { return 1.0 / nk_f64_sq
 #endif
 
 #endif // NK_TARGET_LOONGSONASX
-#endif // NK_TARGET_LOONGARCH_
+#endif // NK_TARGET_LOONGARCH64_
 #endif // NK_SCALAR_LOONGSONASX_H

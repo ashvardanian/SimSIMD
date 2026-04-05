@@ -34,7 +34,7 @@
 #ifndef NK_DOTS_SMEF64_H
 #define NK_DOTS_SMEF64_H
 
-#if NK_TARGET_ARM_
+#if NK_TARGET_ARM64_
 #if NK_TARGET_SME
 
 #include "numkong/types.h"
@@ -1319,5 +1319,5 @@ NK_PUBLIC void nk_dots_packed_f64_smef64(nk_f64_t const *a, void const *b_packed
 #endif
 
 #endif // NK_TARGET_SME
-#endif // NK_TARGET_ARM_
+#endif // NK_TARGET_ARM64_
 #endif // NK_DOTS_SMEF64_H

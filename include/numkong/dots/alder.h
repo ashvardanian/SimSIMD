@@ -12,7 +12,7 @@
 #ifndef NK_DOTS_ALDER_H
 #define NK_DOTS_ALDER_H
 
-#if NK_TARGET_X86_
+#if NK_TARGET_X8664_
 #if NK_TARGET_ALDER
 
 #include "numkong/dot/alder.h"   // Alder-specific dot product helpers
@@ -113,5 +113,5 @@ nk_define_cross_packed_(dots, e2m3, alder, e2m3, e2m3, f32, nk_b256_vec_t, nk_do
 #endif
 
 #endif // NK_TARGET_ALDER
-#endif // NK_TARGET_X86_
+#endif // NK_TARGET_X8664_
 #endif // NK_DOTS_ALDER_H

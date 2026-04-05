@@ -30,7 +30,7 @@
 #ifndef NK_SPATIAL_SVESDOT_H
 #define NK_SPATIAL_SVESDOT_H
 
-#if NK_TARGET_ARM_
+#if NK_TARGET_ARM64_
 #if NK_TARGET_SVESDOT
 
 #include "numkong/types.h"
@@ -138,5 +138,5 @@ NK_PUBLIC void nk_angular_u8_svesdot(nk_u8_t const *a, nk_u8_t const *b, nk_size
 #endif
 
 #endif // NK_TARGET_SVESDOT
-#endif // NK_TARGET_ARM_
+#endif // NK_TARGET_ARM64_
 #endif // NK_SPATIAL_SVESDOT_H

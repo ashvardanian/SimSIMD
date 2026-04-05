@@ -23,7 +23,7 @@
 #ifndef NK_TRIGONOMETRY_SKYLAKE_H
 #define NK_TRIGONOMETRY_SKYLAKE_H
 
-#if NK_TARGET_X86_
+#if NK_TARGET_X8664_
 #if NK_TARGET_SKYLAKE
 
 #include "numkong/types.h"
@@ -721,5 +721,5 @@ NK_PUBLIC void nk_each_atan_f16_skylake(nk_f16_t const *ins, nk_size_t n, nk_f16
 #endif
 
 #endif // NK_TARGET_SKYLAKE
-#endif // NK_TARGET_X86_
+#endif // NK_TARGET_X8664_
 #endif // NK_TRIGONOMETRY_SKYLAKE_H

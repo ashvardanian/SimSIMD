@@ -32,7 +32,7 @@
 #ifndef NK_DOT_SAPPHIRE_H
 #define NK_DOT_SAPPHIRE_H
 
-#if NK_TARGET_X86_
+#if NK_TARGET_X8664_
 #if NK_TARGET_SAPPHIRE
 
 #include "numkong/types.h"
@@ -137,5 +137,5 @@ NK_INTERNAL __m512 nk_flush_f16_to_f32_sapphire_(__m512h acc_f16x32, __m512 sum_
 #endif
 
 #endif // NK_TARGET_SAPPHIRE
-#endif // NK_TARGET_X86_
+#endif // NK_TARGET_X8664_
 #endif // NK_DOT_SAPPHIRE_H

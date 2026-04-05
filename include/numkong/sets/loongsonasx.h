@@ -9,7 +9,7 @@
 #ifndef NK_SETS_LOONGSONASX_H
 #define NK_SETS_LOONGSONASX_H
 
-#if NK_TARGET_LOONGARCH_
+#if NK_TARGET_LOONGARCH64_
 #if NK_TARGET_LOONGSONASX
 
 #include "numkong/set/loongsonasx.h"
@@ -48,5 +48,5 @@ nk_define_cross_normalized_symmetric_(jaccard, u1, loongsonasx, u1x8, u32, /*nor
 #endif
 
 #endif // NK_TARGET_LOONGSONASX
-#endif // NK_TARGET_LOONGARCH_
+#endif // NK_TARGET_LOONGARCH64_
 #endif // NK_SETS_LOONGSONASX_H

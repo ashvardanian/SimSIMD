@@ -9,7 +9,7 @@
 #ifndef NK_SPATIALS_GENOA_H
 #define NK_SPATIALS_GENOA_H
 
-#if NK_TARGET_X86_
+#if NK_TARGET_X8664_
 #if NK_TARGET_GENOA
 
 #include "numkong/spatial/haswell.h"
@@ -90,5 +90,5 @@ nk_define_cross_normalized_symmetric_(euclidean, e5m2, genoa, e5m2, f32, /*norm_
 #endif
 
 #endif // NK_TARGET_GENOA
-#endif // NK_TARGET_X86_
+#endif // NK_TARGET_X8664_
 #endif // NK_SPATIALS_GENOA_H

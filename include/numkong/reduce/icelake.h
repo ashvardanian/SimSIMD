@@ -15,7 +15,7 @@
 #ifndef NK_REDUCE_ICELAKE_H
 #define NK_REDUCE_ICELAKE_H
 
-#if NK_TARGET_X86_
+#if NK_TARGET_X8664_
 #if NK_TARGET_ICELAKE
 
 #include "numkong/reduce/serial.h"
@@ -545,5 +545,5 @@ NK_PUBLIC void nk_reduce_moments_e3m2_icelake(                          //
 #endif
 
 #endif // NK_TARGET_ICELAKE
-#endif // NK_TARGET_X86_
+#endif // NK_TARGET_X8664_
 #endif // NK_REDUCE_ICELAKE_H

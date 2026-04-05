@@ -12,7 +12,7 @@
 #ifndef NK_DOTS_DIAMOND_H
 #define NK_DOTS_DIAMOND_H
 
-#if NK_TARGET_X86_
+#if NK_TARGET_X8664_
 #if NK_TARGET_DIAMOND
 
 #include "numkong/dot/diamond.h"
@@ -82,5 +82,5 @@ nk_define_cross_packed_(dots, e5m2, diamond, e5m2, e5m2, f32, nk_b512_vec_t, nk_
 #endif
 
 #endif // NK_TARGET_DIAMOND
-#endif // NK_TARGET_X86_
+#endif // NK_TARGET_X8664_
 #endif // NK_DOTS_DIAMOND_H

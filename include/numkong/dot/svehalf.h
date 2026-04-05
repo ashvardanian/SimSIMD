@@ -29,7 +29,7 @@
 #ifndef NK_DOT_SVEHALF_H
 #define NK_DOT_SVEHALF_H
 
-#if NK_TARGET_ARM_
+#if NK_TARGET_ARM64_
 #if NK_TARGET_SVEHALF
 
 #include "numkong/types.h"      // `nk_f16_t`
@@ -163,5 +163,5 @@ NK_PUBLIC void nk_vdot_f16c_svehalf(nk_f16c_t const *a_pairs, nk_f16c_t const *b
 #endif
 
 #endif // NK_TARGET_SVEHALF
-#endif // NK_TARGET_ARM_
+#endif // NK_TARGET_ARM64_
 #endif // NK_DOT_SVEHALF_H

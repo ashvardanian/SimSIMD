@@ -297,6 +297,36 @@ const WASM_PROBES: &[IsaProbe] = &[IsaProbe {
     msvc_flags: &[],
 }];
 
+// ARM32 probes: a subset of NEON features available on 32-bit Arm.
+// Uses -mfpu=neon for baseline NEON, -mfpu=auto for extensions that
+// require the architecture level to imply the FPU.
+const ARM32_PROBES: &[IsaProbe] = &[
+    IsaProbe {
+        name: "NK_TARGET_NEON",
+        probe_file: "probes/arm_neon.c",
+        gcc_flags: &["-mfpu=neon"],
+        msvc_flags: &[],
+    },
+    IsaProbe {
+        name: "NK_TARGET_NEONSDOT",
+        probe_file: "probes/arm_neon_sdot.c",
+        gcc_flags: &["-march=armv8.2-a+dotprod", "-mfpu=auto"],
+        msvc_flags: &[],
+    },
+    IsaProbe {
+        name: "NK_TARGET_NEONHALF",
+        probe_file: "probes/arm_neon_half.c",
+        gcc_flags: &["-march=armv8.2-a+fp16", "-mfpu=auto"],
+        msvc_flags: &[],
+    },
+    IsaProbe {
+        name: "NK_TARGET_NEONFHM",
+        probe_file: "probes/arm_neon_fhm.c",
+        gcc_flags: &["-march=armv8.2-a+fp16fml", "-mfpu=auto"],
+        msvc_flags: &[],
+    },
+];
+
 fn build_numkong() -> Result<HashMap<String, bool>, String> {
     let mut flags = HashMap::<String, bool>::new();
     let mut build = cc::Build::new();
@@ -352,12 +382,14 @@ fn build_numkong() -> Result<HashMap<String, bool>, String> {
 
     let is_x86_64 = target_arch == "x86_64" && target_bits == "64";
     let is_aarch64 = target_arch == "aarch64" && target_bits == "64";
+    let is_arm32 = target_arch == "arm";
     let is_riscv64 = target_arch == "riscv64" && target_bits == "64";
     let is_loongarch64 = target_arch == "loongarch64" && target_bits == "64";
     let is_power64 = target_arch == "powerpc64" && target_bits == "64";
 
     build.define("NK_IS_64BIT_X86", if is_x86_64 { "1" } else { "0" });
     build.define("NK_IS_64BIT_ARM", if is_aarch64 { "1" } else { "0" });
+    build.define("NK_IS_32BIT_ARM", if is_arm32 { "1" } else { "0" });
     build.define("NK_IS_64BIT_RISCV", if is_riscv64 { "1" } else { "0" });
     build.define(
         "NK_IS_64BIT_LOONGARCH",
@@ -376,6 +408,7 @@ fn build_numkong() -> Result<HashMap<String, bool>, String> {
     let probe_tables: &[&[IsaProbe]] = match target_arch.as_str() {
         "x86_64" => &[X86_PROBES],
         "aarch64" => &[ARM_PROBES],
+        "arm" => &[ARM32_PROBES],
         "riscv64" => &[RISCV_PROBES],
         "loongarch64" => &[LOONGARCH_PROBES],
         "powerpc64" => &[POWER_PROBES],

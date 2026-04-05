@@ -21,7 +21,7 @@
 #ifndef NK_DOTS_SKYLAKE_H
 #define NK_DOTS_SKYLAKE_H
 
-#if NK_TARGET_X86_
+#if NK_TARGET_X8664_
 #if NK_TARGET_SKYLAKE
 
 #include "numkong/dot/skylake.h"
@@ -203,5 +203,5 @@ nk_define_cross_packed_(dots, e3m2, skylake, e3m2, e3m2, f32, nk_b512_vec_t, nk_
 #endif
 
 #endif // NK_TARGET_SKYLAKE
-#endif // NK_TARGET_X86_
+#endif // NK_TARGET_X8664_
 #endif // NK_DOTS_SKYLAKE_H

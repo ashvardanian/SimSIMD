@@ -9,7 +9,7 @@
 #ifndef NK_SPATIALS_LOONGSONASX_H
 #define NK_SPATIALS_LOONGSONASX_H
 
-#if NK_TARGET_LOONGARCH_
+#if NK_TARGET_LOONGARCH64_
 #if NK_TARGET_LOONGSONASX
 
 #include "numkong/spatial/loongsonasx.h"
@@ -149,5 +149,5 @@ nk_define_cross_normalized_symmetric_(euclidean, f16, loongsonasx, f16, f32, /*n
 #endif
 
 #endif // NK_TARGET_LOONGSONASX
-#endif // NK_TARGET_LOONGARCH_
+#endif // NK_TARGET_LOONGARCH64_
 #endif // NK_SPATIALS_LOONGSONASX_H

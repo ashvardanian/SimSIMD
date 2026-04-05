@@ -22,7 +22,7 @@
 #ifndef NK_SPARSE_ICELAKE_H
 #define NK_SPARSE_ICELAKE_H
 
-#if NK_TARGET_X86_
+#if NK_TARGET_X8664_
 #if NK_TARGET_ICELAKE
 
 #include "numkong/types.h"
@@ -459,5 +459,5 @@ NK_PUBLIC void nk_sparse_dot_u32f32_icelake(              //
 #endif
 
 #endif // NK_TARGET_ICELAKE
-#endif // NK_TARGET_X86_
+#endif // NK_TARGET_X8664_
 #endif // NK_SPARSE_ICELAKE_H

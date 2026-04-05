@@ -9,7 +9,7 @@
 #ifndef NK_SPATIALS_ICELAKE_H
 #define NK_SPATIALS_ICELAKE_H
 
-#if NK_TARGET_X86_
+#if NK_TARGET_X8664_
 #if NK_TARGET_ICELAKE
 
 #include "numkong/spatial/haswell.h"
@@ -109,5 +109,5 @@ nk_define_cross_normalized_symmetric_(euclidean, u4, icelake, u4x2, u32, /*norm_
 #endif
 
 #endif // NK_TARGET_ICELAKE
-#endif // NK_TARGET_X86_
+#endif // NK_TARGET_X8664_
 #endif // NK_SPATIALS_ICELAKE_H

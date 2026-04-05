@@ -28,12 +28,14 @@ jobs:
       - name: Install Rust toolchain
         uses: moonrepo/setup-rust@v1
 
-      - name: Install 32-bit target and dependencies
+      - name: Install cross-compilation targets and dependencies
         run: |
           rustup target add i686-unknown-linux-gnu
+          rustup target add armv7-unknown-linux-gnueabihf
           sudo dpkg --add-architecture i386
           sudo apt-get update
-          sudo apt-get install -y gcc-multilib g++-multilib libc6-dev-i386
+          sudo apt-get install -y gcc-multilib g++-multilib libc6-dev-i386 \
+            gcc-arm-linux-gnueabihf
 
       - name: Test default build
         run: cargo test
@@ -49,3 +51,14 @@ jobs:
 
       - name: Test i686 cross-compilation (no-std)
         run: cargo build --target i686-unknown-linux-gnu --no-default-features
+
+      # 32-bit ARM — catches AArch64-only intrinsics leaking into NEON paths
+      - name: Test armv7 cross-compilation build
+        env:
+          CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER: arm-linux-gnueabihf-gcc
+        run: cargo build --target armv7-unknown-linux-gnueabihf --all-features
+
+      - name: Test armv7 cross-compilation (no-std)
+        env:
+          CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER: arm-linux-gnueabihf-gcc
+        run: cargo build --target armv7-unknown-linux-gnueabihf --no-default-features

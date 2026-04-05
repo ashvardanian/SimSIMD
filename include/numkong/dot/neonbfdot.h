@@ -57,7 +57,7 @@
 #ifndef NK_DOT_NEONBFDOT_H
 #define NK_DOT_NEONBFDOT_H
 
-#if NK_TARGET_ARM_
+#if NK_TARGET_ARM64_
 #if NK_TARGET_NEONBFDOT
 
 #include "numkong/types.h"
@@ -239,5 +239,5 @@ NK_INTERNAL void nk_dot_bf16x8_finalize_neonbfdot(                              
 #endif
 
 #endif // NK_TARGET_NEONBFDOT
-#endif // NK_TARGET_ARM_
+#endif // NK_TARGET_ARM64_
 #endif // NK_DOT_NEONBFDOT_H

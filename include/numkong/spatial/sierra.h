@@ -22,7 +22,7 @@
 #ifndef NK_SPATIAL_SIERRA_H
 #define NK_SPATIAL_SIERRA_H
 
-#if NK_TARGET_X86_
+#if NK_TARGET_X8664_
 #if NK_TARGET_SIERRA
 
 #include "numkong/types.h"
@@ -512,5 +512,5 @@ nk_angular_e3m2_sierra_cycle:
 #endif
 
 #endif // NK_TARGET_SIERRA
-#endif // NK_TARGET_X86_
+#endif // NK_TARGET_X8664_
 #endif // NK_SPATIAL_SIERRA_H

@@ -9,7 +9,7 @@
 #ifndef NK_PROBABILITY_NEON_H
 #define NK_PROBABILITY_NEON_H
 
-#if NK_TARGET_ARM_
+#if NK_TARGET_ARM64_
 
 #include "numkong/types.h"
 #include "numkong/cast/serial.h"  // `nk_partial_load_b16x4_serial_`, `nk_partial_load_b32x4_serial_`
@@ -251,5 +251,5 @@ nk_jsd_f16_neon_cycle:
 } // extern "C"
 #endif
 
-#endif // NK_TARGET_ARM_
+#endif // NK_TARGET_ARM64_
 #endif // NK_PROBABILITY_NEON_H

@@ -30,7 +30,7 @@
 #ifndef NK_DOT_NEONFP8_H
 #define NK_DOT_NEONFP8_H
 
-#if NK_TARGET_ARM_
+#if NK_TARGET_ARM64_
 #if NK_TARGET_NEONFP8
 
 #include "numkong/types.h"
@@ -319,5 +319,5 @@ NK_INTERNAL void nk_dot_e3m2x16_finalize_neonfp8(                               
 #endif
 
 #endif // NK_TARGET_NEONFP8
-#endif // NK_TARGET_ARM_
+#endif // NK_TARGET_ARM64_
 #endif // NK_DOT_NEONFP8_H

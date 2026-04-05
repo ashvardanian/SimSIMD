@@ -9,7 +9,7 @@
 #ifndef NK_SPATIALS_SKYLAKE_H
 #define NK_SPATIALS_SKYLAKE_H
 
-#if NK_TARGET_X86_
+#if NK_TARGET_X8664_
 #if NK_TARGET_SKYLAKE
 
 #include "numkong/spatial/skylake.h"
@@ -180,5 +180,5 @@ nk_define_cross_normalized_symmetric_(euclidean, e3m2, skylake, e3m2, f32, /*nor
 #endif
 
 #endif // NK_TARGET_SKYLAKE
-#endif // NK_TARGET_X86_
+#endif // NK_TARGET_X8664_
 #endif // NK_SPATIALS_SKYLAKE_H

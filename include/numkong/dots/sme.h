@@ -58,7 +58,7 @@
 #ifndef NK_DOTS_SME_H
 #define NK_DOTS_SME_H
 
-#if NK_TARGET_ARM_
+#if NK_TARGET_ARM64_
 #if NK_TARGET_SME
 
 #include "numkong/types.h"
@@ -1520,8 +1520,8 @@ NK_PUBLIC svfloat16_t nk_e5m2x_to_f16x_ssve_(svbool_t predicate_b16x, svuint8_t 
  *  Converts `e4m3` → `f16` on-the-fly for A, B is pre-converted during packing.
  */
 __arm_locally_streaming __arm_new("za") static void nk_dots_packed_e4m3_sme_streaming_( //
-    nk_e4m3_t const *a, void const *b_packed, nk_f32_t *c,                                                        //
-    nk_size_t rows, nk_size_t columns, nk_size_t depth,                                                           //
+    nk_e4m3_t const *a, void const *b_packed, nk_f32_t *c,                              //
+    nk_size_t rows, nk_size_t columns, nk_size_t depth,                                 //
     nk_size_t a_stride_elements, nk_size_t c_stride_elements) {
 
     nk_dots_sme_packed_header_t const *header = (nk_dots_sme_packed_header_t const *)b_packed;
@@ -2032,8 +2032,8 @@ NK_PUBLIC void nk_dots_symmetric_e4m3_sme(nk_e4m3_t const *vectors, nk_size_t ve
  *  Converts `e5m2` → `f16` on-the-fly for A, B is pre-converted during packing.
  */
 __arm_locally_streaming __arm_new("za") static void nk_dots_packed_e5m2_sme_streaming_( //
-    nk_e5m2_t const *a, void const *b_packed, nk_f32_t *c,                                                        //
-    nk_size_t rows, nk_size_t columns, nk_size_t depth,                                                           //
+    nk_e5m2_t const *a, void const *b_packed, nk_f32_t *c,                              //
+    nk_size_t rows, nk_size_t columns, nk_size_t depth,                                 //
     nk_size_t a_stride_elements, nk_size_t c_stride_elements) {
 
     nk_dots_sme_packed_header_t const *header = (nk_dots_sme_packed_header_t const *)b_packed;
@@ -2491,8 +2491,8 @@ NK_PUBLIC svint8_t nk_e2m3x_to_i8x_ssve_(svbool_t predicate_b8x, svuint8_t raw_b
  *  Accumulates in `i32` via `svmopa_za32_s8_m`, then converts to `f32` with 1/256 scaling.
  */
 __arm_locally_streaming __arm_new("za") static void nk_dots_packed_e2m3_sme_streaming_( //
-    nk_e2m3_t const *a, void const *b_packed, nk_f32_t *c,                                                        //
-    nk_size_t rows, nk_size_t columns, nk_size_t depth,                                                           //
+    nk_e2m3_t const *a, void const *b_packed, nk_f32_t *c,                              //
+    nk_size_t rows, nk_size_t columns, nk_size_t depth,                                 //
     nk_size_t a_stride_elements, nk_size_t c_stride_elements) {
 
     nk_dots_sme_packed_header_t const *header = (nk_dots_sme_packed_header_t const *)b_packed;
@@ -3013,8 +3013,8 @@ NK_PUBLIC svfloat16_t nk_e3m2x_to_f16x_ssve_(svbool_t predicate_b16x, svuint8_t 
  *  Converts `e3m2` → `f16` on-the-fly for A, B is pre-converted during packing.
  */
 __arm_locally_streaming __arm_new("za") static void nk_dots_packed_e3m2_sme_streaming_( //
-    nk_e3m2_t const *a, void const *b_packed, nk_f32_t *c,                                                        //
-    nk_size_t rows, nk_size_t columns, nk_size_t depth,                                                           //
+    nk_e3m2_t const *a, void const *b_packed, nk_f32_t *c,                              //
+    nk_size_t rows, nk_size_t columns, nk_size_t depth,                                 //
     nk_size_t a_stride_elements, nk_size_t c_stride_elements) {
 
     nk_dots_sme_packed_header_t const *header = (nk_dots_sme_packed_header_t const *)b_packed;
@@ -5005,5 +5005,5 @@ NK_PUBLIC void nk_dots_symmetric_i4_sme(nk_i4x2_t const *vectors, nk_size_t vect
 #endif
 
 #endif // NK_TARGET_SME
-#endif // NK_TARGET_ARM_
+#endif // NK_TARGET_ARM64_
 #endif // NK_DOTS_SME_H

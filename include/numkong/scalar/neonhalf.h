@@ -13,7 +13,7 @@
 #ifndef NK_SCALAR_NEONHALF_H
 #define NK_SCALAR_NEONHALF_H
 
-#if NK_TARGET_ARM_
+#if NK_TARGET_ARM64_
 #if NK_TARGET_NEONHALF
 
 #include "numkong/types.h"
@@ -66,5 +66,5 @@ NK_PUBLIC nk_f16_t nk_f16_fma_neonhalf(nk_f16_t a, nk_f16_t b, nk_f16_t c) {
 #endif
 
 #endif // NK_TARGET_NEONHALF
-#endif // NK_TARGET_ARM_
+#endif // NK_TARGET_ARM64_
 #endif // NK_SCALAR_NEONHALF_H
