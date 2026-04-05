@@ -12,7 +12,7 @@
 #ifndef NK_SCALAR_RVV_H
 #define NK_SCALAR_RVV_H
 
-#if NK_TARGET_RISCV_
+#if NK_TARGET_RISCV64_
 #if NK_TARGET_RVV
 
 #include "numkong/types.h"
@@ -207,5 +207,5 @@ NK_PUBLIC nk_i64_t nk_i64_saturating_mul_rvv(nk_i64_t a, nk_i64_t b) {
 #endif
 
 #endif // NK_TARGET_RVV
-#endif // NK_TARGET_RISCV_
+#endif // NK_TARGET_RISCV64_
 #endif // NK_SCALAR_RVV_H

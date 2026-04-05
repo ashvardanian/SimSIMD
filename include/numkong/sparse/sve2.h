@@ -9,7 +9,7 @@
 #ifndef NK_SPARSE_SVE2_H
 #define NK_SPARSE_SVE2_H
 
-#if NK_TARGET_ARM_
+#if NK_TARGET_ARM64_
 
 #include "numkong/types.h"
 
@@ -499,5 +499,5 @@ NK_PUBLIC void nk_sparse_dot_u16bf16_sve2(                  //
 } // extern "C"
 #endif
 
-#endif // NK_TARGET_ARM_
+#endif // NK_TARGET_ARM64_
 #endif // NK_SPARSE_SVE2_H

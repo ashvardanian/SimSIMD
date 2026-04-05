@@ -45,7 +45,7 @@
 #ifndef NK_MAXSIM_SAPPHIREAMX_H
 #define NK_MAXSIM_SAPPHIREAMX_H
 
-#if NK_TARGET_X86_
+#if NK_TARGET_X8664_
 #if NK_TARGET_SAPPHIREAMX
 
 #include "numkong/types.h"
@@ -873,5 +873,5 @@ NK_PUBLIC void nk_maxsim_packed_bf16_sapphireamx( //
 #endif
 
 #endif // NK_TARGET_SAPPHIREAMX
-#endif // NK_TARGET_X86_
+#endif // NK_TARGET_X8664_
 #endif // NK_MAXSIM_SAPPHIREAMX_H

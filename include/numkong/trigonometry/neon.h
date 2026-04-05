@@ -32,7 +32,7 @@
 #ifndef NK_TRIGONOMETRY_NEON_H
 #define NK_TRIGONOMETRY_NEON_H
 
-#if NK_TARGET_ARM_
+#if NK_TARGET_ARM64_
 #if NK_TARGET_NEON
 
 #include "numkong/types.h"
@@ -634,5 +634,5 @@ NK_PUBLIC void nk_each_atan_f64_neon(nk_f64_t const *ins, nk_size_t n, nk_f64_t 
 #endif
 
 #endif // NK_TARGET_NEON
-#endif // NK_TARGET_ARM_
+#endif // NK_TARGET_ARM64_
 #endif // NK_TRIGONOMETRY_NEON_H

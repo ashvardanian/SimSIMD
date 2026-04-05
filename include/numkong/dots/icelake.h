@@ -21,7 +21,7 @@
 #ifndef NK_DOTS_ICELAKE_H
 #define NK_DOTS_ICELAKE_H
 
-#if NK_TARGET_X86_
+#if NK_TARGET_X8664_
 #if NK_TARGET_ICELAKE
 
 #include "numkong/dot/icelake.h"
@@ -176,5 +176,5 @@ nk_define_cross_packed_(dots, u1, icelake, u1x8, u1x8, u32, nk_b512_vec_t, nk_do
 #endif
 
 #endif // NK_TARGET_ICELAKE
-#endif // NK_TARGET_X86_
+#endif // NK_TARGET_X8664_
 #endif // NK_DOTS_ICELAKE_H

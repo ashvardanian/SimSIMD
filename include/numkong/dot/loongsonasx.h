@@ -25,7 +25,7 @@
 #ifndef NK_DOT_LOONGSONASX_H
 #define NK_DOT_LOONGSONASX_H
 
-#if NK_TARGET_LOONGARCH_
+#if NK_TARGET_LOONGARCH64_
 #if NK_TARGET_LOONGSONASX
 
 #include "numkong/types.h"
@@ -667,5 +667,5 @@ NK_INTERNAL void nk_dot_u1x256_finalize_loongsonasx(                            
 #endif
 
 #endif // NK_TARGET_LOONGSONASX
-#endif // NK_TARGET_LOONGARCH_
+#endif // NK_TARGET_LOONGARCH64_
 #endif // NK_DOT_LOONGSONASX_H

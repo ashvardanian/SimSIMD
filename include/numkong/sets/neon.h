@@ -9,7 +9,7 @@
 #ifndef NK_SETS_NEON_H
 #define NK_SETS_NEON_H
 
-#if NK_TARGET_ARM_
+#if NK_TARGET_ARM64_
 #if NK_TARGET_NEON
 
 #include "numkong/set/neon.h"
@@ -57,5 +57,5 @@ nk_define_cross_normalized_symmetric_(jaccard, u1, neon, u1x8, u32, /*norm_value
 #endif
 
 #endif // NK_TARGET_NEON
-#endif // NK_TARGET_ARM_
+#endif // NK_TARGET_ARM64_
 #endif // NK_SETS_NEON_H

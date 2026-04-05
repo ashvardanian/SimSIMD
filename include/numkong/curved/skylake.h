@@ -13,7 +13,7 @@
 #ifndef NK_CURVED_SKYLAKE_H
 #define NK_CURVED_SKYLAKE_H
 
-#if NK_TARGET_X86_
+#if NK_TARGET_X8664_
 #if NK_TARGET_SKYLAKE
 
 #include "numkong/types.h"
@@ -453,5 +453,5 @@ NK_PUBLIC void nk_bilinear_f64c_skylake(nk_f64c_t const *a, nk_f64c_t const *b, 
 #endif
 
 #endif // NK_TARGET_SKYLAKE
-#endif // NK_TARGET_X86_
+#endif // NK_TARGET_X8664_
 #endif // NK_CURVED_SKYLAKE_H

@@ -41,7 +41,7 @@
 #ifndef NK_SET_NEON_H
 #define NK_SET_NEON_H
 
-#if NK_TARGET_ARM_
+#if NK_TARGET_ARM64_
 #if NK_TARGET_NEON
 
 #include "numkong/types.h"      // `nk_u1x8_t`
@@ -359,5 +359,5 @@ NK_INTERNAL void nk_jaccard_f32x4_from_dot_neon_(nk_b128_vec_t dots, nk_u32_t qu
 #endif
 
 #endif // NK_TARGET_NEON
-#endif // NK_TARGET_ARM_
+#endif // NK_TARGET_ARM64_
 #endif // NK_SET_NEON_H

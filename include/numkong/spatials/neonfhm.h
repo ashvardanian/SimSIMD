@@ -9,7 +9,7 @@
 #ifndef NK_SPATIALS_NEONFHM_H
 #define NK_SPATIALS_NEONFHM_H
 
-#if NK_TARGET_ARM_
+#if NK_TARGET_ARM64_
 #if NK_TARGET_NEONFHM
 
 #include "numkong/spatial/neon.h"
@@ -88,5 +88,5 @@ nk_define_cross_normalized_symmetric_(euclidean, e5m2, neonfhm, e5m2, f32, /*nor
 #endif
 
 #endif // NK_TARGET_NEONFHM
-#endif // NK_TARGET_ARM_
+#endif // NK_TARGET_ARM64_
 #endif // NK_SPATIALS_NEONFHM_H

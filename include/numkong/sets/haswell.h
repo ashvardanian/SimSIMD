@@ -9,7 +9,7 @@
 #ifndef NK_SETS_HASWELL_H
 #define NK_SETS_HASWELL_H
 
-#if NK_TARGET_X86_
+#if NK_TARGET_X8664_
 #if NK_TARGET_HASWELL
 
 #include "numkong/set/haswell.h"
@@ -59,5 +59,5 @@ nk_define_cross_normalized_symmetric_(jaccard, u1, haswell, u1x8, u32, /*norm_va
 #endif
 
 #endif // NK_TARGET_HASWELL
-#endif // NK_TARGET_X86_
+#endif // NK_TARGET_X8664_
 #endif // NK_SETS_HASWELL_H

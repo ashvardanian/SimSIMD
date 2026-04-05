@@ -9,7 +9,7 @@
 #ifndef NK_SPATIAL_GENOA_H
 #define NK_SPATIAL_GENOA_H
 
-#if NK_TARGET_X86_
+#if NK_TARGET_X8664_
 #if NK_TARGET_GENOA
 
 #include "numkong/types.h"
@@ -218,5 +218,5 @@ nk_angular_e5m2_genoa_cycle:
 #endif
 
 #endif // NK_TARGET_GENOA
-#endif // NK_TARGET_X86_
+#endif // NK_TARGET_X8664_
 #endif // NK_SPATIAL_GENOA_H

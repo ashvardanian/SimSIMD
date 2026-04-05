@@ -19,7 +19,7 @@
 #ifndef NK_SCALAR_POWERVSX_H
 #define NK_SCALAR_POWERVSX_H
 
-#if NK_TARGET_POWER_
+#if NK_TARGET_POWER64_
 #if NK_TARGET_POWERVSX
 
 #include "numkong/types.h"
@@ -92,5 +92,5 @@ NK_PUBLIC nk_f64_t nk_f64_fma_powervsx(nk_f64_t a, nk_f64_t b, nk_f64_t c) {
 #endif
 
 #endif // NK_TARGET_POWERVSX
-#endif // NK_TARGET_POWER_
+#endif // NK_TARGET_POWER64_
 #endif // NK_SCALAR_POWERVSX_H

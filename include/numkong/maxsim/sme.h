@@ -43,7 +43,7 @@
 #ifndef NK_MAXSIM_SME_H
 #define NK_MAXSIM_SME_H
 
-#if NK_TARGET_ARM_
+#if NK_TARGET_ARM64_
 #if NK_TARGET_SME
 
 #include "numkong/dots/sme.h" // nk_dots_sme_packed_header_t, nk_dots_pack_{f16,bf16}_sme, nk_dots_packed_size_{f16,bf16}_sme
@@ -950,5 +950,5 @@ NK_PUBLIC void nk_maxsim_packed_f32_sme(                              //
 #endif
 
 #endif // NK_TARGET_SME
-#endif // NK_TARGET_ARM_
+#endif // NK_TARGET_ARM64_
 #endif // NK_MAXSIM_SME_H

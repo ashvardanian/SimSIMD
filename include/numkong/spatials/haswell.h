@@ -9,7 +9,7 @@
 #ifndef NK_SPATIALS_HASWELL_H
 #define NK_SPATIALS_HASWELL_H
 
-#if NK_TARGET_X86_
+#if NK_TARGET_X8664_
 #if NK_TARGET_HASWELL
 
 #include "numkong/spatial/haswell.h"
@@ -215,5 +215,5 @@ nk_define_cross_normalized_symmetric_(euclidean, u8, haswell, u8, u32, /*norm_va
 #endif
 
 #endif // NK_TARGET_HASWELL
-#endif // NK_TARGET_X86_
+#endif // NK_TARGET_X8664_
 #endif // NK_SPATIALS_HASWELL_H

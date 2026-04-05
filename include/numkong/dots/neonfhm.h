@@ -12,7 +12,7 @@
 #ifndef NK_DOTS_NEONFHM_H
 #define NK_DOTS_NEONFHM_H
 
-#if NK_TARGET_ARM_
+#if NK_TARGET_ARM64_
 #if NK_TARGET_NEONFHM
 
 #include "numkong/dot/neonfhm.h"
@@ -92,5 +92,5 @@ nk_define_cross_packed_(dots, e5m2, neonfhm, e5m2, e5m2, f32, nk_b128_vec_t, nk_
 #endif
 
 #endif // NK_TARGET_NEONFHM
-#endif // NK_TARGET_ARM_
+#endif // NK_TARGET_ARM64_
 #endif // NK_DOTS_NEONFHM_H

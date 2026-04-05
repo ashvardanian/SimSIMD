@@ -18,7 +18,7 @@
 #ifndef NK_DOT_RVVBF16_H
 #define NK_DOT_RVVBF16_H
 
-#if NK_TARGET_RISCV_
+#if NK_TARGET_RISCV64_
 #if NK_TARGET_RVVBF16
 
 #include "numkong/types.h"
@@ -119,5 +119,5 @@ NK_PUBLIC void nk_dot_e5m2_rvvbf16(nk_e5m2_t const *a_scalars, nk_e5m2_t const *
 #endif
 
 #endif // NK_TARGET_RVVBF16
-#endif // NK_TARGET_RISCV_
+#endif // NK_TARGET_RISCV64_
 #endif // NK_DOT_RVVBF16_H

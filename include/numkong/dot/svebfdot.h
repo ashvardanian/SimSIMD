@@ -27,7 +27,7 @@
 #ifndef NK_DOT_SVEBFDOT_H
 #define NK_DOT_SVEBFDOT_H
 
-#if NK_TARGET_ARM_
+#if NK_TARGET_ARM64_
 #if NK_TARGET_SVEBFDOT
 
 #include "numkong/types.h"
@@ -70,5 +70,5 @@ NK_PUBLIC void nk_dot_bf16_svebfdot(nk_bf16_t const *a_scalars, nk_bf16_t const 
 #endif
 
 #endif // NK_TARGET_SVEBFDOT
-#endif // NK_TARGET_ARM_
+#endif // NK_TARGET_ARM64_
 #endif // NK_DOT_SVEBFDOT_H

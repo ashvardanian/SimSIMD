@@ -40,7 +40,7 @@
 #ifndef NK_SET_POWERVSX_H
 #define NK_SET_POWERVSX_H
 
-#if NK_TARGET_POWER_
+#if NK_TARGET_POWER64_
 #if NK_TARGET_POWERVSX
 
 #include "numkong/types.h"
@@ -322,5 +322,5 @@ NK_INTERNAL void nk_jaccard_f32x4_from_dot_powervsx_(nk_b128_vec_t dots, nk_u32_
 #endif
 
 #endif // NK_TARGET_POWERVSX
-#endif // NK_TARGET_POWER_
+#endif // NK_TARGET_POWER64_
 #endif // NK_SET_POWERVSX_H

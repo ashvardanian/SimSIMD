@@ -30,7 +30,7 @@
 #ifndef NK_MESH_NEONBFDOT_H
 #define NK_MESH_NEONBFDOT_H
 
-#if NK_TARGET_ARM_
+#if NK_TARGET_ARM64_
 #if NK_TARGET_NEONBFDOT
 
 #include "numkong/types.h"
@@ -806,5 +806,5 @@ NK_PUBLIC void nk_umeyama_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b,
 #endif
 
 #endif // NK_TARGET_NEONBFDOT
-#endif // NK_TARGET_ARM_
+#endif // NK_TARGET_ARM64_
 #endif // NK_MESH_NEONBFDOT_H

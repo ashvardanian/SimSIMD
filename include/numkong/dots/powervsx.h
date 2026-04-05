@@ -24,7 +24,7 @@
 #ifndef NK_DOTS_POWERVSX_H
 #define NK_DOTS_POWERVSX_H
 
-#if NK_TARGET_POWER_
+#if NK_TARGET_POWER64_
 #if NK_TARGET_POWERVSX
 
 #include "numkong/dot/powervsx.h"
@@ -190,5 +190,5 @@ nk_define_cross_packed_(dots, f64, powervsx, f64, f64, f64, nk_b128_vec_t, nk_do
 #endif
 
 #endif // NK_TARGET_POWERVSX
-#endif // NK_TARGET_POWER_
+#endif // NK_TARGET_POWER64_
 #endif // NK_DOTS_POWERVSX_H

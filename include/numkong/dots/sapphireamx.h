@@ -69,7 +69,7 @@
 #ifndef NK_DOTS_SAPPHIREAMX_H
 #define NK_DOTS_SAPPHIREAMX_H
 
-#if NK_TARGET_X86_
+#if NK_TARGET_X8664_
 #if NK_TARGET_SAPPHIREAMX
 
 #include "numkong/cast/icelake.h" // For FP8 ↔ BF16 conversions
@@ -4013,5 +4013,5 @@ NK_PUBLIC void nk_dots_symmetric_e3m2_sapphireamx(                              
 #endif
 
 #endif // NK_TARGET_SAPPHIREAMX
-#endif // NK_TARGET_X86_
+#endif // NK_TARGET_X8664_
 #endif // NK_DOTS_SAPPHIREAMX_H

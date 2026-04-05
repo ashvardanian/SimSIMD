@@ -11,7 +11,7 @@
 #ifndef NK_CURVED_GENOA_H
 #define NK_CURVED_GENOA_H
 
-#if NK_TARGET_X86_
+#if NK_TARGET_X8664_
 #if NK_TARGET_GENOA
 
 #include "numkong/types.h"
@@ -178,5 +178,5 @@ NK_PUBLIC void nk_bilinear_bf16c_genoa(nk_bf16c_t const *a, nk_bf16c_t const *b,
 #endif
 
 #endif // NK_TARGET_GENOA
-#endif // NK_TARGET_X86_
+#endif // NK_TARGET_X8664_
 #endif // NK_CURVED_GENOA_H

@@ -9,7 +9,7 @@
 #ifndef NK_REDUCE_NEON_H
 #define NK_REDUCE_NEON_H
 
-#if NK_TARGET_ARM_
+#if NK_TARGET_ARM64_
 #if NK_TARGET_NEON
 
 #include "numkong/types.h"       // `nk_size_t`
@@ -3947,5 +3947,5 @@ NK_PUBLIC void nk_reduce_moments_f16_neon(                             //
 #endif
 
 #endif // NK_TARGET_NEON
-#endif // NK_TARGET_ARM_
+#endif // NK_TARGET_ARM64_
 #endif // NK_REDUCE_NEON_H

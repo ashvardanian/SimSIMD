@@ -22,7 +22,7 @@
 #ifndef NK_DOT_RVV_H
 #define NK_DOT_RVV_H
 
-#if NK_TARGET_RISCV_
+#if NK_TARGET_RISCV64_
 #if NK_TARGET_RVV
 
 #include "numkong/types.h"
@@ -718,5 +718,5 @@ NK_PUBLIC void nk_vdot_f64c_rvv(nk_f64c_t const *a_pairs, nk_f64c_t const *b_pai
 #endif
 
 #endif // NK_TARGET_RVV
-#endif // NK_TARGET_RISCV_
+#endif // NK_TARGET_RISCV64_
 #endif // NK_DOT_RVV_H

@@ -32,7 +32,7 @@ if sys.platform == "darwin":
 
 def is_64bit_x86() -> bool:
     """Detect x86-64 architecture with environment override support."""
-    override = os.environ.get("NK_TARGET_X86_")
+    override = os.environ.get("NK_TARGET_X8664_")
     if override is not None:
         return override == "1"
     arch = platform.machine().lower()
@@ -41,7 +41,7 @@ def is_64bit_x86() -> bool:
 
 def is_64bit_arm() -> bool:
     """Detect ARM64 architecture with environment override support."""
-    override = os.environ.get("NK_TARGET_ARM_")
+    override = os.environ.get("NK_TARGET_ARM64_")
     if override is not None:
         return override == "1"
     arch = platform.machine().lower()
@@ -50,7 +50,7 @@ def is_64bit_arm() -> bool:
 
 def is_64bit_riscv() -> bool:
     """Detect RISC-V 64-bit architecture with environment override support."""
-    override = os.environ.get("NK_TARGET_RISCV_")
+    override = os.environ.get("NK_TARGET_RISCV64_")
     if override is not None:
         return override == "1"
     arch = platform.machine().lower()
@@ -59,7 +59,7 @@ def is_64bit_riscv() -> bool:
 
 def is_64bit_loongarch() -> bool:
     """Detect LoongArch 64-bit architecture with environment override support."""
-    override = os.environ.get("NK_TARGET_LOONGARCH_")
+    override = os.environ.get("NK_TARGET_LOONGARCH64_")
     if override is not None:
         return override == "1"
     arch = platform.machine().lower()
@@ -68,7 +68,7 @@ def is_64bit_loongarch() -> bool:
 
 def is_64bit_power() -> bool:
     """Detect Power 64-bit architecture with environment override support."""
-    override = os.environ.get("NK_TARGET_POWER_")
+    override = os.environ.get("NK_TARGET_POWER64_")
     if override is not None:
         return override == "1"
     arch = platform.machine().lower()

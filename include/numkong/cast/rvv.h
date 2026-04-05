@@ -37,7 +37,7 @@
 #ifndef NK_CAST_RVV_H
 #define NK_CAST_RVV_H
 
-#if NK_TARGET_RISCV_
+#if NK_TARGET_RISCV64_
 #if NK_TARGET_RVV
 
 #include "numkong/types.h"
@@ -966,5 +966,5 @@ NK_PUBLIC void nk_cast_rvv(void const *from, nk_dtype_t from_type, nk_size_t cou
 #endif
 
 #endif // NK_TARGET_RVV
-#endif // NK_TARGET_RISCV_
+#endif // NK_TARGET_RISCV64_
 #endif // NK_CAST_RVV_H

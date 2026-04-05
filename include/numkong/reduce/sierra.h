@@ -13,7 +13,7 @@
 #ifndef NK_REDUCE_SIERRA_H
 #define NK_REDUCE_SIERRA_H
 
-#if NK_TARGET_X86_
+#if NK_TARGET_X8664_
 #if NK_TARGET_SIERRA
 
 #include "numkong/types.h"
@@ -334,5 +334,5 @@ NK_PUBLIC void nk_reduce_moments_e2m3_sierra(                       //
 #endif
 
 #endif // NK_TARGET_SIERRA
-#endif // NK_TARGET_X86_
+#endif // NK_TARGET_X8664_
 #endif // NK_REDUCE_SIERRA_H

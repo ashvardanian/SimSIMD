@@ -23,7 +23,7 @@
 #ifndef NK_SPATIAL_RVV_H
 #define NK_SPATIAL_RVV_H
 
-#if NK_TARGET_RISCV_
+#if NK_TARGET_RISCV64_
 #if NK_TARGET_RVV
 
 #include "numkong/types.h"
@@ -987,5 +987,5 @@ NK_PUBLIC void nk_angular_u4_rvv(nk_u4x2_t const *a_scalars, nk_u4x2_t const *b_
 
 #pragma endregion I8 and U8 Integers
 #endif // NK_TARGET_RVV
-#endif // NK_TARGET_RISCV_
+#endif // NK_TARGET_RISCV64_
 #endif // NK_SPATIAL_RVV_H

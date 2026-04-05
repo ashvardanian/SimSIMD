@@ -75,7 +75,7 @@
 #ifndef NK_DOT_ICELAKE_H
 #define NK_DOT_ICELAKE_H
 
-#if NK_TARGET_X86_
+#if NK_TARGET_X8664_
 #if NK_TARGET_ICELAKE
 
 #include "numkong/types.h"
@@ -993,5 +993,5 @@ NK_INTERNAL void nk_dot_u1x512_finalize_icelake( //
 #endif
 
 #endif // NK_TARGET_ICELAKE
-#endif // NK_TARGET_X86_
+#endif // NK_TARGET_X8664_
 #endif // NK_DOT_ICELAKE_H

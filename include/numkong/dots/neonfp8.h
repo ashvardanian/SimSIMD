@@ -12,7 +12,7 @@
 #ifndef NK_DOTS_NEONFP8_H
 #define NK_DOTS_NEONFP8_H
 
-#if NK_TARGET_ARM_
+#if NK_TARGET_ARM64_
 #if NK_TARGET_NEONFP8
 
 #include "numkong/dot/neonfp8.h"
@@ -95,5 +95,5 @@ nk_define_cross_packed_(dots, e3m2, neonfp8, e3m2, e3m2, f32, nk_b128_vec_t, nk_
 #endif
 
 #endif // NK_TARGET_NEONFP8
-#endif // NK_TARGET_ARM_
+#endif // NK_TARGET_ARM64_
 #endif // NK_DOTS_NEONFP8_H

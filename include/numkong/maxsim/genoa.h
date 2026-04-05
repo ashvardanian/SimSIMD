@@ -15,7 +15,7 @@
 #ifndef NK_MAXSIM_GENOA_H
 #define NK_MAXSIM_GENOA_H
 
-#if NK_TARGET_X86_
+#if NK_TARGET_X8664_
 #if NK_TARGET_GENOA
 
 #include "numkong/types.h"
@@ -111,5 +111,5 @@ NK_PUBLIC void nk_maxsim_packed_bf16_genoa( //
 #endif
 
 #endif // NK_TARGET_GENOA
-#endif // NK_TARGET_X86_
+#endif // NK_TARGET_X8664_
 #endif // NK_MAXSIM_GENOA_H

@@ -78,7 +78,7 @@
 #ifndef NK_DOT_SKYLAKE_H
 #define NK_DOT_SKYLAKE_H
 
-#if NK_TARGET_X86_
+#if NK_TARGET_X8664_
 #if NK_TARGET_SKYLAKE
 
 #include "numkong/cast/skylake.h"   // `nk_bf16x16_to_f32x16_skylake_`
@@ -1112,5 +1112,5 @@ NK_INTERNAL void nk_dot_e3m2x64_finalize_skylake(                               
 #endif
 
 #endif // NK_TARGET_SKYLAKE
-#endif // NK_TARGET_X86_
+#endif // NK_TARGET_X8664_
 #endif // NK_DOT_SKYLAKE_H

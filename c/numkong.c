@@ -943,7 +943,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved) {
 // carries ZA state. So __arm_tpidr2_save is always a no-op and
 // __arm_tpidr2_restore has nothing to restore.
 // Weak linkage lets a real compiler-rt override these if available.
-#if NK_TARGET_ARM_ && NK_TARGET_SME
+#if NK_TARGET_ARM64_ && NK_TARGET_SME
 __attribute__((weak, visibility("default"))) void __arm_tpidr2_save(void) {}
 __attribute__((weak, visibility("default"))) void __arm_tpidr2_restore(void *blk) { nk_unused_(blk); }
 #endif

@@ -17,7 +17,7 @@
 #ifndef NK_GEOSPATIAL_NEON_H
 #define NK_GEOSPATIAL_NEON_H
 
-#if NK_TARGET_ARM_
+#if NK_TARGET_ARM64_
 #if NK_TARGET_NEON
 
 #include "numkong/types.h"
@@ -611,5 +611,5 @@ NK_PUBLIC void nk_vincenty_f32_neon(                //
 #endif
 
 #endif // NK_TARGET_NEON
-#endif // NK_TARGET_ARM_
+#endif // NK_TARGET_ARM64_
 #endif // NK_GEOSPATIAL_NEON_H

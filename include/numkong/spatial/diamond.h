@@ -13,7 +13,7 @@
 #ifndef NK_SPATIAL_DIAMOND_H
 #define NK_SPATIAL_DIAMOND_H
 
-#if NK_TARGET_X86_
+#if NK_TARGET_X8664_
 #if NK_TARGET_DIAMOND
 
 #include "numkong/types.h"
@@ -236,5 +236,5 @@ nk_angular_f16_diamond_cycle:
 #endif
 
 #endif // NK_TARGET_DIAMOND
-#endif // NK_TARGET_X86_
+#endif // NK_TARGET_X8664_
 #endif // NK_SPATIAL_DIAMOND_H

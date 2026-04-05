@@ -9,7 +9,7 @@
 #ifndef NK_SETS_ICELAKE_H
 #define NK_SETS_ICELAKE_H
 
-#if NK_TARGET_X86_
+#if NK_TARGET_X8664_
 #if NK_TARGET_ICELAKE
 
 #include "numkong/set/icelake.h"
@@ -62,5 +62,5 @@ nk_define_cross_normalized_symmetric_(jaccard, u1, icelake, u1x8, u32, /*norm_va
 #endif
 
 #endif // NK_TARGET_ICELAKE
-#endif // NK_TARGET_X86_
+#endif // NK_TARGET_X8664_
 #endif // NK_SETS_ICELAKE_H

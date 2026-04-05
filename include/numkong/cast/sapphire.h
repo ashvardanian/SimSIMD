@@ -22,7 +22,7 @@
 #ifndef NK_CAST_SAPPHIRE_H
 #define NK_CAST_SAPPHIRE_H
 
-#if NK_TARGET_X86_
+#if NK_TARGET_X8664_
 #if NK_TARGET_SAPPHIRE
 
 #include "numkong/types.h"
@@ -258,5 +258,5 @@ NK_PUBLIC void nk_cast_sapphire(void const *from, nk_dtype_t from_type, nk_size_
 #endif
 
 #endif // NK_TARGET_SAPPHIRE
-#endif // NK_TARGET_X86_
+#endif // NK_TARGET_X8664_
 #endif // NK_CAST_SAPPHIRE_H

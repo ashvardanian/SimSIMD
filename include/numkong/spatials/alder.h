@@ -9,7 +9,7 @@
 #ifndef NK_SPATIALS_ALDER_H
 #define NK_SPATIALS_ALDER_H
 
-#if NK_TARGET_X86_
+#if NK_TARGET_X8664_
 #if NK_TARGET_ALDER
 
 #include "numkong/spatial/haswell.h"
@@ -90,5 +90,5 @@ nk_define_cross_normalized_symmetric_(euclidean, e2m3, alder, e2m3, f32, /*norm_
 #endif
 
 #endif // NK_TARGET_ALDER
-#endif // NK_TARGET_X86_
+#endif // NK_TARGET_X8664_
 #endif // NK_SPATIALS_ALDER_H

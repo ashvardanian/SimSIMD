@@ -96,7 +96,7 @@
 #ifndef NK_DOT_NEONSDOT_H
 #define NK_DOT_NEONSDOT_H
 
-#if NK_TARGET_ARM_
+#if NK_TARGET_ARM64_
 #if NK_TARGET_NEONSDOT
 
 #include "numkong/types.h"
@@ -618,5 +618,5 @@ NK_INTERNAL void nk_dot_e3m2x16_finalize_neonsdot(                              
 #endif
 
 #endif // NK_TARGET_NEONSDOT
-#endif // NK_TARGET_ARM_
+#endif // NK_TARGET_ARM64_
 #endif // NK_DOT_NEONSDOT_H

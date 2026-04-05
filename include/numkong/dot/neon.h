@@ -86,7 +86,7 @@
 #ifndef NK_DOT_NEON_H
 #define NK_DOT_NEON_H
 
-#if NK_TARGET_ARM_
+#if NK_TARGET_ARM64_
 #if NK_TARGET_NEON
 
 #include "numkong/cast/neon.h" // `nk_e4m3x8_to_f16x8_neon_`
@@ -865,5 +865,5 @@ NK_PUBLIC void nk_vdot_f16c_neon(nk_f16c_t const *a_pairs, nk_f16c_t const *b_pa
 #endif
 
 #endif // NK_TARGET_NEON
-#endif // NK_TARGET_ARM_
+#endif // NK_TARGET_ARM64_
 #endif // NK_DOT_NEON_H

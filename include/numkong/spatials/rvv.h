@@ -9,7 +9,7 @@
 #ifndef NK_SPATIALS_RVV_H
 #define NK_SPATIALS_RVV_H
 
-#if NK_TARGET_RISCV_
+#if NK_TARGET_RISCV64_
 #if NK_TARGET_RVV
 
 #include "numkong/dots/serial.h"
@@ -1972,5 +1972,5 @@ NK_PUBLIC void nk_euclideans_symmetric_u8_rvv(                                  
 #endif
 
 #endif // NK_TARGET_RVV
-#endif // NK_TARGET_RISCV_
+#endif // NK_TARGET_RISCV64_
 #endif // NK_SPATIALS_RVV_H

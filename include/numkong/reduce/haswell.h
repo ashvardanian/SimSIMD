@@ -27,7 +27,7 @@
 #ifndef NK_REDUCE_HASWELL_H
 #define NK_REDUCE_HASWELL_H
 
-#if NK_TARGET_X86_
+#if NK_TARGET_X8664_
 #if NK_TARGET_HASWELL
 
 #include "numkong/types.h"
@@ -3781,5 +3781,5 @@ NK_PUBLIC void nk_reduce_moments_u1_haswell(                            //
 #endif
 
 #endif // NK_TARGET_HASWELL
-#endif // NK_TARGET_X86_
+#endif // NK_TARGET_X8664_
 #endif // NK_REDUCE_HASWELL_H
