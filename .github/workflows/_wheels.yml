@@ -256,6 +256,7 @@ jobs:
     strategy:
       matrix:
         python-version: ["310", "311", "312", "313", "313t", "314", "314t"]
+        architecture: [ppc64le, s390x, i686]
     steps:
       - uses: actions/checkout@v6
         with:
@@ -284,11 +285,11 @@ jobs:
           CIBW_BUILD: cp${{ matrix.python-version }}-*
           CIBW_ENABLE: cpython-freethreading # No-GIL 3.13t builds
           CIBW_PLATFORM: linux
-          CIBW_ARCHS: ppc64le s390x i686
+          CIBW_ARCHS: ${{ matrix.architecture }}
       - name: Upload wheels
         uses: actions/upload-artifact@v7
         with:
-          name: cibw-wheels-other-cp${{ matrix.python-version }}
+          name: cibw-wheels-other-${{ matrix.architecture }}-cp${{ matrix.python-version }}
           path: wheelhouse/*.whl
           overwrite: true
 
