@@ -59,12 +59,20 @@ skip = [] # we also don't use any SIMD on: ["*s390x*", "*ppc64le*"]
 environment-pass = [
   "NK_IN_QEMU",
   "NK_SEED",
+  "NK_FILTER",
+  "NK_BUDGET_SECS",
   "NK_REPETITIONS",
   "NK_DENSE_DIMENSIONS",
   "NK_CURVED_DIMENSIONS",
+  "NK_SPARSE_DIMENSIONS",
+  "NK_MESH_POINTS",
   "NK_MATRIX_HEIGHT",
   "NK_MATRIX_WIDTH",
   "NK_MATRIX_DEPTH",
+  "NK_MAX_COORD_ANGLE",
+  "NK_RANDOM_DISTRIBUTION",
+  "NK_TEST_ASSERT",
+  "NK_TEST_VERBOSE",
 ]
 
 [tool.cibuildwheel.environment]
@@ -74,6 +82,17 @@ NK_IN_QEMU = "1"
 [tool.cibuildwheel.linux]
 before-build = ["rm -rf {project}/build"]
 repair-wheel-command = "auditwheel repair -w {dest_dir} {wheel}"
+
+# Pin the platform tag on manylinux_2_28 architectures to avoid verbose
+# triple-tagged filenames (e.g., manylinux2014.manylinux_2_17.manylinux_2_28).
+# Other architectures (i686, ppc64le, s390x) use older images and keep the default.
+[[tool.cibuildwheel.overrides]]
+repair-wheel-command = "auditwheel repair --plat manylinux_2_28_x86_64 --only-plat -w {dest_dir} {wheel}"
+select = "*-manylinux*_x86_64"
+
+[[tool.cibuildwheel.overrides]]
+repair-wheel-command = "auditwheel repair --plat manylinux_2_28_aarch64 --only-plat -w {dest_dir} {wheel}"
+select = "*-manylinux*_aarch64"
 
 # Use more recent images for the most popular SIMD-capable CPU architectures, to have access to newer compilers.
 # Otherwise, prepare yourself to all kinds of AVX-512 issues and other SIMD-related pain.
