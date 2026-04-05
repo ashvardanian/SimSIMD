@@ -53,7 +53,7 @@ jobs:
         run: cargo check --no-default-features
 
       - name: Test i686 cross-compilation build
-        run: cargo build --target i686-unknown-linux-gnu --all-features
+        run: cargo build --target i686-unknown-linux-gnu --features std
 
       - name: Test i686 cross-compilation (no-std)
         run: cargo build --target i686-unknown-linux-gnu --no-default-features
@@ -62,7 +62,7 @@ jobs:
       - name: Test armv7 cross-compilation build
         env:
           CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER: arm-linux-gnueabihf-gcc-14
-        run: cargo build --target armv7-unknown-linux-gnueabihf --all-features
+        run: cargo build --target armv7-unknown-linux-gnueabihf --features std
 
       - name: Test armv7 cross-compilation (no-std)
         env:
