@@ -620,7 +620,7 @@ extension E3M2: NumKongSqEuclidean {
     }
 }
 
-// MARK: - U1x8 Dot Product
+// MARK: - U1x8 Dot
 
 extension U1x8: NumKongDot {
     public typealias DotOutput = UInt32
@@ -638,7 +638,7 @@ extension U1x8: NumKongDot {
     }
 }
 
-// MARK: - Set Distance Protocols
+// MARK: - Set Protocols
 
 /// A type that can compute SIMD-accelerated Hamming distances over bit sets.
 public protocol NumKongHamming {
@@ -654,7 +654,7 @@ public protocol NumKongJaccard {
     where A: Sequence, B: Sequence, A.Element == Self, B.Element == Self
 }
 
-// MARK: - U1x8 Set Conformances
+// MARK: - U1x8 Sets
 
 extension U1x8: NumKongHamming {
     @inlinable @inline(__always)

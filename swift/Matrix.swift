@@ -268,7 +268,7 @@ extension PackedMatrix where Element: NumKongDotsMatrixElement {
     }
 }
 
-// MARK: - Dots Free Functions
+// MARK: - Dots Functions
 
 /// Computes dot products between each row of `a` and every row packed in `bPacked`.
 @inlinable
@@ -329,7 +329,7 @@ public func dots_symmetric<Element: NumKongDotsMatrixElement>(
     )
 }
 
-// MARK: - Spatials Free Functions
+// MARK: - Spatials Functions
 
 /// Computes angular distances between each row of `a` and every row packed in `bPacked`.
 @inlinable
@@ -449,7 +449,7 @@ public func euclideans_symmetric<Element: NumKongSpatialsMatrixElement>(
     )
 }
 
-// MARK: - Sets Free Functions
+// MARK: - Sets Functions
 
 /// Computes Hamming distances between each row of `a` and every row packed in `bPacked`.
 @inlinable
@@ -1307,7 +1307,7 @@ extension E3M2: NumKongSpatialsMatrixElement {
     }
 }
 
-// MARK: - Kernel Bindings: U1x8 (Binary Dots)
+// MARK: - Kernel Bindings: U1x8 Dots
 
 extension U1x8: NumKongDotsMatrixElement {
     public typealias DotsOutput = UInt32
@@ -1342,7 +1342,7 @@ extension U1x8: NumKongDotsMatrixElement {
     }
 }
 
-// MARK: - Kernel Bindings: U1x8 (Binary Sets)
+// MARK: - Kernel Bindings: U1x8 Sets
 
 extension U1x8: NumKongSetsMatrixElement {
     public typealias HammingOutput = UInt32

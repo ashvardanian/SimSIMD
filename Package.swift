@@ -1,5 +1,6 @@
-// swift-tools-version:5.9
+// swift-tools-version:6.1
 // The swift-tools-version declares the minimum version of Swift required to build this package.
+// 6.1 enables Span<T> for zero-copy access to contiguous buffers (SE-0447).
 
 import PackageDescription
 
