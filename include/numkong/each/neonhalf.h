@@ -40,7 +40,7 @@
 #ifndef NK_EACH_NEONHALF_H
 #define NK_EACH_NEONHALF_H
 
-#if NK_TARGET_ARM_
+#if NK_TARGET_ARM64_
 #if NK_TARGET_NEONHALF
 
 #include "numkong/types.h"
@@ -314,5 +314,5 @@ NK_PUBLIC void nk_each_blend_i8_neonhalf(            //
 #endif
 
 #endif // NK_TARGET_NEONHALF
-#endif // NK_TARGET_ARM_
+#endif // NK_TARGET_ARM64_
 #endif // NK_EACH_NEONHALF_H

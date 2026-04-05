@@ -4,6 +4,10 @@ on:
   pull_request:
     branches: ["main", "main-*"]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -28,12 +32,16 @@ jobs:
       - name: Install Rust toolchain
         uses: moonrepo/setup-rust@v1
 
-      - name: Install 32-bit target and dependencies
+      - name: Install cross-compilation targets and dependencies
         run: |
           rustup target add i686-unknown-linux-gnu
+          rustup target add armv7-unknown-linux-gnueabihf
           sudo dpkg --add-architecture i386
           sudo apt-get update
+          # Install i686 multilib and ARM cross-compiler separately to avoid
+          # gcc-multilib vs gcc-arm-linux-gnueabihf package conflicts.
           sudo apt-get install -y gcc-multilib g++-multilib libc6-dev-i386
+          sudo apt-get install -y gcc-14-arm-linux-gnueabihf
 
       - name: Test default build
         run: cargo test
@@ -45,7 +53,18 @@ jobs:
         run: cargo check --no-default-features
 
       - name: Test i686 cross-compilation build
-        run: cargo build --target i686-unknown-linux-gnu --all-features
+        run: cargo build --target i686-unknown-linux-gnu --features std
 
       - name: Test i686 cross-compilation (no-std)
         run: cargo build --target i686-unknown-linux-gnu --no-default-features
+
+      # 32-bit ARM — catches AArch64-only intrinsics leaking into NEON paths
+      - name: Test armv7 cross-compilation build
+        env:
+          CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER: arm-linux-gnueabihf-gcc-14
+        run: cargo build --target armv7-unknown-linux-gnueabihf --features std
+
+      - name: Test armv7 cross-compilation (no-std)
+        env:
+          CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER: arm-linux-gnueabihf-gcc-14
+        run: cargo build --target armv7-unknown-linux-gnueabihf --no-default-features

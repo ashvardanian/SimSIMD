@@ -48,7 +48,7 @@
 #ifndef NK_CURVED_SMEF64_H
 #define NK_CURVED_SMEF64_H
 
-#if NK_TARGET_ARM_
+#if NK_TARGET_ARM64_
 #if NK_TARGET_SMEF64
 
 #include "numkong/types.h"
@@ -506,5 +506,5 @@ NK_PUBLIC void nk_bilinear_f64c_smef64(nk_f64c_t const *a_pairs, nk_f64c_t const
 #endif
 
 #endif // NK_TARGET_SMEF64
-#endif // NK_TARGET_ARM_
+#endif // NK_TARGET_ARM64_
 #endif // NK_CURVED_SMEF64_H

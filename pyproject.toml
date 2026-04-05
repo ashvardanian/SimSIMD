@@ -133,51 +133,51 @@ test-command = """
 
 # x86-64 builds
 [[tool.cibuildwheel.overrides]]
-environment.NK_TARGET_ARM_ = "0"
-environment.NK_TARGET_X86_ = "1"
+environment.NK_TARGET_ARM64_ = "0"
+environment.NK_TARGET_X8664_ = "1"
 inherit.environment = "append"
 select = "*-win_amd64"
 
 [[tool.cibuildwheel.overrides]]
-environment.NK_TARGET_ARM_ = "0"
-environment.NK_TARGET_X86_ = "1"
+environment.NK_TARGET_ARM64_ = "0"
+environment.NK_TARGET_X8664_ = "1"
 inherit.environment = "append"
 select = "*-manylinux*_x86_64"
 
 [[tool.cibuildwheel.overrides]]
-environment.NK_TARGET_ARM_ = "0"
-environment.NK_TARGET_X86_ = "1"
+environment.NK_TARGET_ARM64_ = "0"
+environment.NK_TARGET_X8664_ = "1"
 inherit.environment = "append"
 select = "*-musllinux*_x86_64"
 
 [[tool.cibuildwheel.overrides]]
-environment.NK_TARGET_ARM_ = "0"
-environment.NK_TARGET_X86_ = "1"
+environment.NK_TARGET_ARM64_ = "0"
+environment.NK_TARGET_X8664_ = "1"
 inherit.environment = "append"
 select = "*-macos*_x86_64"
 
 # ARM64 builds
 [[tool.cibuildwheel.overrides]]
-environment.NK_TARGET_ARM_ = "1"
-environment.NK_TARGET_X86_ = "0"
+environment.NK_TARGET_ARM64_ = "1"
+environment.NK_TARGET_X8664_ = "0"
 inherit.environment = "append"
 select = "*-win_arm64"
 
 [[tool.cibuildwheel.overrides]]
-environment.NK_TARGET_ARM_ = "1"
-environment.NK_TARGET_X86_ = "0"
+environment.NK_TARGET_ARM64_ = "1"
+environment.NK_TARGET_X8664_ = "0"
 inherit.environment = "append"
 select = "*-manylinux*_aarch64"
 
 [[tool.cibuildwheel.overrides]]
-environment.NK_TARGET_ARM_ = "1"
-environment.NK_TARGET_X86_ = "0"
+environment.NK_TARGET_ARM64_ = "1"
+environment.NK_TARGET_X8664_ = "0"
 inherit.environment = "append"
 select = "*-musllinux*_aarch64"
 
 [[tool.cibuildwheel.overrides]]
-environment.NK_TARGET_ARM_ = "1"
-environment.NK_TARGET_X86_ = "0"
+environment.NK_TARGET_ARM64_ = "1"
+environment.NK_TARGET_X8664_ = "0"
 inherit.environment = "append"
 select = "*-macos*_arm64"
 
@@ -191,9 +191,9 @@ select = "*-macos*_arm64"
 # environment.CC = "clang"
 # environment.CXX = "clang++"
 # environment.LDFLAGS = "-fuse-ld=lld"
-# environment.NK_TARGET_ARM_ = "0"
-# environment.NK_TARGET_RISCV_ = "1"
-# environment.NK_TARGET_X86_ = "0"
+# environment.NK_TARGET_ARM64_ = "0"
+# environment.NK_TARGET_RISCV64_ = "1"
+# environment.NK_TARGET_X8664_ = "0"
 # inherit.environment = "append"
 # select = "*-manylinux*_riscv64"
 #
@@ -202,9 +202,9 @@ select = "*-macos*_arm64"
 # environment.CC = "clang"
 # environment.CXX = "clang++"
 # environment.LDFLAGS = "-fuse-ld=lld"
-# environment.NK_TARGET_ARM_ = "0"
-# environment.NK_TARGET_RISCV_ = "1"
-# environment.NK_TARGET_X86_ = "0"
+# environment.NK_TARGET_ARM64_ = "0"
+# environment.NK_TARGET_RISCV64_ = "1"
+# environment.NK_TARGET_X8664_ = "0"
 # inherit.environment = "append"
 # select = "*-musllinux*_riscv64"
 

@@ -17,7 +17,7 @@
 #ifndef NK_MAXSIM_ALDER_H
 #define NK_MAXSIM_ALDER_H
 
-#if NK_TARGET_X86_
+#if NK_TARGET_X8664_
 #if NK_TARGET_ALDER
 
 #include "numkong/types.h"
@@ -507,5 +507,5 @@ NK_PUBLIC void nk_maxsim_packed_f16_alder( //
 #endif
 
 #endif // NK_TARGET_ALDER
-#endif // NK_TARGET_X86_
+#endif // NK_TARGET_X8664_
 #endif // NK_MAXSIM_ALDER_H

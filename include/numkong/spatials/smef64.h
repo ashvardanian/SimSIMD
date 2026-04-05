@@ -9,7 +9,7 @@
 #ifndef NK_SPATIALS_SMEF64_H
 #define NK_SPATIALS_SMEF64_H
 
-#if NK_TARGET_ARM_
+#if NK_TARGET_ARM64_
 #if NK_TARGET_SME
 
 #include "numkong/dots/serial.h"
@@ -470,5 +470,5 @@ NK_PUBLIC void nk_euclideans_symmetric_f64_smef64(                              
 #endif
 
 #endif // NK_TARGET_SME
-#endif // NK_TARGET_ARM_
+#endif // NK_TARGET_ARM64_
 #endif // NK_SPATIALS_SMEF64_H

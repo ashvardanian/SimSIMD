@@ -11,7 +11,7 @@
 #ifndef NK_SCALAR_SAPPHIRE_H
 #define NK_SCALAR_SAPPHIRE_H
 
-#if NK_TARGET_X86_
+#if NK_TARGET_X8664_
 #if NK_TARGET_SAPPHIRE
 
 #include "numkong/types.h"
@@ -70,5 +70,5 @@ NK_PUBLIC nk_f16_t nk_f16_fma_sapphire(nk_f16_t a, nk_f16_t b, nk_f16_t c) {
 #endif
 
 #endif // NK_TARGET_SAPPHIRE
-#endif // NK_TARGET_X86_
+#endif // NK_TARGET_X8664_
 #endif // NK_SCALAR_SAPPHIRE_H

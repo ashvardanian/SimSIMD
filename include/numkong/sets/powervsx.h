@@ -9,7 +9,7 @@
 #ifndef NK_SETS_POWERVSX_H
 #define NK_SETS_POWERVSX_H
 
-#if NK_TARGET_POWER_
+#if NK_TARGET_POWER64_
 #if NK_TARGET_POWERVSX
 
 #include "numkong/set/powervsx.h"
@@ -61,5 +61,5 @@ nk_define_cross_normalized_symmetric_(jaccard, u1, powervsx, u1x8, u32, /*norm_v
 #endif
 
 #endif // NK_TARGET_POWERVSX
-#endif // NK_TARGET_POWER_
+#endif // NK_TARGET_POWER64_
 #endif // NK_SETS_POWERVSX_H

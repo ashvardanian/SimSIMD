@@ -24,7 +24,7 @@
 #ifndef NK_EACH_SAPPHIRE_H
 #define NK_EACH_SAPPHIRE_H
 
-#if NK_TARGET_X86_
+#if NK_TARGET_X8664_
 #if NK_TARGET_SAPPHIRE
 
 #include "numkong/types.h"
@@ -339,5 +339,5 @@ nk_each_sum_e4m3_sapphire_cycle:
 #endif
 
 #endif // NK_TARGET_SAPPHIRE
-#endif // NK_TARGET_X86_
+#endif // NK_TARGET_X8664_
 #endif // NK_EACH_SAPPHIRE_H

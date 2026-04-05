@@ -12,7 +12,7 @@
 #ifndef NK_CAST_DIAMOND_H
 #define NK_CAST_DIAMOND_H
 
-#if NK_TARGET_X86_
+#if NK_TARGET_X8664_
 #if NK_TARGET_DIAMOND
 
 #include "numkong/types.h"
@@ -60,5 +60,5 @@ NK_INTERNAL void nk_partial_load_e5m2x32_to_f16x32_diamond_(nk_e5m2_t const *src
 #endif
 
 #endif // NK_TARGET_DIAMOND
-#endif // NK_TARGET_X86_
+#endif // NK_TARGET_X8664_
 #endif // NK_CAST_DIAMOND_H

@@ -10,38 +10,38 @@ Most libraries return dot products in the __same type as the input__ — Float16
 This leads to quiet overflow: a 2048-dimensional `i8` dot product can reach ±10 million, but `i8` maxes out at 127.
 NumKong promotes to wider accumulators — Float16 → Float32, BFloat16 → Float32, Int8 → Int32, Float32 → Float64 — so results stay in range.
 
-> Single 2048-d dot product on Intel [Sapphire Rapids](https://en.wikipedia.org/wiki/Sapphire_Rapids), single-threaded.
+| Input  |     NumPy + OpenBLAS |        PyTorch + MKL |                  JAX |               NumKong |
+| :----- | -------------------: | -------------------: | -------------------: | --------------------: |
+|        |       ░░░░░░░░░░░░░░ |       ░░░░░░░░░░░░░░ |       ░░░░░░░░░░░░░░ |        ░░░░░░░░░░░░░░ |
+| `f64`  | 2.0 gso/s, 1e-15 err | 0.6 gso/s, 1e-15 err | 0.4 gso/s, 1e-14 err |  5.8 gso/s, 1e-16 err |
+| `f32`  |  1.5 gso/s, 2e-6 err |  0.6 gso/s, 2e-6 err |  0.4 gso/s, 5e-6 err |   7.1 gso/s, 2e-7 err |
+| `bf16` |                    — |  0.5 gso/s, 1.9% err |  0.5 gso/s, 1.9% err |   9.7 gso/s, 1.8% err |
+| `f16`  | 0.2 gso/s, 0.25% err | 0.5 gso/s, 0.25% err | 0.4 gso/s, 0.25% err | 11.5 gso/s, 0.24% err |
+| `e5m2` |                    — |  0.7 gso/s, 4.6% err |  0.5 gso/s, 4.6% err |     7.1 gso/s, 0% err |
+| `i8`   |  1.1 gso/s, overflow |  0.5 gso/s, overflow |  0.5 gso/s, overflow |    14.8 gso/s, 0% err |
+
+> Single 2048-d dot product on Intel Sapphire Rapids, single-threaded.
 > Each cell shows __gso/s, mean relative error__ vs higher-precision reference.
 > gso/s = Giga Scalar Operations per Second — a more suitable name than GFLOP/s when counting both integer and floating-point work.
 > NumPy 2.4, PyTorch 2.10, JAX 0.9.
-
-| Input  |        NumPy + OpenBLAS |           PyTorch + MKL |                     JAX |               NumKong |
-| :----- | ----------------------: | ----------------------: | ----------------------: | --------------------: |
-|        |          ░░░░░░░░░░░░░░ |          ░░░░░░░░░░░░░░ |          ░░░░░░░░░░░░░░ |        ░░░░░░░░░░░░░░ |
-| `f64`  |    2.0 gso/s, 1e-15 err |    0.6 gso/s, 1e-15 err |    0.4 gso/s, 1e-14 err |  5.8 gso/s, 1e-16 err |
-| `f32`  |     1.5 gso/s, 2e-6 err |     0.6 gso/s, 2e-6 err |     0.4 gso/s, 5e-6 err |   7.1 gso/s, 2e-7 err |
-| `bf16` |                       — |     0.5 gso/s, 1.9% err |     0.5 gso/s, 1.9% err |   9.7 gso/s, 1.8% err |
-| `f16`  |    0.2 gso/s, 0.25% err |    0.5 gso/s, 0.25% err |    0.4 gso/s, 0.25% err | 11.5 gso/s, 0.24% err |
-| `e5m2` |                       — |     0.7 gso/s, 4.6% err |     0.5 gso/s, 4.6% err |     7.1 gso/s, 0% err |
-| `i8`   | 1.1 gso/s, __overflow__ | 0.5 gso/s, __overflow__ | 0.5 gso/s, __overflow__ |    14.8 gso/s, 0% err |
 
 A fair objection: PyTorch and JAX are designed for throughput, not single-call latency.
 They lower execution graphs through [XLA](https://openxla.org/) or vendored BLAS libraries like [Intel MKL](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html) and Nvidia [cuBLAS](https://developer.nvidia.com/cublas).
 So here's the same comparison on a throughput-oriented workload — matrix multiplication:
 
+| Input  |      NumPy + OpenBLAS |         PyTorch + MKL |                    JAX |              NumKong |
+| :----- | --------------------: | --------------------: | ---------------------: | -------------------: |
+|        |        ░░░░░░░░░░░░░░ |        ░░░░░░░░░░░░░░ |         ░░░░░░░░░░░░░░ |       ░░░░░░░░░░░░░░ |
+| `f64`  | 65.5 gso/s, 1e-15 err | 68.2 gso/s, 1e-15 err | ~14.3 gso/s, 1e-15 err | 8.6 gso/s, 1e-16 err |
+| `f32`  |   140 gso/s, 9e-7 err |   145 gso/s, 1e-6 err |  ~60.5 gso/s, 1e-6 err | 37.7 gso/s, 4e-7 err |
+| `bf16` |                     — |   851 gso/s, 1.8% err |  ~25.8 gso/s, 3.4% err |  458 gso/s, 3.6% err |
+| `f16`  |  0.3 gso/s, 0.25% err |  140 gso/s, 0.37% err | ~26.1 gso/s, 0.35% err | 103 gso/s, 0.26% err |
+| `e5m2` |                     — |   0.4 gso/s, 4.6% err |  ~26.4 gso/s, 4.6% err |    398 gso/s, 0% err |
+| `i8`   |   0.4 gso/s, overflow |  50.0 gso/s, overflow |   ~0.0 gso/s, overflow |   1279 gso/s, 0% err |
+
 > Matrix multiplication (2048 × 2048) × (2048 × 2048) on Intel Sapphire Rapids, single-threaded.
 > gso/s = Giga Scalar Operations per Second, same format.
 > NumPy 2.4, PyTorch 2.10, JAX 0.9, same versions.
-
-| Input  |        NumPy + OpenBLAS |            PyTorch + MKL |                      JAX |              NumKong |
-| :----- | ----------------------: | -----------------------: | -----------------------: | -------------------: |
-|        |          ░░░░░░░░░░░░░░ |           ░░░░░░░░░░░░░░ |           ░░░░░░░░░░░░░░ |       ░░░░░░░░░░░░░░ |
-| `f64`  |   65.5 gso/s, 1e-15 err |    68.2 gso/s, 1e-15 err |   ~14.3 gso/s, 1e-15 err | 8.6 gso/s, 1e-16 err |
-| `f32`  |     140 gso/s, 9e-7 err |      145 gso/s, 1e-6 err |    ~60.5 gso/s, 1e-6 err | 37.7 gso/s, 4e-7 err |
-| `bf16` |                       — |      851 gso/s, 1.8% err |    ~25.8 gso/s, 3.4% err |  458 gso/s, 3.6% err |
-| `f16`  |    0.3 gso/s, 0.25% err |     140 gso/s, 0.37% err |   ~26.1 gso/s, 0.35% err | 103 gso/s, 0.26% err |
-| `e5m2` |                       — |      0.4 gso/s, 4.6% err |    ~26.4 gso/s, 4.6% err |    398 gso/s, 0% err |
-| `i8`   | 0.4 gso/s, __overflow__ | 50.0 gso/s, __overflow__ | ~0.0 gso/s, __overflow__ |   1279 gso/s, 0% err |
 
 For `f64`, compensated "Dot2" summation reduces error by 10–50× compared to naive Float64 accumulation, depending on vector length.
 For `f32`, widening to Float64 gives 5–10× lower error.
@@ -77,27 +77,27 @@ NumKong covers 17 numeric types — from 6-bit floats to 64-bit complex numbers 
 
 ### Language Bindings
 
-| Operation                   | [C and C++][c] | [Python][py] | [Rust][rs] | [JavaScript][js] | [Swift][swift] | [GoLang][go] |
-| :-------------------------- | :------------: | :----------: | :--------: | :--------------: | :------------: | :----------: |
-| __Vector Ops__              |                |              |            |                  |                |              |
-| [Dot] Product               |       ●        |      ●       |     ●      |        ●         |       ●        |      ●       |
-| [Spatial] Metric            |       ●        |      ●       |     ●      |        ●         |       ●        |      ●       |
-| [Set] Similarity            |       ●        |      ●       |     ●      |        ●         |       ●        |      ●       |
-| [Geo]spatial                |       ●        |      ●       |     ●      |        ·         |       ●        |      ●       |
-| [Mesh] Alignment            |       ●        |      ●       |     ●      |        ·         |       ·        |      ·       |
-| [Sparse] Products           |       ●        |      ●       |     ●      |        ·         |       ·        |      ·       |
-| [Probability] Divergences   |       ●        |      ●       |     ●      |        ●         |       ·        |      ●       |
-| [Curved] Spaces             |       ●        |      ●       |     ●      |        ·         |       ·        |      ·       |
-| __Many-to-Many Vector Ops__ |                |              |            |                  |                |              |
-| "[Dots]" Products           |       ●        |      ●       |     ●      |        ●         |       ●        |      ●       |
-| "[Spatials]" Metrics        |       ●        |      ●       |     ●      |        ●         |       ●        |      ●       |
-| "[Sets]" Similarities       |       ●        |      ●       |     ●      |        ·         |       ●        |      ●       |
-| [MaxSim] Scoring            |       ●        |      ●       |     ●      |        ·         |       ●        |      ●       |
-| __Scalar Ops__              |                |              |            |                  |                |              |
-| [Cast]                      |       ●        |      ●       |     ●      |        ●         |       ·        |      ·       |
-| [Reduce]                    |       ●        |      ●       |     ●      |        ·         |       ·        |      ·       |
-| [Each]                      |       ●        |      ●       |     ●      |        ·         |       ·        |      ·       |
-| [Trigonometry]              |       ●        |      ●       |     ●      |        ·         |       ·        |      ·       |
+| Operation                   | [C 99 & C++ 23][c] | [Python][py] | [Rust][rs] | [JavaScript][js] | [Swift][swift] | [GoLang][go] |
+| :-------------------------- | :----------------: | :----------: | :--------: | :--------------: | :------------: | :----------: |
+| __Vector Ops__              |                    |              |            |                  |                |              |
+| [Dot] Product               |         ●          |      ●       |     ●      |        ●         |       ●        |      ●       |
+| [Spatial] Metric            |         ●          |      ●       |     ●      |        ●         |       ●        |      ●       |
+| [Set] Similarity            |         ●          |      ●       |     ●      |        ●         |       ●        |      ●       |
+| [Geo]spatial                |         ●          |      ●       |     ●      |        ·         |       ●        |      ●       |
+| [Mesh] Alignment            |         ●          |      ●       |     ●      |        ·         |       ·        |      ·       |
+| [Sparse] Products           |         ●          |      ●       |     ●      |        ·         |       ·        |      ·       |
+| [Probability] Divergences   |         ●          |      ●       |     ●      |        ●         |       ·        |      ●       |
+| [Curved] Spaces             |         ●          |      ●       |     ●      |        ·         |       ·        |      ·       |
+| __Many-to-Many Vector Ops__ |                    |              |            |                  |                |              |
+| "[Dots]" Products           |         ●          |      ●       |     ●      |        ●         |       ●        |      ●       |
+| "[Spatials]" Metrics        |         ●          |      ●       |     ●      |        ●         |       ●        |      ●       |
+| "[Sets]" Similarities       |         ●          |      ●       |     ●      |        ·         |       ●        |      ●       |
+| [MaxSim] Scoring            |         ●          |      ●       |     ●      |        ·         |       ●        |      ●       |
+| __Scalar Ops__              |                    |              |            |                  |                |              |
+| [Cast]                      |         ●          |      ●       |     ●      |        ●         |       ·        |      ·       |
+| [Reduce]                    |         ●          |      ●       |     ●      |        ·         |       ·        |      ·       |
+| [Each]                      |         ●          |      ●       |     ●      |        ·         |       ·        |      ·       |
+| [Trigonometry]              |         ●          |      ●       |     ●      |        ·         |       ·        |      ·       |
 
 [Dot]: include/numkong/dot/README.md
 [Dots]: include/numkong/dots/README.md
@@ -392,16 +392,16 @@ On x86, older CPUs use __F16C extensions__ (Ivy Bridge+) for fast Float16 → Fl
 On Arm, ARMv8.4-A adds __FMLAL/FMLAL2__ instructions for fused Float16 → Float32 widening multiply-accumulate, reducing the total latency from 7 cycles to 4 cycles and achieving 20–48% speedup over the separate convert-then-FMA path.
 
 | Platform               | BFloat16 Path              | Elem/Op | Float16 Path           | Elem/Op |
-| ---------------------- | -------------------------- | ------: | ---------------------- | ------: |
+| :--------------------- | :------------------------- | ------: | :--------------------- | ------: |
 | __x86__                |                            |         |                        |         |
-| Diamond Rapids (2025)  | ↓ Genoa                    |      32 | `VDPPHPS` widening dot |      32 |
+| Diamond Rapids (2026)  | ↓ Genoa                    |      32 | `VDPPHPS` widening dot |      32 |
 | Sapphire Rapids (2023) | ↓ Genoa                    |      32 | ↓ Skylake              |      16 |
 | Genoa (2022)           | `VDPBF16PS` widening dot   |      32 | ↓ Skylake              |      16 |
 | Skylake (2015)         | `SLLI` + `VFMADD`          |      16 | `VCVTPH2PS` + `VFMADD` |      16 |
 | Haswell (2013)         | `SLLI` + `VFMADD`          |       8 | `VCVTPH2PS` + `VFMADD` |       8 |
 | __Arm__                |                            |         |                        |         |
-| Graviton 3 (2021)      | `SVBFDOT` widening dot     |    4–32 | `SVCVT` → `SVFMLA`     |    4–32 |
 | Apple M2+ (2022)       | `BFDOT` widening dot       |       8 | ↓ FP16FML              |       8 |
+| Graviton 3+ (2021)     | `SVBFDOT` widening dot     |    4–32 | `SVCVT` → `SVFMLA`     |    4–32 |
 | Apple M1 (2020)        | ↓ NEON                     |       8 | `FMLAL` widening FMA   |       8 |
 | Graviton 2 (2019)      | ↓ NEON                     |       8 | `FCVTL` + `FMLA`       |       4 |
 | Graviton 1 (2018)      | `SHLL` + `FMLA`            |       8 | bit-manip → `FMLA`     |       8 |
@@ -420,14 +420,14 @@ On Arm, ARMv8.4-A adds __FMLAL/FMLAL2__ instructions for fused Float16 → Float
 
 ### Mini-Floats: E4M3, E5M2, E3M2, & E2M3
 
-| Format                    |  Bits |  Range | NumKong Promotion Rules                         | Support in GPUs   |
-| ------------------------- | ----: | -----: | ----------------------------------------------- | ----------------- |
-| E5M2FN                    |     8 | ±57344 | BFloat16 → Float32                              | H100+, MI300+     |
-| E4M3FN                    |     8 |   ±448 | BFloat16 → Float32                              | H100+, MI300+     |
-| E3M2FN                    | 6 → 8 |    ±28 | BFloat16 & Float16 → Float32,<br/>Int16 → Int32 | only block-scaled |
-| E2M3FN                    | 6 → 8 |   ±7.5 | BFloat16 & Float16 → Float32,<br/>Int8 → Int32  | only block-scaled |
-| Block-scaled NVFP4        |     4 |     ±6 | —                                               | B200+             |
-| Block-scaled MXFP4 / E2M1 |     4 |     ±6 | —                                               | B200+, MI325+     |
+| Format       |  Bits |  Range | NumKong Promotion Rules               | Support in GPUs   |
+| :----------- | ----: | -----: | ------------------------------------- | ----------------- |
+| E5M2FN       |     8 | ±57344 | BFloat16 → Float32                    | H100+, MI300+     |
+| E4M3FN       |     8 |   ±448 | BFloat16 → Float32                    | H100+, MI300+     |
+| E3M2FN       | 6 → 8 |    ±28 | B- & Float16 → Float32, Int16 → Int32 | only block-scaled |
+| E2M3FN       | 6 → 8 |   ±7.5 | B- & Float16 → Float32, Int8 → Int32  | only block-scaled |
+| Scaled NVFP4 |     4 |     ±6 | —                                     | B200+             |
+| Scaled MXFP4 |     4 |     ±6 | —                                     | B200+, MI325+     |
 
 > __Block scaling.__
 > NumKong does not implement block-scaled variants (MXFP4, NVFP4, or block-scaled E3M2/E2M3).
@@ -444,22 +444,22 @@ E4M3FN (no infinities, NaN only) is preferred for __training__ where precision n
 On x86 Genoa/Sapphire Rapids, E4M3/E5M2 values upcast to BFloat16 via lookup tables, then use native __DPBF16PS__ for 2-per-lane dot products accumulating to Float32.
 On Arm Graviton 3+, the same BFloat16 upcast happens via NEON table lookups, then __BFDOT__ instructions complete the computation.
 
-| Platform                   | E5M2 Path                      | Elem/Op | E4M3 Path                      | Elem/Op |
-| -------------------------- | ------------------------------ | ------: | ------------------------------ | ------: |
-| __x86__                    |                                |         |                                |         |
-| Diamond Rapids (2025)      | `VCVTBF82PH` → F16 + `VDPPHPS` |      32 | `VCVTHF82PH` → F16 + `VDPPHPS` |      32 |
-| Genoa (2022)               | → BF16 + `VDPBF16PS`           |      32 | ↓ Ice Lake                     |      64 |
-| Ice Lake (2019)            | ↓ Skylake                      |      16 | octave LUT + `VPDPBUSD`        |      64 |
-| Skylake (2015)             | rebias → F32 FMA               |      16 | rebias → F32 FMA               |      16 |
-| Haswell (2013)             | rebias → F32 FMA               |       8 | rebias → F32 FMA               |       8 |
-| __Arm__                    |                                |         |                                |         |
-| NEON + FP8DOT (Olympus)    | native `FDOT`                  |      16 | native `FDOT`                  |      16 |
-| NEON + FP16FML (Apple M1+) | SHL → F16 + `FMLAL`            |      16 | LUT → F16 + `FMLAL`            |      16 |
-| NEON (Graviton 1+)         | SHL + `FCVTL` + FMA            |       8 | → F16 + `FCVTL` + FMA          |       8 |
-| __RISC-V__                 |                                |         |                                |         |
-| RVV + Zvfbfwma             | rebias → BF16 + `VFWMACCBF16`  |    4–32 | LUT → BF16 + `VFWMACCBF16`     |    4–32 |
-| RVV + Zvfh                 | SHL → F16 + `VFWMACC`          |    4–32 | LUT → F16 + `VFWMACC`          |    4–32 |
-| RVV                        | rebias → F32 + `VFMACC`        |    4–32 | LUT → F32 + `VFMACC`           |    4–32 |
+| Platform              | E5M2 Path                      | Elem/Op | E4M3 Path                      | Elem/Op |
+| :-------------------- | :----------------------------- | ------: | :----------------------------- | ------: |
+| __x86__               |                                |         |                                |         |
+| Diamond Rapids (2026) | `VCVTBF82PH` → F16 + `VDPPHPS` |      32 | `VCVTHF82PH` → F16 + `VDPPHPS` |      32 |
+| Genoa (2022)          | → BF16 + `VDPBF16PS`           |      32 | ↓ Ice Lake                     |      64 |
+| Ice Lake (2019)       | ↓ Skylake                      |      16 | octave LUT + `VPDPBUSD`        |      64 |
+| Skylake (2015)        | rebias → F32 FMA               |      16 | rebias → F32 FMA               |      16 |
+| Haswell (2013)        | rebias → F32 FMA               |       8 | rebias → F32 FMA               |       8 |
+| __Arm__               |                                |         |                                |         |
+| NEON + FP8DOT (2026)  | native `FDOT`                  |      16 | native `FDOT`                  |      16 |
+| NEON + FP16FML (2020) | SHL → F16 + `FMLAL`            |      16 | LUT → F16 + `FMLAL`            |      16 |
+| NEON (2018)           | SHL + `FCVTL` + FMA            |       8 | → F16 + `FCVTL` + FMA          |       8 |
+| __RISC-V__            |                                |         |                                |         |
+| RVV + Zvfbfwma        | rebias → BF16 + `VFWMACCBF16`  |    4–32 | LUT → BF16 + `VFWMACCBF16`     |    4–32 |
+| RVV + Zvfh            | SHL → F16 + `VFWMACC`          |    4–32 | LUT → F16 + `VFWMACC`          |    4–32 |
+| RVV                   | rebias → F32 + `VFMACC`        |    4–32 | LUT → F32 + `VFMACC`           |    4–32 |
 
 > E5M2 shares Float16's exponent bias (15), so E5M2 → Float16 conversion is a single left-shift by 8 bits (`SHL 8`).
 > E4M3 on Ice Lake uses "octave decomposition": the 4-bit exponent splits into 2 octave + 2 remainder bits, yielding 7 integer accumulators post-scaled by powers of 2.
@@ -469,20 +469,20 @@ Their smaller range allows scaling to exact integers that fit in `i8`/`i16`, ena
 Float16 can also serve as an accumulator, accurately representing ~50 products of E3M2FN pairs or ~20 products of E2M3FN pairs before overflow.
 On Arm, NEON FHM extensions bring widening `FMLAL` dot-products for Float16 — both faster and more widely available than `BFDOT` for BFloat16.
 
-| Platform                     | E3M2 Path                  | Elem/Op | E2M3 Path                    | Elem/Op |
-| ---------------------------- | -------------------------- | ------: | ---------------------------- | ------: |
-| __x86__                      |                            |         |                              |         |
-| Ice Lake (2019)              | `VPERMW` LUT + `VPMADDWD`  |      32 | `VPERMB` LUT + `VPDPBUSD`    |      64 |
-| Sierra Forest (2024)         | ↓ Haswell                  |      32 | `VPSHUFB` LUT + `VPDPBSSD`   |      32 |
-| Alder Lake (2021)            | ↓ Haswell                  |      32 | `VPSHUFB` LUT + `VPDPBUSD`   |      32 |
-| Skylake (2015)               | `VPSHUFB` LUT + `VPMADDWD` |      64 | `VPSHUFB` LUT + `VPMADDUBSW` |      64 |
-| Haswell (2013)               | `VPSHUFB` LUT + `VPMADDWD` |      32 | `VPSHUFB` LUT + `VPMADDUBSW` |      32 |
-| __Arm__                      |                            |         |                              |         |
-| NEON + FP8DOT (Olympus)      | → E5M2 + `FDOT`            |      16 | → E4M3 + `FDOT`              |      16 |
-| NEON + DotProd (Graviton 2+) | `VQTBL2` LUT + `SMLAL`     |      16 | `VQTBL2` LUT + `SDOT`        |      16 |
-| NEON (Graviton 1+)           | → F16 + `FCVTL` + FMA      |      16 | → F16 + `FCVTL` + FMA        |      16 |
-| __RISC-V__                   |                            |         |                              |         |
-| RVV                          | I16 gather LUT + `VWMACC`  |    4–32 | U8 gather LUT + `VWMACC`     |    4–32 |
+| Platform              | E3M2 Path                  | Elem/Op | E2M3 Path                    | Elem/Op |
+| :-------------------- | :------------------------- | ------: | :--------------------------- | ------: |
+| __x86__               |                            |         |                              |         |
+| Sierra Forest (2024)  | ↓ Haswell                  |      32 | `VPSHUFB` LUT + `VPDPBSSD`   |      32 |
+| Alder Lake (2021)     | ↓ Haswell                  |      32 | `VPSHUFB` LUT + `VPDPBUSD`   |      32 |
+| Ice Lake (2019)       | `VPERMW` LUT + `VPMADDWD`  |      32 | `VPERMB` LUT + `VPDPBUSD`    |      64 |
+| Skylake (2015)        | `VPSHUFB` LUT + `VPMADDWD` |      64 | `VPSHUFB` LUT + `VPMADDUBSW` |      64 |
+| Haswell (2013)        | `VPSHUFB` LUT + `VPMADDWD` |      32 | `VPSHUFB` LUT + `VPMADDUBSW` |      32 |
+| __Arm__               |                            |         |                              |         |
+| NEON + FP8DOT (2026)  | → E5M2 + `FDOT`            |      16 | → E4M3 + `FDOT`              |      16 |
+| NEON + DotProd (2019) | `VQTBL2` LUT + `SMLAL`     |      16 | `VQTBL2` LUT + `SDOT`        |      16 |
+| NEON (2018)           | → F16 + `FCVTL` + FMA      |      16 | → F16 + `FCVTL` + FMA        |      16 |
+| __RISC-V__            |                            |         |                              |         |
+| RVV                   | I16 gather LUT + `VWMACC`  |    4–32 | U8 gather LUT + `VWMACC`     |    4–32 |
 
 > E3M2/E2M3 values map to exact integers via 32-entry LUTs (magnitudes up to 448 for E3M2, 120 for E2M3), enabling integer accumulation with no rounding error.
 > On NEON + FP8DOT, E3M2 is first promoted to E5M2 and E2M3 to E4M3 before the hardware `FDOT` instruction.
@@ -494,7 +494,7 @@ E5M2's range (±57,344) makes the scaled product exceed Int32 entirely.
 Without the integer path, E5M2 falls back to Float32 accumulation — where its [2-bit mantissa (only 4 values per binade)](https://developer.nvidia.com/blog/floating-point-8-an-introduction-to-efficient-lower-precision-ai-training/) creates a [catastrophic cancellation risk](https://www.ac.uma.es/arith2024/papers/Fused%20FP8%204-Way%20Dot%20Product%20with%20Scaling%20and%20FP32%20Accumulation.pdf) that E2M3's integer path avoids completely:
 
 |         |  _i_ = 0 | _i_ = 1 |  _i_ = 2 |   _i_ = 3 |  _i_ = 4 |  _i_ = 5 |  _i_ = 6 |
-| ------- | -------: | ------: | -------: | --------: | -------: | -------: | -------: |
+| :------ | -------: | ------: | -------: | --------: | -------: | -------: | -------: |
 | _aᵢ_    |  0.00122 |   20480 | −0.00122 |       1.5 |    −3072 |     −640 |  0.00146 |
 | _bᵢ_    |      −40 |     320 |    −1280 |  −7.63e⁻⁵ | 0.000427 |    10240 | −4.58e⁻⁵ |
 | _aᵢ·bᵢ_ | −0.04883 | 6553600 |   1.5625 | −0.000114 |  −1.3125 | −6553600 |      ≈ 0 |

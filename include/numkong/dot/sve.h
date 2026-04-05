@@ -35,7 +35,7 @@
 #ifndef NK_DOT_SVE_H
 #define NK_DOT_SVE_H
 
-#if NK_TARGET_ARM_
+#if NK_TARGET_ARM64_
 #if NK_TARGET_SVE
 
 #include "numkong/types.h"      // `nk_f32_t`
@@ -415,5 +415,5 @@ NK_PUBLIC void nk_vdot_f64c_sve(nk_f64c_t const *a_pairs, nk_f64c_t const *b_pai
 #endif
 
 #endif // NK_TARGET_SVE
-#endif // NK_TARGET_ARM_
+#endif // NK_TARGET_ARM64_
 #endif // NK_DOT_SVE_H

@@ -28,7 +28,7 @@
 #ifndef NK_SPATIAL_SVEHALF_H
 #define NK_SPATIAL_SVEHALF_H
 
-#if NK_TARGET_ARM_
+#if NK_TARGET_ARM64_
 #if NK_TARGET_SVEHALF
 
 #include "numkong/types.h"
@@ -131,5 +131,5 @@ NK_PUBLIC void nk_angular_f16_svehalf(nk_f16_t const *a_enum, nk_f16_t const *b_
 #endif
 
 #endif // NK_TARGET_SVEHALF
-#endif // NK_TARGET_ARM_
+#endif // NK_TARGET_ARM64_
 #endif // NK_SPATIAL_SVEHALF_H

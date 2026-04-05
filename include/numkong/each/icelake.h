@@ -23,7 +23,7 @@
 #ifndef NK_EACH_ICELAKE_H
 #define NK_EACH_ICELAKE_H
 
-#if NK_TARGET_X86_
+#if NK_TARGET_X8664_
 #if NK_TARGET_ICELAKE
 
 #include "numkong/types.h"
@@ -268,5 +268,5 @@ nk_each_sum_u64_icelake_cycle:
 #endif
 
 #endif // NK_TARGET_ICELAKE
-#endif // NK_TARGET_X86_
+#endif // NK_TARGET_X8664_
 #endif // NK_EACH_ICELAKE_H

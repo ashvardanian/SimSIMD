@@ -33,7 +33,7 @@
 #ifndef NK_SET_RVV_H
 #define NK_SET_RVV_H
 
-#if NK_TARGET_RISCV_
+#if NK_TARGET_RISCV64_
 #if NK_TARGET_RVV
 
 #include "numkong/types.h"
@@ -222,5 +222,5 @@ NK_PUBLIC void nk_jaccard_u16_rvv(nk_u16_t const *a, nk_u16_t const *b, nk_size_
 #endif
 
 #endif // NK_TARGET_RVV
-#endif // NK_TARGET_RISCV_
+#endif // NK_TARGET_RISCV64_
 #endif // NK_SET_RVV_H

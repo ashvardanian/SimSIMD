@@ -13,7 +13,7 @@
 #ifndef NK_MAXSIM_NEONSDOT_H
 #define NK_MAXSIM_NEONSDOT_H
 
-#if NK_TARGET_ARM_
+#if NK_TARGET_ARM64_
 #if NK_TARGET_NEONSDOT
 
 #include "numkong/types.h"
@@ -390,5 +390,5 @@ NK_PUBLIC void nk_maxsim_packed_f16_neonsdot( //
 #endif
 
 #endif // NK_TARGET_NEONSDOT
-#endif // NK_TARGET_ARM_
+#endif // NK_TARGET_ARM64_
 #endif // NK_MAXSIM_NEONSDOT_H

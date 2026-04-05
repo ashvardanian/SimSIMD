@@ -27,7 +27,7 @@
 #ifndef NK_CAST_LOONGSONASX_H
 #define NK_CAST_LOONGSONASX_H
 
-#if NK_TARGET_LOONGARCH_
+#if NK_TARGET_LOONGARCH64_
 #if NK_TARGET_LOONGSONASX
 
 #include "numkong/types.h"
@@ -248,5 +248,5 @@ NK_INTERNAL void nk_euclidean_through_u32_from_dot_loongsonasx_(nk_b128_vec_t do
 #endif
 
 #endif // NK_TARGET_LOONGSONASX
-#endif // NK_TARGET_LOONGARCH_
+#endif // NK_TARGET_LOONGARCH64_
 #endif // NK_CAST_LOONGSONASX_H

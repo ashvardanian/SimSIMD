@@ -20,7 +20,7 @@
 #ifndef NK_SPATIAL_LOONGSONASX_H
 #define NK_SPATIAL_LOONGSONASX_H
 
-#if NK_TARGET_LOONGARCH_
+#if NK_TARGET_LOONGARCH64_
 #if NK_TARGET_LOONGSONASX
 
 #include "numkong/types.h"
@@ -479,5 +479,5 @@ NK_PUBLIC void nk_angular_f16_loongsonasx(nk_f16_t const *a, nk_f16_t const *b, 
 #endif
 
 #endif // NK_TARGET_LOONGSONASX
-#endif // NK_TARGET_LOONGARCH_
+#endif // NK_TARGET_LOONGARCH64_
 #endif // NK_SPATIAL_LOONGSONASX_H

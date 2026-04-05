@@ -12,7 +12,7 @@
 #ifndef NK_SPATIALS_DIAMOND_H
 #define NK_SPATIALS_DIAMOND_H
 
-#if NK_TARGET_X86_
+#if NK_TARGET_X8664_
 #if NK_TARGET_DIAMOND
 
 #include "numkong/dots/diamond.h"
@@ -78,5 +78,5 @@ nk_define_cross_normalized_symmetric_(euclidean, e5m2, diamond, e5m2, f32, /*nor
 #endif
 
 #endif // NK_TARGET_DIAMOND
-#endif // NK_TARGET_X86_
+#endif // NK_TARGET_X8664_
 #endif // NK_SPATIALS_DIAMOND_H

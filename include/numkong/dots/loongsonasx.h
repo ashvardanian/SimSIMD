@@ -13,7 +13,7 @@
 #ifndef NK_DOTS_LOONGSONASX_H
 #define NK_DOTS_LOONGSONASX_H
 
-#if NK_TARGET_LOONGARCH_
+#if NK_TARGET_LOONGARCH64_
 #if NK_TARGET_LOONGSONASX
 
 #include "numkong/dot/loongsonasx.h"
@@ -172,5 +172,5 @@ nk_define_cross_packed_(dots, f16, loongsonasx, f16, f32, f32, nk_b256_vec_t, nk
 #endif
 
 #endif // NK_TARGET_LOONGSONASX
-#endif // NK_TARGET_LOONGARCH_
+#endif // NK_TARGET_LOONGARCH64_
 #endif // NK_DOTS_LOONGSONASX_H

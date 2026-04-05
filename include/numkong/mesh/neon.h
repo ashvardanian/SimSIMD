@@ -27,7 +27,7 @@
 #ifndef NK_MESH_NEON_H
 #define NK_MESH_NEON_H
 
-#if NK_TARGET_ARM_
+#if NK_TARGET_ARM64_
 #if NK_TARGET_NEON
 
 #include "numkong/types.h"
@@ -1906,5 +1906,5 @@ NK_PUBLIC void nk_umeyama_f16_neon(nk_f16_t const *a, nk_f16_t const *b, nk_size
 #endif
 
 #endif // NK_TARGET_NEON
-#endif // NK_TARGET_ARM_
+#endif // NK_TARGET_ARM64_
 #endif // NK_MESH_NEON_H

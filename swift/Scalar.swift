@@ -153,6 +153,9 @@ extension Float32: NumKongSqEuclidean {
     }
 }
 
+// Float16 is a type-level absence on x86_64 — the compiler rejects it before
+// @available runtime checks apply, so we need a compile-time arch guard.
+// See: https://github.com/unum-cloud/USearch/pull/739
 #if !arch(x86_64)
 @available(macOS 11.0, iOS 14.0, tvOS 14.0, watchOS 7.0, *)
 extension Float16: NumKongDot {
@@ -617,7 +620,7 @@ extension E3M2: NumKongSqEuclidean {
     }
 }
 
-// MARK: - U1x8 Dot Product
+// MARK: - U1x8 Dot
 
 extension U1x8: NumKongDot {
     public typealias DotOutput = UInt32
@@ -635,7 +638,7 @@ extension U1x8: NumKongDot {
     }
 }
 
-// MARK: - Set Distance Protocols
+// MARK: - Set Protocols
 
 /// A type that can compute SIMD-accelerated Hamming distances over bit sets.
 public protocol NumKongHamming {
@@ -651,7 +654,7 @@ public protocol NumKongJaccard {
     where A: Sequence, B: Sequence, A.Element == Self, B.Element == Self
 }
 
-// MARK: - U1x8 Set Conformances
+// MARK: - U1x8 Sets
 
 extension U1x8: NumKongHamming {
     @inlinable @inline(__always)

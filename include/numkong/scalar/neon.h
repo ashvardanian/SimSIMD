@@ -19,7 +19,7 @@
 #ifndef NK_SCALAR_NEON_H
 #define NK_SCALAR_NEON_H
 
-#if NK_TARGET_ARM_
+#if NK_TARGET_ARM64_
 #if NK_TARGET_NEON
 
 #include "numkong/types.h"
@@ -118,5 +118,5 @@ NK_PUBLIC nk_i64_t nk_i64_saturating_mul_neon(nk_i64_t a, nk_i64_t b) {
 #endif
 
 #endif // NK_TARGET_NEON
-#endif // NK_TARGET_ARM_
+#endif // NK_TARGET_ARM64_
 #endif // NK_SCALAR_NEON_H

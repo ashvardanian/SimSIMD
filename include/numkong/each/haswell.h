@@ -22,7 +22,7 @@
 #ifndef NK_EACH_HASWELL_H
 #define NK_EACH_HASWELL_H
 
-#if NK_TARGET_X86_
+#if NK_TARGET_X8664_
 #if NK_TARGET_HASWELL
 
 #include "numkong/types.h"
@@ -1654,5 +1654,5 @@ NK_PUBLIC void nk_each_fma_f64c_haswell(nk_f64c_t const *a, nk_f64c_t const *b, 
 #endif
 
 #endif // NK_TARGET_HASWELL
-#endif // NK_TARGET_X86_
+#endif // NK_TARGET_X8664_
 #endif // NK_EACH_HASWELL_H

@@ -4,6 +4,10 @@ on:
   pull_request:
     branches: ["main", "main-*"]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -91,6 +95,89 @@ jobs:
 
       - name: Build via Cargo
         run: cargo ndk -t arm64-v8a build --release
+
+  # 32-bit ARM Android — catches AArch64-only intrinsics leaking into
+  # NEON code paths, like float64x2_t which doesn't exist on ARMv7.
+  test_android_armv7:
+    name: Test Android ARMv7
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Download Android NDK r29
+        run: |
+          wget -q https://dl.google.com/android/repository/android-ndk-r29-linux.zip
+          unzip -q android-ndk-r29-linux.zip -d ~/
+          echo "ANDROID_NDK_ROOT=$HOME/android-ndk-r29" >> "$GITHUB_ENV"
+
+      - name: Build via CMake
+        run: |
+          cmake -B build_android_armv7 \
+            -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-android-armv7.cmake \
+            -DNK_BUILD_SHARED=ON
+          cmake --build build_android_armv7
+
+      - name: Verify binary
+        run: |
+          file build_android_armv7/libnumkong.so
+          file build_android_armv7/libnumkong.so | grep -q "ELF 32-bit.*ARM"
+
+      - name: Install Rust toolchain
+        uses: moonrepo/setup-rust@v1
+
+      - name: Install cargo-ndk and target
+        run: |
+          cargo install cargo-ndk
+          rustup target add armv7-linux-androideabi
+
+      - name: Build via Cargo
+        run: cargo ndk -t armeabi-v7a build --release
+
+  # 32-bit ARM Linux — validates the same AArch32 code paths as Android ARMv7
+  # but with the GNU toolchain instead of the NDK's Clang.
+  test_armv7_linux:
+    name: Test ARMv7 Linux
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install cross-compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf
+
+      - name: Build via CMake
+        run: |
+          cmake -B build_armv7 \
+            -DCMAKE_SYSTEM_NAME=Linux \
+            -DCMAKE_SYSTEM_PROCESSOR=arm \
+            -DCMAKE_C_COMPILER=arm-linux-gnueabihf-gcc \
+            -DCMAKE_CXX_COMPILER=arm-linux-gnueabihf-g++ \
+            -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY \
+            -DNK_BUILD_SHARED=ON
+          cmake --build build_armv7
+
+      - name: Verify binary
+        run: |
+          file build_armv7/libnumkong.so
+          file build_armv7/libnumkong.so | grep -q "ELF 32-bit.*ARM"
+
+      - name: Install Rust toolchain
+        uses: moonrepo/setup-rust@v1
+
+      - name: Install target
+        run: |
+          rustup target add armv7-unknown-linux-gnueabihf
+          sudo apt-get install -y gcc-arm-linux-gnueabihf
+
+      - name: Build via Cargo
+        env:
+          CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER: arm-linux-gnueabihf-gcc
+        run: cargo build --target armv7-unknown-linux-gnueabihf --release
 
   test_riscv_llvm23:
     name: Test RISC-V LLVM 23

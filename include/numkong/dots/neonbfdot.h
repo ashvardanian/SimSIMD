@@ -9,7 +9,7 @@
 #ifndef NK_DOTS_NEONBFDOT_H
 #define NK_DOTS_NEONBFDOT_H
 
-#if NK_TARGET_ARM_
+#if NK_TARGET_ARM64_
 #if NK_TARGET_NEONBFDOT
 
 #include "numkong/dot/neonbfdot.h"
@@ -55,5 +55,5 @@ nk_define_cross_packed_(dots, bf16, neonbfdot, bf16, bf16, f32, nk_b128_vec_t, n
 #endif
 
 #endif // NK_TARGET_NEONBFDOT
-#endif // NK_TARGET_ARM_
+#endif // NK_TARGET_ARM64_
 #endif // NK_DOTS_NEONBFDOT_H

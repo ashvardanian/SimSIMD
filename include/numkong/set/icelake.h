@@ -37,7 +37,7 @@
 #ifndef NK_SET_ICELAKE_H
 #define NK_SET_ICELAKE_H
 
-#if NK_TARGET_X86_
+#if NK_TARGET_X8664_
 #if NK_TARGET_ICELAKE
 
 #include "numkong/types.h"
@@ -481,5 +481,5 @@ NK_INTERNAL void nk_jaccard_f32x4_from_dot_icelake_(nk_b128_vec_t dots, nk_u32_t
 #endif
 
 #endif // NK_TARGET_ICELAKE
-#endif // NK_TARGET_X86_
+#endif // NK_TARGET_X8664_
 #endif // NK_SET_ICELAKE_H

@@ -1,0 +1,11 @@
+# Swift Package Index build configuration — must live at the repo root.
+# Controls which platforms appear on the package page at swiftpackageindex.com.
+version: 1
+builder:
+  configs:
+    - platform: macos-xcodebuild
+    - platform: macos-xcodebuild-arm
+    - platform: ios
+    - platform: tvos
+    - platform: watchos
+    - platform: linux

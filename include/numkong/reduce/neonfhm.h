@@ -9,7 +9,7 @@
 #ifndef NK_REDUCE_NEONFHM_H
 #define NK_REDUCE_NEONFHM_H
 
-#if NK_TARGET_ARM_
+#if NK_TARGET_ARM64_
 #if NK_TARGET_NEONFHM
 
 #include "numkong/types.h"         // `nk_e4m3_t`
@@ -289,5 +289,5 @@ NK_PUBLIC void nk_reduce_moments_e5m2_neonfhm(                          //
 #endif
 
 #endif // NK_TARGET_NEONFHM
-#endif // NK_TARGET_ARM_
+#endif // NK_TARGET_ARM64_
 #endif // NK_REDUCE_NEONFHM_H

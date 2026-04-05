@@ -24,7 +24,7 @@
 #ifndef NK_SPATIAL_ALDER_H
 #define NK_SPATIAL_ALDER_H
 
-#if NK_TARGET_X86_
+#if NK_TARGET_X8664_
 #if NK_TARGET_ALDER
 
 #include "numkong/types.h"
@@ -600,5 +600,5 @@ NK_PUBLIC void nk_euclidean_e3m2_alder(nk_e3m2_t const *a, nk_e3m2_t const *b, n
 #endif
 
 #endif // NK_TARGET_ALDER
-#endif // NK_TARGET_X86_
+#endif // NK_TARGET_X8664_
 #endif // NK_SPATIAL_ALDER_H

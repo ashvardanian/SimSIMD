@@ -23,7 +23,7 @@
 #ifndef NK_TRIGONOMETRY_HASWELL_H
 #define NK_TRIGONOMETRY_HASWELL_H
 
-#if NK_TARGET_X86_
+#if NK_TARGET_X8664_
 #if NK_TARGET_HASWELL
 
 #include "numkong/types.h"
@@ -649,5 +649,5 @@ NK_PUBLIC void nk_each_atan_f64_haswell(nk_f64_t const *ins, nk_size_t n, nk_f64
 #endif
 
 #endif // NK_TARGET_HASWELL
-#endif // NK_TARGET_X86_
+#endif // NK_TARGET_X8664_
 #endif // NK_TRIGONOMETRY_HASWELL_H

@@ -9,7 +9,7 @@
 #ifndef NK_DOTS_NEONSDOT_H
 #define NK_DOTS_NEONSDOT_H
 
-#if NK_TARGET_ARM_
+#if NK_TARGET_ARM64_
 #if NK_TARGET_NEONSDOT
 
 #include "numkong/dot/neonsdot.h"
@@ -140,5 +140,5 @@ nk_define_cross_packed_(dots, e3m2, neonsdot, e3m2, e3m2, f32, nk_b128_vec_t, nk
 #endif
 
 #endif // NK_TARGET_NEONSDOT
-#endif // NK_TARGET_ARM_
+#endif // NK_TARGET_ARM64_
 #endif // NK_DOTS_NEONSDOT_H

@@ -31,7 +31,7 @@
 #ifndef NK_EACH_NEON_H
 #define NK_EACH_NEON_H
 
-#if NK_TARGET_ARM_
+#if NK_TARGET_ARM64_
 #if NK_TARGET_NEON
 
 #include "numkong/types.h"
@@ -1134,5 +1134,5 @@ NK_PUBLIC void nk_each_sum_i8_neon(nk_i8_t const *a, nk_i8_t const *b, nk_size_t
 #endif
 
 #endif // NK_TARGET_NEON
-#endif // NK_TARGET_ARM_
+#endif // NK_TARGET_ARM64_
 #endif // NK_EACH_NEON_H

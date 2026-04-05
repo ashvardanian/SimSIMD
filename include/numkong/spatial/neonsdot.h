@@ -29,7 +29,7 @@
 #ifndef NK_SPATIAL_NEONSDOT_H
 #define NK_SPATIAL_NEONSDOT_H
 
-#if NK_TARGET_ARM_
+#if NK_TARGET_ARM64_
 #if NK_TARGET_NEONSDOT
 
 #include "numkong/types.h"
@@ -425,5 +425,5 @@ nk_angular_u4_neonsdot_cycle:
 #endif
 
 #endif // NK_TARGET_NEONSDOT
-#endif // NK_TARGET_ARM_
+#endif // NK_TARGET_ARM64_
 #endif // NK_SPATIAL_NEONSDOT_H

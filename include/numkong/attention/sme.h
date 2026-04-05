@@ -91,7 +91,7 @@
 #ifndef NK_ATTENTION_SME_H
 #define NK_ATTENTION_SME_H
 
-#if NK_TARGET_ARM_
+#if NK_TARGET_ARM64_
 #if NK_TARGET_SME
 
 #include "numkong/types.h"
@@ -2068,5 +2068,5 @@ NK_PUBLIC void nk_attention_causal_f16_sme(nk_f16_t const *q, void const *kv_pac
 #endif
 
 #endif // NK_TARGET_SME
-#endif // NK_TARGET_ARM_
+#endif // NK_TARGET_ARM64_
 #endif // NK_ATTENTION_SME_H
