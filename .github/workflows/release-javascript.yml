@@ -72,9 +72,19 @@ jobs:
 
       - name: Set Up MSVC ARM64 Cross-Compiler
         if: matrix.platform == 'win32-arm64'
-        uses: ilammy/msvc-dev-cmd@v1
-        with:
-          arch: amd64_arm64
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vsPath = & $vswhere -latest -property installationPath
+          $vcvars = "$vsPath\VC\Auxiliary\Build\vcvarsall.bat"
+          cmd /c "`"$vcvars`" amd64_arm64 >NUL 2>&1 && set" | ForEach-Object {
+            if ($_ -match '^([^=]+)=(.*)$') {
+              $name = $matches[1]; $value = $matches[2]
+              if ([System.Environment]::GetEnvironmentVariable($name) -ne $value) {
+                "$name=$value" | Out-File -Append -FilePath $env:GITHUB_ENV -Encoding utf8
+              }
+            }
+          }
 
       - name: Install Node.js Dependencies
         uses: nick-fields/retry@v4
