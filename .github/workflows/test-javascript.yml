@@ -307,7 +307,9 @@ jobs:
           command: cargo install wasmer-cli --git https://github.com/wasmerio/wasmer.git --branch main --features cranelift
 
       - name: Test Wasmer runtime
-        run: wasmer run --enable-simd --enable-relaxed-simd ./build-wasi/nk_test.wasm
+        run: wasmer run --enable-simd --enable-relaxed-simd --forward-host-env ./build-wasi/nk_test.wasm
+        env:
+          NK_BUDGET_SECS: 0.1
 
   test_wasm_wasmtime:
     name: Test WASM via Wasmtime
@@ -348,6 +350,8 @@ jobs:
 
       - name: Test Wasmtime runtime
         run: cargo test --features wasm-runtime -- wasm_runtime
+        env:
+          NK_BUDGET_SECS: 0.1
 
   test_deno:
     name: Test Deno

@@ -40,6 +40,8 @@ jobs:
 
       - name: Test
         run: build_release/nk_test
+        env:
+          NK_BUDGET_SECS: 0.2
 
       - name: Build shared library test
         run: |
@@ -250,6 +252,7 @@ jobs:
         run: ctest --test-dir build_loongarch --output-on-failure
         env:
           NK_IN_QEMU: 1
+          NK_BUDGET_SECS: 0.1
 
   test_power:
     name: Test Power (QEMU)
@@ -287,6 +290,7 @@ jobs:
         run: ctest --test-dir build_power --output-on-failure
         env:
           NK_IN_QEMU: 1
+          NK_BUDGET_SECS: 0.1
 
   test_x86_sde:
     name: Test x86 (Intel SDE)
