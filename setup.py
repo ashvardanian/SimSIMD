@@ -89,6 +89,18 @@ def detect_cc():
     return (cc.split()[0], False)
 
 
+def cross_target_flags() -> list[str]:
+    """Return --target flags when cross-compiling on macOS."""
+    if sys.platform != "darwin":
+        return []
+    host = platform.machine().lower()
+    if is_64bit_x86() and host in ("arm64", "aarch64"):
+        return ["--target=x86_64-apple-darwin"]
+    if is_64bit_arm() and host in ("x86_64", "amd64", "x64"):
+        return ["--target=arm64-apple-darwin"]
+    return []
+
+
 def probe_isa(cc, probe_file, flags, is_msvc=False):
     """Try to compile a probe .c file. Returns True if compiler supports this ISA."""
     with tempfile.NamedTemporaryFile(suffix=".obj" if is_msvc else ".o", delete=False) as tmp:
@@ -96,7 +108,8 @@ def probe_isa(cc, probe_file, flags, is_msvc=False):
     try:
         prefix = [cc, "/c"] if is_msvc else [cc, "-c"]
         out_flag = ["/Fo" + obj_path] if is_msvc else ["-o", obj_path]
-        return subprocess.run(prefix + flags + [probe_file] + out_flag, capture_output=True, timeout=30).returncode == 0
+        extra = [] if is_msvc else cross_target_flags()
+        return subprocess.run(prefix + extra + flags + [probe_file] + out_flag, capture_output=True, timeout=30).returncode == 0
     except Exception:
         return False
     finally:
