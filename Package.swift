@@ -12,7 +12,10 @@ let package = Package(
         .watchOS(.v7),
     ],
     products: [
-        .library(name: "NumKong", targets: ["NumKong"])
+        // We need to expose the underlying `CNumKongDispatch` target to simplify
+        // linking for USearch
+        .library(name: "NumKong", targets: ["NumKong"]),
+        .library(name: "CNumKongDispatch", targets: ["CNumKongDispatch"]),
     ],
     targets: [
         .testTarget(
