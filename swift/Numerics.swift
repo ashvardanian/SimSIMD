@@ -6,10 +6,10 @@
 
 import CNumKong
 
-// MARK: - Shared Helpers
+// MARK: - Shared Helpers: Sequence
 
 @usableFromInline
-func _nkWithDensePair<A: Sequence, B: Sequence, T, R>(
+package func _nkWithDensePair<A: Sequence, B: Sequence, T, R>(
     _ a: A,
     _ b: B,
     _ body: (UnsafePointer<T>, UnsafePointer<T>, Int) -> R
@@ -26,7 +26,7 @@ where A.Element == T, B.Element == T {
 }
 
 @usableFromInline
-func _nkWithDensePairRebound<A: Sequence, B: Sequence, E, T, R>(
+package func _nkWithDensePairRebound<A: Sequence, B: Sequence, E, T, R>(
     _ a: A,
     _ b: B,
     to: T.Type,
@@ -41,7 +41,7 @@ where A.Element == E, B.Element == E {
 }
 
 @usableFromInline
-func _nkF32ToBf16Bits(_ value: Float32) -> UInt16 {
+package func _nkF32ToBf16Bits(_ value: Float32) -> UInt16 {
     var src = value
     var dst: nk_bf16_t = 0
     nk_f32_to_bf16(&src, &dst)
@@ -49,7 +49,7 @@ func _nkF32ToBf16Bits(_ value: Float32) -> UInt16 {
 }
 
 @usableFromInline
-func _nkBf16BitsToF32(_ bits: UInt16) -> Float32 {
+package func _nkBf16BitsToF32(_ bits: UInt16) -> Float32 {
     var src = nk_bf16_t(bits)
     var dst: Float32 = 0
     nk_bf16_to_f32(&src, &dst)
@@ -57,7 +57,7 @@ func _nkBf16BitsToF32(_ bits: UInt16) -> Float32 {
 }
 
 @usableFromInline
-func _nkF32ToE4M3Bits(_ value: Float32) -> UInt8 {
+package func _nkF32ToE4M3Bits(_ value: Float32) -> UInt8 {
     var src = value
     var dst: nk_e4m3_t = 0
     nk_f32_to_e4m3(&src, &dst)
@@ -65,7 +65,7 @@ func _nkF32ToE4M3Bits(_ value: Float32) -> UInt8 {
 }
 
 @usableFromInline
-func _nkE4M3BitsToF32(_ bits: UInt8) -> Float32 {
+package func _nkE4M3BitsToF32(_ bits: UInt8) -> Float32 {
     var src = nk_e4m3_t(bits)
     var dst: Float32 = 0
     nk_e4m3_to_f32(&src, &dst)
@@ -73,7 +73,7 @@ func _nkE4M3BitsToF32(_ bits: UInt8) -> Float32 {
 }
 
 @usableFromInline
-func _nkF32ToE5M2Bits(_ value: Float32) -> UInt8 {
+package func _nkF32ToE5M2Bits(_ value: Float32) -> UInt8 {
     var src = value
     var dst: nk_e5m2_t = 0
     nk_f32_to_e5m2(&src, &dst)
@@ -81,7 +81,7 @@ func _nkF32ToE5M2Bits(_ value: Float32) -> UInt8 {
 }
 
 @usableFromInline
-func _nkE5M2BitsToF32(_ bits: UInt8) -> Float32 {
+package func _nkE5M2BitsToF32(_ bits: UInt8) -> Float32 {
     var src = nk_e5m2_t(bits)
     var dst: Float32 = 0
     nk_e5m2_to_f32(&src, &dst)
@@ -89,7 +89,7 @@ func _nkE5M2BitsToF32(_ bits: UInt8) -> Float32 {
 }
 
 @usableFromInline
-func _nkF32ToE2M3Bits(_ value: Float32) -> UInt8 {
+package func _nkF32ToE2M3Bits(_ value: Float32) -> UInt8 {
     var src = value
     var dst: nk_e2m3_t = 0
     nk_f32_to_e2m3(&src, &dst)
@@ -97,7 +97,7 @@ func _nkF32ToE2M3Bits(_ value: Float32) -> UInt8 {
 }
 
 @usableFromInline
-func _nkE2M3BitsToF32(_ bits: UInt8) -> Float32 {
+package func _nkE2M3BitsToF32(_ bits: UInt8) -> Float32 {
     var src = nk_e2m3_t(bits)
     var dst: Float32 = 0
     nk_e2m3_to_f32(&src, &dst)
@@ -105,7 +105,7 @@ func _nkE2M3BitsToF32(_ bits: UInt8) -> Float32 {
 }
 
 @usableFromInline
-func _nkF32ToE3M2Bits(_ value: Float32) -> UInt8 {
+package func _nkF32ToE3M2Bits(_ value: Float32) -> UInt8 {
     var src = value
     var dst: nk_e3m2_t = 0
     nk_f32_to_e3m2(&src, &dst)
@@ -113,7 +113,7 @@ func _nkF32ToE3M2Bits(_ value: Float32) -> UInt8 {
 }
 
 @usableFromInline
-func _nkE3M2BitsToF32(_ bits: UInt8) -> Float32 {
+package func _nkE3M2BitsToF32(_ bits: UInt8) -> Float32 {
     var src = nk_e3m2_t(bits)
     var dst: Float32 = 0
     nk_e3m2_to_f32(&src, &dst)
@@ -121,7 +121,7 @@ func _nkE3M2BitsToF32(_ bits: UInt8) -> Float32 {
 }
 
 @usableFromInline
-func _nkWithGeoQuad<A: Sequence, B: Sequence, C: Sequence, D: Sequence, T>(
+package func _nkWithGeoQuad<A: Sequence, B: Sequence, C: Sequence, D: Sequence, T>(
     _ a: A, _ b: B, _ c: C, _ d: D,
     _ body: (UnsafePointer<T>, UnsafePointer<T>, UnsafePointer<T>, UnsafePointer<T>, UnsafeMutablePointer<T>, Int) ->
         Void
@@ -245,7 +245,7 @@ public struct E3M2: Equatable, Hashable, Sendable {
     public var float: Float32 { _nkE3M2BitsToF32(bitPattern) }
 }
 
-// MARK: - CustomStringConvertible Conformance
+// MARK: - String Descriptions
 
 private func _hexPad(_ value: UInt16, width: Int) -> String {
     let s = String(value, radix: 16, uppercase: false)
@@ -277,7 +277,7 @@ extension E3M2: CustomStringConvertible {
     public var description: String { "\(float) [0x\(_hexPad(bitPattern, width: 2))]" }
 }
 
-// MARK: - ExpressibleByFloatLiteral Conformance
+// MARK: - Float Literals
 
 extension BFloat16: ExpressibleByFloatLiteral {
     public init(floatLiteral value: Double) {
