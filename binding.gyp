@@ -57,6 +57,9 @@
                     "ForcedIncludeFiles": [
                         "<(module_root_dir)/nk_probes.h"
                     ],
+                    "AdditionalOptions": [
+                        "/Zc:preprocessor"
+                    ],
                 },
             },
             "conditions": [

@@ -79,6 +79,9 @@
                     "ForcedIncludeFiles": [
                         "<!(node -e \"console.log(require('path').resolve('<(numkong_root)','nk_probes.h'))\")",
                     ],
+                    "AdditionalOptions": [
+                        "/Zc:preprocessor"
+                    ],
                 },
             },
             "conditions": [

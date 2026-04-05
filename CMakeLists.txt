@@ -193,6 +193,7 @@ else ()
 endif ()
 
 if (MSVC)
+    add_compile_options(/Zc:preprocessor)
     set(CMAKE_CXX_FLAGS_RELEASE "/O2 /DNDEBUG")
     set(CMAKE_C_FLAGS_RELEASE "/O2 /DNDEBUG")
 else ()
