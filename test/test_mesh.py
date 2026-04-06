@@ -64,13 +64,11 @@ except ImportError:
 
 
 def baseline_rmsd(source, target, dtype=None):
-    """NumPy reference RMSD: center both clouds, compute RMS of residuals."""
+    """NumPy reference RMSD: raw √(Σ‖aᵢ − bᵢ‖² / n), no centering."""
     source = source.astype(np.float64)
     target = target.astype(np.float64)
-    source_centered = source - source.mean(axis=0)
-    target_centered = target - target.mean(axis=0)
     n_points = source.shape[0]
-    return np.sqrt(np.sum((source_centered - target_centered) ** 2) / n_points)
+    return np.sqrt(np.sum((source - target) ** 2) / n_points)
 
 
 def baseline_umeyama(source, target, dtype=None):
@@ -190,13 +188,13 @@ def _determinant_3x3(matrix):
 
 
 def precise_rmsd(source, target, dtype=None):
-    """High-precision RMSD. No SVD needed."""
+    """High-precision raw RMSD: √(Σ‖aᵢ − bᵢ‖² / n). No centering, no SVD."""
     with precise_decimal(dtype) as (upcast, sqrt, _ln):
-        source_centered, target_centered, _, n_points = _center_and_covariance(source, target, upcast)
+        n_points = len(source)
         total = upcast(0)
         for i in range(n_points):
             for j in range(3):
-                difference = source_centered[i][j] - target_centered[i][j]
+                difference = upcast(source[i][j]) - upcast(target[i][j])
                 total += difference**2
         return float(sqrt(total / n_points))
 

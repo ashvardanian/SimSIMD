@@ -267,12 +267,12 @@ NK_PUBLIC void nk_rmsd_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, nk
         rotation[0] = 1, rotation[1] = 0, rotation[2] = 0, rotation[3] = 0, rotation[4] = 1, rotation[5] = 0,
         rotation[6] = 0, rotation[7] = 0, rotation[8] = 1;
     if (scale) *scale = 1.0f;
+    if (a_centroid) a_centroid[0] = 0, a_centroid[1] = 0, a_centroid[2] = 0;
+    if (b_centroid) b_centroid[0] = 0, b_centroid[1] = 0, b_centroid[2] = 0;
 
     float32x4_t const zeros_f32x4 = vdupq_n_f32(0);
 
-    // Accumulators for centroids and squared differences
-    float32x4_t sum_a_x_f32x4 = zeros_f32x4, sum_a_y_f32x4 = zeros_f32x4, sum_a_z_f32x4 = zeros_f32x4;
-    float32x4_t sum_b_x_f32x4 = zeros_f32x4, sum_b_y_f32x4 = zeros_f32x4, sum_b_z_f32x4 = zeros_f32x4;
+    // Accumulators for squared differences
     float32x4_t sum_squared_x_f32x4 = zeros_f32x4, sum_squared_y_f32x4 = zeros_f32x4, sum_squared_z_f32x4 = zeros_f32x4;
 
     float32x4_t a_x_f32x4, a_y_f32x4, a_z_f32x4, b_x_f32x4, b_y_f32x4, b_z_f32x4;
@@ -282,13 +282,6 @@ NK_PUBLIC void nk_rmsd_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, nk
     for (; i + 4 <= n; i += 4) {
         nk_deinterleave_bf16x4_to_f32x4_neonbfdot_(a + i * 3, &a_x_f32x4, &a_y_f32x4, &a_z_f32x4);
         nk_deinterleave_bf16x4_to_f32x4_neonbfdot_(b + i * 3, &b_x_f32x4, &b_y_f32x4, &b_z_f32x4);
-
-        sum_a_x_f32x4 = vaddq_f32(sum_a_x_f32x4, a_x_f32x4);
-        sum_a_y_f32x4 = vaddq_f32(sum_a_y_f32x4, a_y_f32x4);
-        sum_a_z_f32x4 = vaddq_f32(sum_a_z_f32x4, a_z_f32x4);
-        sum_b_x_f32x4 = vaddq_f32(sum_b_x_f32x4, b_x_f32x4);
-        sum_b_y_f32x4 = vaddq_f32(sum_b_y_f32x4, b_y_f32x4);
-        sum_b_z_f32x4 = vaddq_f32(sum_b_z_f32x4, b_z_f32x4);
 
         float32x4_t delta_x_f32x4 = vsubq_f32(a_x_f32x4, b_x_f32x4);
         float32x4_t delta_y_f32x4 = vsubq_f32(a_y_f32x4, b_y_f32x4);
@@ -305,13 +298,6 @@ NK_PUBLIC void nk_rmsd_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, nk
         nk_partial_deinterleave_bf16_to_f32x4_neonbfdot_(a + i * 3, n - i, &a_x_f32x4, &a_y_f32x4, &a_z_f32x4);
         nk_partial_deinterleave_bf16_to_f32x4_neonbfdot_(b + i * 3, n - i, &b_x_f32x4, &b_y_f32x4, &b_z_f32x4);
 
-        sum_a_x_f32x4 = vaddq_f32(sum_a_x_f32x4, a_x_f32x4);
-        sum_a_y_f32x4 = vaddq_f32(sum_a_y_f32x4, a_y_f32x4);
-        sum_a_z_f32x4 = vaddq_f32(sum_a_z_f32x4, a_z_f32x4);
-        sum_b_x_f32x4 = vaddq_f32(sum_b_x_f32x4, b_x_f32x4);
-        sum_b_y_f32x4 = vaddq_f32(sum_b_y_f32x4, b_y_f32x4);
-        sum_b_z_f32x4 = vaddq_f32(sum_b_z_f32x4, b_z_f32x4);
-
         float32x4_t delta_x_f32x4 = vsubq_f32(a_x_f32x4, b_x_f32x4);
         float32x4_t delta_y_f32x4 = vsubq_f32(a_y_f32x4, b_y_f32x4);
         float32x4_t delta_z_f32x4 = vsubq_f32(a_z_f32x4, b_z_f32x4);
@@ -322,36 +308,11 @@ NK_PUBLIC void nk_rmsd_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, nk
     }
 
     // Reduce vectors to scalars
-    nk_f32_t total_ax = vaddvq_f32(sum_a_x_f32x4);
-    nk_f32_t total_ay = vaddvq_f32(sum_a_y_f32x4);
-    nk_f32_t total_az = vaddvq_f32(sum_a_z_f32x4);
-    nk_f32_t total_bx = vaddvq_f32(sum_b_x_f32x4);
-    nk_f32_t total_by = vaddvq_f32(sum_b_y_f32x4);
-    nk_f32_t total_bz = vaddvq_f32(sum_b_z_f32x4);
     nk_f32_t total_squared_x = vaddvq_f32(sum_squared_x_f32x4);
     nk_f32_t total_squared_y = vaddvq_f32(sum_squared_y_f32x4);
     nk_f32_t total_squared_z = vaddvq_f32(sum_squared_z_f32x4);
 
-    // Compute centroids
-    nk_f32_t inv_n = 1.0f / (nk_f32_t)n;
-    nk_f32_t centroid_a_x = total_ax * inv_n;
-    nk_f32_t centroid_a_y = total_ay * inv_n;
-    nk_f32_t centroid_a_z = total_az * inv_n;
-    nk_f32_t centroid_b_x = total_bx * inv_n;
-    nk_f32_t centroid_b_y = total_by * inv_n;
-    nk_f32_t centroid_b_z = total_bz * inv_n;
-
-    if (a_centroid) a_centroid[0] = centroid_a_x, a_centroid[1] = centroid_a_y, a_centroid[2] = centroid_a_z;
-    if (b_centroid) b_centroid[0] = centroid_b_x, b_centroid[1] = centroid_b_y, b_centroid[2] = centroid_b_z;
-
-    // Compute RMSD
-    nk_f32_t mean_diff_x = centroid_a_x - centroid_b_x;
-    nk_f32_t mean_diff_y = centroid_a_y - centroid_b_y;
-    nk_f32_t mean_diff_z = centroid_a_z - centroid_b_z;
-    nk_f32_t sum_squared = total_squared_x + total_squared_y + total_squared_z;
-    nk_f32_t mean_diff_sq = mean_diff_x * mean_diff_x + mean_diff_y * mean_diff_y + mean_diff_z * mean_diff_z;
-
-    *result = nk_f32_sqrt_neon(sum_squared * inv_n - mean_diff_sq);
+    *result = nk_f32_sqrt_neon((total_squared_x + total_squared_y + total_squared_z) / (nk_f32_t)n);
 }
 
 NK_PUBLIC void nk_kabsch_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *a_centroid,

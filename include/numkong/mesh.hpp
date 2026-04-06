@@ -354,74 +354,30 @@ void rmsd(                                               //
     else if constexpr (std::is_same_v<in_type_, bf16_t> && simd)
         nk_rmsd_bf16(&a->raw_, &b->raw_, n, &a_centroid->raw_, &b_centroid->raw_, &rotation->raw_,
                      scale ? &scale->raw_ : nullptr, &metric->raw_);
-    // Scalar fallback
+    // Scalar fallback: raw √(Σ‖aᵢ − bᵢ‖² / n), no centering
     else {
-        // Step 1: Compute centroids
-        metric_type_ sum_a_x {}, sum_a_y {}, sum_a_z {};
-        metric_type_ sum_b_x {}, sum_b_y {}, sum_b_z {};
-        metric_type_ val_a_x, val_a_y, val_a_z, val_b_x, val_b_y, val_b_z;
-
-        for (std::size_t i = 0; i < n; i++) {
-            val_a_x = metric_type_(a[i * 3 + 0]);
-            val_a_y = metric_type_(a[i * 3 + 1]);
-            val_a_z = metric_type_(a[i * 3 + 2]);
-            val_b_x = metric_type_(b[i * 3 + 0]);
-            val_b_y = metric_type_(b[i * 3 + 1]);
-            val_b_z = metric_type_(b[i * 3 + 2]);
-            sum_a_x = sum_a_x + val_a_x;
-            sum_a_y = sum_a_y + val_a_y;
-            sum_a_z = sum_a_z + val_a_z;
-            sum_b_x = sum_b_x + val_b_x;
-            sum_b_y = sum_b_y + val_b_y;
-            sum_b_z = sum_b_z + val_b_z;
-        }
-
-        metric_type_ inv_n = metric_type_(1.0) / metric_type_(static_cast<double>(n));
-        metric_type_ centroid_a_x = sum_a_x * inv_n;
-        metric_type_ centroid_a_y = sum_a_y * inv_n;
-        metric_type_ centroid_a_z = sum_a_z * inv_n;
-        metric_type_ centroid_b_x = sum_b_x * inv_n;
-        metric_type_ centroid_b_y = sum_b_y * inv_n;
-        metric_type_ centroid_b_z = sum_b_z * inv_n;
-
-        // Step 2: Store centroids if requested
         if (a_centroid)
-            a_centroid[0] = transform_type_(centroid_a_x), a_centroid[1] = transform_type_(centroid_a_y),
-            a_centroid[2] = transform_type_(centroid_a_z);
+            a_centroid[0] = transform_type_(0.0), a_centroid[1] = transform_type_(0.0),
+            a_centroid[2] = transform_type_(0.0);
         if (b_centroid)
-            b_centroid[0] = transform_type_(centroid_b_x), b_centroid[1] = transform_type_(centroid_b_y),
-            b_centroid[2] = transform_type_(centroid_b_z);
-
-        // Step 3: RMSD uses identity rotation and scale=1.0
+            b_centroid[0] = transform_type_(0.0), b_centroid[1] = transform_type_(0.0),
+            b_centroid[2] = transform_type_(0.0);
         if (rotation) {
-            rotation[0] = transform_type_(1.0);
-            rotation[1] = transform_type_(0.0);
-            rotation[2] = transform_type_(0.0);
-            rotation[3] = transform_type_(0.0);
-            rotation[4] = transform_type_(1.0);
-            rotation[5] = transform_type_(0.0);
-            rotation[6] = transform_type_(0.0);
-            rotation[7] = transform_type_(0.0);
-            rotation[8] = transform_type_(1.0);
+            rotation[0] = transform_type_(1.0), rotation[1] = transform_type_(0.0), rotation[2] = transform_type_(0.0);
+            rotation[3] = transform_type_(0.0), rotation[4] = transform_type_(1.0), rotation[5] = transform_type_(0.0);
+            rotation[6] = transform_type_(0.0), rotation[7] = transform_type_(0.0), rotation[8] = transform_type_(1.0);
         }
         if (scale) *scale = transform_type_(1.0);
 
-        // Step 4: Compute RMSD between centered point clouds
         metric_type_ sum_squared {};
         for (std::size_t i = 0; i < n; i++) {
-            val_a_x = metric_type_(a[i * 3 + 0]);
-            val_a_y = metric_type_(a[i * 3 + 1]);
-            val_a_z = metric_type_(a[i * 3 + 2]);
-            val_b_x = metric_type_(b[i * 3 + 0]);
-            val_b_y = metric_type_(b[i * 3 + 1]);
-            val_b_z = metric_type_(b[i * 3 + 2]);
-            metric_type_ dx = (val_a_x - centroid_a_x) - (val_b_x - centroid_b_x);
-            metric_type_ dy = (val_a_y - centroid_a_y) - (val_b_y - centroid_b_y);
-            metric_type_ dz = (val_a_z - centroid_a_z) - (val_b_z - centroid_b_z);
+            metric_type_ dx = metric_type_(a[i * 3 + 0]) - metric_type_(b[i * 3 + 0]);
+            metric_type_ dy = metric_type_(a[i * 3 + 1]) - metric_type_(b[i * 3 + 1]);
+            metric_type_ dz = metric_type_(a[i * 3 + 2]) - metric_type_(b[i * 3 + 2]);
             sum_squared = sum_squared + dx * dx + dy * dy + dz * dz;
         }
 
-        *metric = (sum_squared * inv_n).sqrt();
+        *metric = (sum_squared / metric_type_(static_cast<double>(n))).sqrt();
     }
 }
 
@@ -470,18 +426,12 @@ void kabsch(                                             //
         metric_type_ val_a_x, val_a_y, val_a_z, val_b_x, val_b_y, val_b_z;
 
         for (std::size_t i = 0; i < n; i++) {
-            val_a_x = metric_type_(a[i * 3 + 0]);
-            val_a_y = metric_type_(a[i * 3 + 1]);
+            val_a_x = metric_type_(a[i * 3 + 0]), val_a_y = metric_type_(a[i * 3 + 1]),
             val_a_z = metric_type_(a[i * 3 + 2]);
-            val_b_x = metric_type_(b[i * 3 + 0]);
-            val_b_y = metric_type_(b[i * 3 + 1]);
+            val_b_x = metric_type_(b[i * 3 + 0]), val_b_y = metric_type_(b[i * 3 + 1]),
             val_b_z = metric_type_(b[i * 3 + 2]);
-            sum_a_x = sum_a_x + val_a_x;
-            sum_a_y = sum_a_y + val_a_y;
-            sum_a_z = sum_a_z + val_a_z;
-            sum_b_x = sum_b_x + val_b_x;
-            sum_b_y = sum_b_y + val_b_y;
-            sum_b_z = sum_b_z + val_b_z;
+            sum_a_x = sum_a_x + val_a_x, sum_a_y = sum_a_y + val_a_y, sum_a_z = sum_a_z + val_a_z;
+            sum_b_x = sum_b_x + val_b_x, sum_b_y = sum_b_y + val_b_y, sum_b_z = sum_b_z + val_b_z;
         }
 
         metric_type_ inv_n = metric_type_(1.0) / metric_type_(static_cast<double>(n));
@@ -503,11 +453,9 @@ void kabsch(                                             //
         // Step 2: Build 3x3 covariance matrix H = (A - A_bar)^T x (B - B_bar)
         metric_type_ cross_covariance[9] = {};
         for (std::size_t i = 0; i < n; i++) {
-            val_a_x = metric_type_(a[i * 3 + 0]) - centroid_a_x;
-            val_a_y = metric_type_(a[i * 3 + 1]) - centroid_a_y;
+            val_a_x = metric_type_(a[i * 3 + 0]) - centroid_a_x, val_a_y = metric_type_(a[i * 3 + 1]) - centroid_a_y,
             val_a_z = metric_type_(a[i * 3 + 2]) - centroid_a_z;
-            val_b_x = metric_type_(b[i * 3 + 0]) - centroid_b_x;
-            val_b_y = metric_type_(b[i * 3 + 1]) - centroid_b_y;
+            val_b_x = metric_type_(b[i * 3 + 0]) - centroid_b_x, val_b_y = metric_type_(b[i * 3 + 1]) - centroid_b_y,
             val_b_z = metric_type_(b[i * 3 + 2]) - centroid_b_z;
             cross_covariance[0] = cross_covariance[0] + val_a_x * val_b_x;
             cross_covariance[1] = cross_covariance[1] + val_a_x * val_b_y;
@@ -563,11 +511,11 @@ void kabsch(                                             //
         metric_type_ sum_squared {};
         for (std::size_t i = 0; i < n; i++) {
             metric_type_ point_a[3], point_b[3], rotated_point_a[3];
-            point_a[0] = metric_type_(a[i * 3 + 0]) - centroid_a_x;
-            point_a[1] = metric_type_(a[i * 3 + 1]) - centroid_a_y;
+            point_a[0] = metric_type_(a[i * 3 + 0]) - centroid_a_x,
+            point_a[1] = metric_type_(a[i * 3 + 1]) - centroid_a_y,
             point_a[2] = metric_type_(a[i * 3 + 2]) - centroid_a_z;
-            point_b[0] = metric_type_(b[i * 3 + 0]) - centroid_b_x;
-            point_b[1] = metric_type_(b[i * 3 + 1]) - centroid_b_y;
+            point_b[0] = metric_type_(b[i * 3 + 0]) - centroid_b_x,
+            point_b[1] = metric_type_(b[i * 3 + 1]) - centroid_b_y,
             point_b[2] = metric_type_(b[i * 3 + 2]) - centroid_b_z;
             rotated_point_a[0] = rotation_matrix[0] * point_a[0] + rotation_matrix[1] * point_a[1] +
                                  rotation_matrix[2] * point_a[2];
@@ -628,18 +576,12 @@ void umeyama(in_type_ const *a, in_type_ const *b, std::size_t n, transform_type
         metric_type_ val_a_x, val_a_y, val_a_z, val_b_x, val_b_y, val_b_z;
 
         for (std::size_t i = 0; i < n; i++) {
-            val_a_x = metric_type_(a[i * 3 + 0]);
-            val_a_y = metric_type_(a[i * 3 + 1]);
+            val_a_x = metric_type_(a[i * 3 + 0]), val_a_y = metric_type_(a[i * 3 + 1]),
             val_a_z = metric_type_(a[i * 3 + 2]);
-            val_b_x = metric_type_(b[i * 3 + 0]);
-            val_b_y = metric_type_(b[i * 3 + 1]);
+            val_b_x = metric_type_(b[i * 3 + 0]), val_b_y = metric_type_(b[i * 3 + 1]),
             val_b_z = metric_type_(b[i * 3 + 2]);
-            sum_a_x = sum_a_x + val_a_x;
-            sum_a_y = sum_a_y + val_a_y;
-            sum_a_z = sum_a_z + val_a_z;
-            sum_b_x = sum_b_x + val_b_x;
-            sum_b_y = sum_b_y + val_b_y;
-            sum_b_z = sum_b_z + val_b_z;
+            sum_a_x = sum_a_x + val_a_x, sum_a_y = sum_a_y + val_a_y, sum_a_z = sum_a_z + val_a_z;
+            sum_b_x = sum_b_x + val_b_x, sum_b_y = sum_b_y + val_b_y, sum_b_z = sum_b_z + val_b_z;
         }
 
         metric_type_ inv_n = metric_type_(1.0) / metric_type_(static_cast<double>(n));
@@ -650,16 +592,13 @@ void umeyama(in_type_ const *a, in_type_ const *b, std::size_t n, transform_type
         metric_type_ centroid_b_y = sum_b_y * inv_n;
         metric_type_ centroid_b_z = sum_b_z * inv_n;
 
-        if (a_centroid) {
-            a_centroid[0] = transform_type_(centroid_a_x);
-            a_centroid[1] = transform_type_(centroid_a_y);
+        if (a_centroid)
+            a_centroid[0] = transform_type_(centroid_a_x), a_centroid[1] = transform_type_(centroid_a_y),
             a_centroid[2] = transform_type_(centroid_a_z);
-        }
-        if (b_centroid) {
-            b_centroid[0] = transform_type_(centroid_b_x);
-            b_centroid[1] = transform_type_(centroid_b_y);
+
+        if (b_centroid)
+            b_centroid[0] = transform_type_(centroid_b_x), b_centroid[1] = transform_type_(centroid_b_y),
             b_centroid[2] = transform_type_(centroid_b_z);
-        }
 
         // Step 2: Build covariance matrix H and compute variance of A
         metric_type_ cross_covariance[9] = {};
@@ -733,11 +672,11 @@ void umeyama(in_type_ const *a, in_type_ const *b, std::size_t n, transform_type
         metric_type_ sum_squared {};
         for (std::size_t i = 0; i < n; i++) {
             metric_type_ point_a[3], point_b[3], rotated_point_a[3];
-            point_a[0] = metric_type_(a[i * 3 + 0]) - centroid_a_x;
-            point_a[1] = metric_type_(a[i * 3 + 1]) - centroid_a_y;
+            point_a[0] = metric_type_(a[i * 3 + 0]) - centroid_a_x,
+            point_a[1] = metric_type_(a[i * 3 + 1]) - centroid_a_y,
             point_a[2] = metric_type_(a[i * 3 + 2]) - centroid_a_z;
-            point_b[0] = metric_type_(b[i * 3 + 0]) - centroid_b_x;
-            point_b[1] = metric_type_(b[i * 3 + 1]) - centroid_b_y;
+            point_b[0] = metric_type_(b[i * 3 + 0]) - centroid_b_x,
+            point_b[1] = metric_type_(b[i * 3 + 1]) - centroid_b_y,
             point_b[2] = metric_type_(b[i * 3 + 2]) - centroid_b_z;
             rotated_point_a[0] = scale_factor * (rotation_matrix[0] * point_a[0] + rotation_matrix[1] * point_a[1] +
                                                  rotation_matrix[2] * point_a[2]);
