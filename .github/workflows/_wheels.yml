@@ -46,6 +46,7 @@ jobs:
           CIBW_ENABLE: cpython-freethreading # No-GIL 3.13t builds
           CIBW_PLATFORM: linux
           CIBW_ARCHS: x86_64
+          NK_REPETITIONS: 1
       - name: Upload Wheels
         uses: actions/upload-artifact@v7
         with:
@@ -106,6 +107,7 @@ jobs:
           CIBW_ENABLE: cpython-freethreading # No-GIL 3.13t builds
           CIBW_PLATFORM: linux
           CIBW_ARCHS: aarch64
+          NK_REPETITIONS: 1
       - name: Upload Wheels
         uses: actions/upload-artifact@v7
         with:
@@ -147,6 +149,7 @@ jobs:
           CIBW_ENABLE: cpython-freethreading # No-GIL 3.13t builds
           CIBW_PLATFORM: macos
           CIBW_ARCHS: x86_64
+          NK_REPETITIONS: 1
       - name: Upload Wheels
         uses: actions/upload-artifact@v7
         with:
@@ -188,6 +191,7 @@ jobs:
           CIBW_ENABLE: cpython-freethreading # No-GIL 3.13t builds
           CIBW_PLATFORM: macos
           CIBW_ARCHS: arm64
+          NK_REPETITIONS: 1
       - name: Upload Wheels
         uses: actions/upload-artifact@v7
         with:
@@ -248,6 +252,7 @@ jobs:
           CIBW_BUILD: cp${{ matrix.python-version }}-win_${{ matrix.architecture }}
           CIBW_ENABLE: cpython-freethreading # No-GIL 3.13t builds
           CIBW_PLATFORM: windows
+          NK_REPETITIONS: 1
       - name: Upload Wheels
         uses: actions/upload-artifact@v7
         with:
@@ -340,6 +345,7 @@ jobs:
           CIBW_PLATFORM: linux
           CIBW_ARCHS: riscv64
           QEMU_CPU: max
+          NK_REPETITIONS: 1
       - name: Upload Wheels
         uses: actions/upload-artifact@v7
         with:
