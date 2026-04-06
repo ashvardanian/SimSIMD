@@ -196,7 +196,7 @@ NK_PUBLIC void nk_each_sum_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_
         __m256 a_f32x8 = _mm256_cvtph_ps(a_f16x8);
         __m256 b_f32x8 = _mm256_cvtph_ps(b_f16x8);
         __m256 result_f32x8 = _mm256_add_ps(a_f32x8, b_f32x8);
-        __m128i result_f16x8 = _mm256_cvtps_ph(result_f32x8, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+        __m128i result_f16x8 = _mm256_cvtps_ph(result_f32x8, _MM_FROUND_TO_NEAREST_INT);
         _mm_storeu_si128((__m128i *)(result + i), result_f16x8);
     }
 
@@ -223,7 +223,7 @@ NK_PUBLIC void nk_each_scale_f16_haswell(nk_f16_t const *a, nk_size_t n, nk_f32_
         __m128i a_f16x8 = _mm_loadu_si128((__m128i const *)(a + i));
         __m256 a_f32x8 = _mm256_cvtph_ps(a_f16x8);
         __m256 result_f32x8 = _mm256_fmadd_ps(a_f32x8, alpha_f32x8, beta_f32x8);
-        __m128i result_f16x8 = _mm256_cvtps_ph(result_f32x8, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+        __m128i result_f16x8 = _mm256_cvtps_ph(result_f32x8, _MM_FROUND_TO_NEAREST_INT);
         _mm_storeu_si128((__m128i *)(result + i), result_f16x8);
     }
 
@@ -271,7 +271,7 @@ NK_PUBLIC void nk_each_blend_f16_haswell(              //
         __m256 b_f32x8 = _mm256_cvtph_ps(b_f16x8);
         __m256 a_scaled_f32x8 = _mm256_mul_ps(a_f32x8, alpha_f32x8);
         __m256 result_f32x8 = _mm256_fmadd_ps(b_f32x8, beta_f32x8, a_scaled_f32x8);
-        __m128i result_f16x8 = _mm256_cvtps_ph(result_f32x8, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+        __m128i result_f16x8 = _mm256_cvtps_ph(result_f32x8, _MM_FROUND_TO_NEAREST_INT);
         _mm_storeu_si128((__m128i *)(result + i), result_f16x8);
     }
 
@@ -451,7 +451,7 @@ NK_PUBLIC void nk_each_fma_f16_haswell(                      //
         __m256 ab_f32x8 = _mm256_mul_ps(a_f32x8, b_f32x8);
         __m256 abc_f32x8 = _mm256_mul_ps(ab_f32x8, alpha_f32x8);
         __m256 result_f32x8 = _mm256_fmadd_ps(c_f32x8, beta_f32x8, abc_f32x8);
-        __m128i result_f16x8 = _mm256_cvtps_ph(result_f32x8, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
+        __m128i result_f16x8 = _mm256_cvtps_ph(result_f32x8, _MM_FROUND_TO_NEAREST_INT);
         _mm_storeu_si128((__m128i *)(result + i), result_f16x8);
     }
 

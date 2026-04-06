@@ -224,6 +224,13 @@ add_library(numkong INTERFACE)
 target_sources(numkong INTERFACE ${NK_SOURCES})
 target_include_directories(numkong INTERFACE "${PROJECT_SOURCE_DIR}/include")
 
+# MSVC's traditional preprocessor can't short-circuit `defined(__has_builtin) && __has_builtin(...)`.
+# The conforming preprocessor (/Zc:preprocessor, available since MSVC 2019 16.6) handles this.
+# Scoped via INTERFACE so it propagates only to targets that link against numkong.
+if (MSVC)
+    target_compile_options(numkong INTERFACE /Zc:preprocessor)
+endif ()
+
 # Enable Clang C modules for incremental compilation
 if (CMAKE_C_COMPILER_ID MATCHES "Clang")
     target_compile_options(

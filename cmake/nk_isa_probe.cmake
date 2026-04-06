@@ -8,6 +8,9 @@
 # to collect the results.
 
 include(CheckSourceCompiles)
+if (CMAKE_VERSION VERSION_GREATER_EQUAL 3.19)
+    include(CheckSourceRuns)
+endif ()
 
 # Save and restore CMAKE_REQUIRED_FLAGS around probes.
 # Force Release config for try_compile to avoid ASAN DLL-not-found failures.
@@ -44,6 +47,12 @@ macro (nk_isa_probe_ var_ msvc_arch_ gcc_flags_ probe_file_)
     if (NOT CMAKE_CROSSCOMPILING AND NOT MSVC AND NOT "${nk_native_flags_}" STREQUAL "")
         set(CMAKE_REQUIRED_FLAGS "${nk_native_flags_}")
         check_source_compiles(C "${nk_probe_source_}" ${var_}_native)
+    elseif (NOT CMAKE_CROSSCOMPILING AND MSVC AND ${var_}_compiles AND CMAKE_VERSION VERSION_GREATER_EQUAL 3.19)
+        # MSVC has no -march=native; instead compile with ISA-specific flags and
+        # run the probe.  If the CPU lacks the ISA the process will crash and
+        # check_source_runs() will report failure.
+        set(CMAKE_REQUIRED_FLAGS "${msvc_arch_}")
+        check_source_runs(C "${nk_probe_source_}" ${var_}_native)
     else ()
         set(${var_}_native ${${var_}_compiles})
     endif ()

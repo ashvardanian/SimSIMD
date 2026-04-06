@@ -102,7 +102,7 @@ jobs:
           ref: "main"
       - name: Update Git Submodules
         run: git submodule update --init --recursive
-      - name: Setup MSVC
+      - name: Set Up MSVC
         uses: microsoft/setup-msbuild@v3
       - name: Get Version
         id: set_version
@@ -224,7 +224,7 @@ jobs:
         run: |
           git clone --depth 1 https://github.com/emscripten-core/emsdk.git ~/emsdk
           (cd ~/emsdk && ./emsdk install latest && ./emsdk activate latest)
-      - name: Setup Node.js
+      - name: Set Up Node.js
         uses: actions/setup-node@v6
         with:
           node-version: 22
@@ -236,7 +236,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DNK_BUILD_SHARED=ON
           cmake --build build_wasm --config Release
-      - name: Build browser bundle
+      - name: Build Browser Bundle
         run: |
           npm install --ignore-scripts
           npm run build-js
@@ -246,7 +246,7 @@ jobs:
             --outfile=build_wasm/numkong-bundle.js
           cp javascript/dist/esm/numkong-browser.d.ts build_wasm/numkong.d.ts
           cp LICENSE build_wasm/
-      - name: Package WASM release
+      - name: Package WASM Release
         run: |
           cd build_wasm
           mv numkong-bundle.js numkong.js
