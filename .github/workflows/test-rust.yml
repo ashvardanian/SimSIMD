@@ -61,10 +61,12 @@ jobs:
       # 32-bit ARM — catches AArch64-only intrinsics leaking into NEON paths
       - name: Test ARMv7 Cross-Compilation Build
         env:
+          CC_armv7_unknown_linux_gnueabihf: arm-linux-gnueabihf-gcc-14
           CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER: arm-linux-gnueabihf-gcc-14
         run: cargo build --target armv7-unknown-linux-gnueabihf --features std
 
       - name: Test ARMv7 Cross-Compilation (No-Std)
         env:
+          CC_armv7_unknown_linux_gnueabihf: arm-linux-gnueabihf-gcc-14
           CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER: arm-linux-gnueabihf-gcc-14
         run: cargo build --target armv7-unknown-linux-gnueabihf --no-default-features
