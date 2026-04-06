@@ -653,6 +653,46 @@ NK_PUBLIC nk_f64_t nk_maxsim_reduce_dot_f32_ssve_(                         //
 }
 
 /**
+ *  Streaming-compatible angular distance accumulation from pre-reduced dot products
+ *  and contiguous f64 norm arrays.
+ *  Computes rsqrt via Newton-Raphson and accumulates `1 - dot / sqrt(||q||^2 * ||d||^2)`.
+ */
+NK_PUBLIC nk_f64_t nk_maxsim_angular_from_dots_ssve_(                                    //
+    nk_f64_t const *dot_products, nk_size_t count,                                       //
+    nk_f64_t const *query_norms_f64, nk_f64_t const *document_norms_f64) NK_STREAMING_ { //
+
+    nk_f64_t total_angular_distance_f64 = 0.0;
+    nk_size_t const vector_length = svcntd();
+    for (nk_size_t i = 0; i < count; i += vector_length) {
+        svbool_t predicate_b64x = svwhilelt_b64_u64(i, count);
+        svfloat64_t dot_products_f64x = svld1_f64(predicate_b64x, dot_products + i);
+        svfloat64_t query_norms_f64x = svld1_f64(predicate_b64x, query_norms_f64 + i);
+        svfloat64_t document_norms_f64x = svld1_f64(predicate_b64x, document_norms_f64 + i);
+
+        // norm_product = query_norm * document_norm
+        svfloat64_t norm_products_f64x = svmul_f64_x(predicate_b64x, query_norms_f64x, document_norms_f64x);
+
+        // Newton-Raphson rsqrt: estimate then two refinement steps
+        svfloat64_t rsqrt_f64x = svrsqrte_f64(norm_products_f64x);
+        rsqrt_f64x = svmul_f64_x(predicate_b64x, rsqrt_f64x,
+                                 svrsqrts_f64(svmul_f64_x(predicate_b64x, norm_products_f64x, rsqrt_f64x), rsqrt_f64x));
+        rsqrt_f64x = svmul_f64_x(predicate_b64x, rsqrt_f64x,
+                                 svrsqrts_f64(svmul_f64_x(predicate_b64x, norm_products_f64x, rsqrt_f64x), rsqrt_f64x));
+
+        // cosine = dot_product * rsqrt(norm_product), zeroed where norm <= 0
+        svbool_t positive_b64x = svcmpgt_f64(predicate_b64x, norm_products_f64x, svdup_n_f64(0.0));
+        svfloat64_t cosine_f64x = svmul_f64_z(positive_b64x, dot_products_f64x, rsqrt_f64x);
+
+        // angular_distance = max(0, 1 - cosine)
+        svfloat64_t angular_distance_f64x = svsub_f64_x(predicate_b64x, svdup_f64(1.0), cosine_f64x);
+        angular_distance_f64x = svmax_f64_x(predicate_b64x, angular_distance_f64x, svdup_f64(0.0));
+
+        total_angular_distance_f64 += svaddv_f64(predicate_b64x, angular_distance_f64x);
+    }
+    return total_angular_distance_f64;
+}
+
+/**
  *  MaxSim f32 kernel: i8 SMOPA screening + f32/f64 refinement + angular distance.
  *
  *  Screening: i8 SMOPA has expansion=4, processing 4x more depth per instruction than f32 FMOPA.
@@ -895,36 +935,34 @@ __arm_locally_streaming __arm_new("za") static void nk_maxsim_packed_f32_streami
                                                  svcvtlt_f64_f32_x(predicate_odd_b64x, document_values_3_f32x));
             }
 
-            // Reduce accumulators and compute angular distance per row
-            svfloat64_t *batch_accumulators[] = {&accumulator_0_f64x, &accumulator_1_f64x, &accumulator_2_f64x,
-                                                 &accumulator_3_f64x};
-            for (nk_size_t batch_index = 0; batch_index < 4; batch_index++) {
-                nk_size_t query_index = row_start + row_batch_start + batch_index;
-                nk_u32_t best_document_index = best_document_indices[row_batch_start + batch_index];
-                nk_f64_t dot_product_f64 = svaddv_f64(svptrue_b64(), *batch_accumulators[batch_index]);
-                nk_f64_t norm_product_f64 = (nk_f64_t)query_norms[query_index] *
-                                            (nk_f64_t)document_norms[best_document_index];
-                nk_f64_t cosine_f64 = (norm_product_f64 > 0.0) ? dot_product_f64 * nk_f64_rsqrt_serial(norm_product_f64)
-                                                               : 0.0;
-                nk_f64_t angular_distance_f64 = 1.0 - cosine_f64;
-                if (angular_distance_f64 < 0.0) angular_distance_f64 = 0.0;
-                total_angular_distance_f64 += angular_distance_f64;
+            // Reduce SVE accumulators to scalars and compute angular distances
+            nk_f64_t dot_products_f64[4];
+            dot_products_f64[0] = svaddv_f64(svptrue_b64(), accumulator_0_f64x);
+            dot_products_f64[1] = svaddv_f64(svptrue_b64(), accumulator_1_f64x);
+            dot_products_f64[2] = svaddv_f64(svptrue_b64(), accumulator_2_f64x);
+            dot_products_f64[3] = svaddv_f64(svptrue_b64(), accumulator_3_f64x);
+            nk_f64_t batch_query_norms_f64[4], batch_document_norms_f64[4];
+            for (nk_size_t i = 0; i < 4; i++) {
+                batch_query_norms_f64[i] = (nk_f64_t)query_norms[row_start + row_batch_start + i];
+                batch_document_norms_f64[i] = (nk_f64_t)document_norms[best_document_indices[row_batch_start + i]];
             }
+            total_angular_distance_f64 += nk_maxsim_angular_from_dots_ssve_(dot_products_f64, 4, batch_query_norms_f64,
+                                                                            batch_document_norms_f64);
         }
 
-        // Remainder: 1 row at a time
-        for (; row_batch_start < rows_remaining; row_batch_start++) {
-            nk_size_t query_index = row_start + row_batch_start;
-            nk_u32_t best_document_index = best_document_indices[row_batch_start];
-            nk_f64_t dot_product_f64 = nk_maxsim_reduce_dot_f32_ssve_(query_original_ptrs[row_batch_start],
-                                                                      document_original_ptrs[row_batch_start], depth);
-            nk_f64_t norm_product_f64 = (nk_f64_t)query_norms[query_index] *
-                                        (nk_f64_t)document_norms[best_document_index];
-            nk_f64_t cosine_f64 = (norm_product_f64 > 0.0) ? dot_product_f64 * nk_f64_rsqrt_serial(norm_product_f64)
-                                                           : 0.0;
-            nk_f64_t angular_distance_f64 = 1.0 - cosine_f64;
-            if (angular_distance_f64 < 0.0) angular_distance_f64 = 0.0;
-            total_angular_distance_f64 += angular_distance_f64;
+        // Remainder: compute dot products then batch the angular distance
+        nk_size_t remainder_count = rows_remaining - row_batch_start;
+        if (remainder_count > 0) {
+            nk_f64_t remainder_dot_products_f64[3];
+            nk_f64_t remainder_query_norms_f64[3], remainder_document_norms_f64[3];
+            for (nk_size_t i = 0; i < remainder_count; i++) {
+                remainder_dot_products_f64[i] = nk_maxsim_reduce_dot_f32_ssve_(
+                    query_original_ptrs[row_batch_start + i], document_original_ptrs[row_batch_start + i], depth);
+                remainder_query_norms_f64[i] = (nk_f64_t)query_norms[row_start + row_batch_start + i];
+                remainder_document_norms_f64[i] = (nk_f64_t)document_norms[best_document_indices[row_batch_start + i]];
+            }
+            total_angular_distance_f64 += nk_maxsim_angular_from_dots_ssve_(
+                remainder_dot_products_f64, remainder_count, remainder_query_norms_f64, remainder_document_norms_f64);
         }
     }
 
