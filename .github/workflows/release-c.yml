@@ -120,7 +120,7 @@ jobs:
       - name: Package Archive
         shell: bash
         run: |
-          tar -cvf "numkong_windows_${{ matrix.arch }}_${{ steps.set_version.outputs.version }}.tar" \
+          tar -czf "numkong_windows_${{ matrix.arch }}_${{ steps.set_version.outputs.version }}.tar.gz" \
             build_release/Release/numkong.dll \
             include/numkong/ \
             LICENSE
@@ -128,7 +128,7 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release upload ${{ github.event.release.tag_name }} "numkong_windows_${{ matrix.arch }}_${{ steps.set_version.outputs.version }}.tar" --clobber
+        run: gh release upload ${{ github.event.release.tag_name }} "numkong_windows_${{ matrix.arch }}_${{ steps.set_version.outputs.version }}.tar.gz" --clobber
 
   create_macos_dylib_library:
     name: Create Library for macOS
