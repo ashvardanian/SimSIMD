@@ -6,21 +6,15 @@
  *
  *  @sa include/numkong/dots.h
  *
- *  This file contains tiled matrix-multiplication kernels optimized for Intel AMX-FP16 instructions
- *  on Intel Granite Rapids CPUs. Two kernel families are provided:
+ *  Native FP16×FP16→FP32 GEMM kernels using Intel AMX-FP16 (TDPFP16PS) on Granite Rapids CPUs.
+ *  Same tile geometry as BF16 (16 rows × 32 FP16 = 1KB per tile), same 2×2 output blocking,
+ *  same packing format — only the tile multiply instruction differs.
  *
- *  1. Native FP16 GEMM: FP16×FP16→FP32 via TDPFP16PS, same tile geometry as BF16 (16×32 = 1KB).
- *  2. F32 Ozaki 2-term GEMM: splits F32 inputs into two FP16 halves (high + low), performs
- *     4 TDPFP16PS operations per depth tile, achieving ~35-40 bit effective mantissa precision.
- *     Outputs to F64, solidly between F32 (23-bit) and F64 (52-bit) precision.
+ *  Tile register allocation:
  *
- *  FP16 tiles: 16 rows × 32 elements = 512 FP16 values = 1KB per tile (same as BF16).
- *
- *  Tile register allocation (same 2×2 output blocking as sapphireamx):
- *
- *  - TMM0, TMM1: A matrix tiles (row blocks i and i+16, or high/low halves for Ozaki)
- *  - TMM2, TMM3: B matrix tiles (column blocks j and j+16, or high/low halves for Ozaki)
- *  - TMM4-7: C accumulator tiles (2 × 2 output grid)
+ *  - TMM0, TMM1: A matrix tiles (row blocks i and i+16)
+ *  - TMM2, TMM3: B matrix tiles (column blocks j and j+16)
+ *  - TMM4-7: C accumulator tiles (2 × 2 output grid = 32×32 F32 results)
  *
  *  @section amx_fp16_instructions Intel AMX-FP16 Instructions (Granite Rapids+)
  *
@@ -30,6 +24,48 @@
  *      _tile_dpfp16ps              TDPFP16PS (TMM, TMM, TMM)       C += A × B (fp16 → f32)
  *
  *  TDPFP16PS: 16 × 16 × 32 = 8192 FP16 MACs per instruction (same throughput as TDPBF16PS).
+ *
+ *  @section ozaki_limitations F32→F64 via Ozaki Scheme — Attempted and Abandoned
+ *
+ *  We explored using AMX-FP16 tiles to compute F32→F64 GEMMs via the Ozaki decomposition scheme,
+ *  splitting each F32 scalar into 2 or 3 FP16 terms and performing cross-product TDPFP16PS operations.
+ *
+ *  Results on Intel Xeon 6776P (Granite Rapids), single-threaded:
+ *
+ *  | Variant              | Speed (gso/s) | Precision | Notes                                      |
+ *  |----------------------|:-------------:|:---------:|:------------------------------------------:|
+ *  | 2-term, 2×1 blocking |    ~150       |  ~22 bits | Split accumulators, N=16 F64 flush         |
+ *  | 3-term, 1×1 blocking |    ~110       |  ~22 bits | 3 accumulators by magnitude band           |
+ *  | Pipelined 2-term     |    ~156       |  ~22 bits | Double-buffered A split, AMX/AVX-512 overlap|
+ *  | MKL SGEMM            |    ~170       |  ~20 bits | Pure F32, no decomposition                 |
+ *  | Skylake F64 accum    |     ~50       |  ~48 bits | F32×F32 multiply, F64 accumulation         |
+ *
+ *  The fundamental bottleneck is TDPFP16PS's internal F32 accumulation: each instruction sums
+ *  32 FP16×FP16 products into an F32 register (23-bit mantissa). Even with Ozaki cross-term
+ *  separation into distinct TMM accumulators (preventing magnitude mixing) and periodic extraction
+ *  to F64 running sums, the per-instruction accumulation of 32 products loses ~5 bits
+ *  (log2(32) = 5), capping effective precision at ~28 - 5 = ~23 bits — barely exceeding F32 BLAS.
+ *
+ *  Approaches attempted:
+ *
+ *  - 2-term decomposition (a = a_high + a_low): 4 TDPFP16PS per depth tile, ~20-bit products.
+ *    With split accumulators (main + correction) merged in F64: ~22-bit effective precision.
+ *    Faster than MKL at small depths (≤512) but precision plateaus at ~22 bits.
+ *
+ *  - 3-term decomposition (a = a_high + a_mid + a_low): 6 TDPFP16PS per depth tile, ~30-bit
+ *    products. No precision improvement over 2-term because the F32 TMM accumulation is the
+ *    bottleneck, not the decomposition quality. Strictly slower and no more precise.
+ *
+ *  - Periodic F64 flush (extract TMM accumulators to F64 every N depth tiles): prevents precision
+ *    degradation at large depths. With N=16, ~15% overhead. Effective precision still ~24 bits
+ *    (limited by per-TDPFP16PS accumulation of 32 products, not by inter-tile accumulation).
+ *
+ *  - AMX/AVX-512 pipelining (double-buffered A splitting overlapped with AMX compute): ~7%
+ *    speedup at large sizes. Does not affect precision.
+ *
+ *  Conclusion: AMX-FP16's F32 tile accumulation fundamentally limits Ozaki to ~22-24 bits —
+ *  comparable to F32 BLAS, far short of the ~48-bit F64 precision needed to justify the complexity.
+ *  For F32→F64 GEMM, pure AVX-512 with F64 FMA remains the correct approach.
  */
 #ifndef NK_DOTS_GRANITEAMX_H
 #define NK_DOTS_GRANITEAMX_H
@@ -72,18 +108,6 @@ typedef struct {
 typedef struct {
     nk_dots_f16_state_graniteamx_t c[2][2]; // 4KB total (2×2 output blocking)
 } nk_dots_f16_state2x2_graniteamx_t;
-
-// Extended packed header for F32 Ozaki: stores offsets to low-half tiles and per-tile scale factors
-typedef struct {
-    nk_u32_t full_column_tiles;
-    nk_u32_t full_depth_tiles;
-    nk_u32_t column_remainder_count;
-    nk_u32_t column_edge_offset;
-    nk_u32_t norms_byte_offset;
-    nk_u32_t b_low_tiles_offset; // byte offset to B_low tile region
-    nk_u32_t scales_offset;      // byte offset to per-column-tile inverse scale factors
-    nk_u32_t reserved[9];        // padding to 64 bytes
-} nk_dots_f32ozaki_packed_header_graniteamx_t;
 
 #pragma endregion Tile Types
 
@@ -128,34 +152,6 @@ NK_INTERNAL void nk_dots_f16_store_graniteamx_(   //
     }
 }
 
-/* Store F32 state widened to F64 output with masking for edge tiles */
-NK_INTERNAL void nk_dots_f32ozaki_store_f64_graniteamx_( //
-    nk_dots_f16_state_graniteamx_t const *state,         //
-    nk_f64_t *dst, nk_size_t dst_stride_elements,        //
-    nk_size_t valid_rows, nk_size_t valid_cols) {
-
-    for (nk_size_t row_idx = 0; row_idx < valid_rows; row_idx++) {
-        __m512 accumulator_f32x16 = _mm512_load_ps(state->data[row_idx]);
-        __m512d lower_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(accumulator_f32x16));
-        __m512d upper_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(accumulator_f32x16, 1));
-
-        if (valid_cols >= 16) {
-            _mm512_storeu_pd(dst + row_idx * dst_stride_elements, lower_f64x8);
-            _mm512_storeu_pd(dst + row_idx * dst_stride_elements + 8, upper_f64x8);
-        }
-        else if (valid_cols > 8) {
-            _mm512_storeu_pd(dst + row_idx * dst_stride_elements, lower_f64x8);
-            __mmask8 upper_mask = (__mmask8)((1u << (valid_cols - 8)) - 1);
-            _mm512_mask_storeu_pd(dst + row_idx * dst_stride_elements + 8, upper_mask, upper_f64x8);
-        }
-        else {
-            __mmask8 lower_mask = (__mmask8)((1u << valid_cols) - 1);
-            _mm512_mask_storeu_pd(dst + row_idx * dst_stride_elements, lower_mask, lower_f64x8);
-        }
-    }
-}
-
-/* Store 2x2 F32 state to output matrix with masking for edge tiles */
 NK_INTERNAL void nk_dots_f16_output2x2_graniteamx_( //
     nk_dots_f16_state2x2_graniteamx_t const *state, //
     nk_f32_t *dst, nk_size_t dst_stride_elements,   //
@@ -180,33 +176,6 @@ NK_INTERNAL void nk_dots_f16_output2x2_graniteamx_( //
     }
 }
 
-/* Store 2x2 F32 state widened to F64 output with masking for edge tiles */
-NK_INTERNAL void nk_dots_f32ozaki_output2x2_f64_graniteamx_( //
-    nk_dots_f16_state2x2_graniteamx_t const *state,          //
-    nk_f64_t *dst, nk_size_t dst_stride_elements,            //
-    nk_size_t valid_rows, nk_size_t valid_cols) {
-
-    nk_size_t const rows_high = (valid_rows > 16) ? 16 : valid_rows;
-    nk_size_t const cols_left = (valid_cols > 16) ? 16 : valid_cols;
-    nk_size_t const cols_right = (valid_cols > 16) ? valid_cols - 16 : 0;
-
-    if (rows_high > 0 && cols_left > 0)
-        nk_dots_f32ozaki_store_f64_graniteamx_(&state->c[0][0], dst, dst_stride_elements, rows_high, cols_left);
-    if (rows_high > 0 && cols_right > 0)
-        nk_dots_f32ozaki_store_f64_graniteamx_(&state->c[0][1], dst + 16, dst_stride_elements, rows_high, cols_right);
-
-    if (valid_rows > 16) {
-        nk_size_t const rows_low = valid_rows - 16;
-        nk_f64_t *dst_low = dst + 16 * dst_stride_elements;
-        if (cols_left > 0)
-            nk_dots_f32ozaki_store_f64_graniteamx_(&state->c[1][0], dst_low, dst_stride_elements, rows_low, cols_left);
-        if (cols_right > 0)
-            nk_dots_f32ozaki_store_f64_graniteamx_(&state->c[1][1], dst_low + 16, dst_stride_elements, rows_low,
-                                                   cols_right);
-    }
-}
-
-/* Accumulate 3 A × B tile pairs into state using AMX TDPFP16PS */
 NK_INTERNAL void nk_dots_f16_update_graniteamx_(     //
     nk_dots_f16_state_graniteamx_t *state,           //
     nk_dots_f16_a16x32_graniteamx_t const *a_tile_0, //
@@ -229,127 +198,6 @@ NK_INTERNAL void nk_dots_f16_update_graniteamx_(     //
     _tile_dpfp16ps(0, 3, 6);
 
     _tile_stored(0, state->data, 64);
-}
-
-/* Accumulate A × B Ozaki terms into state for symmetric kernel (1-deep depth grouping).
- * Performs 4 TDPFP16PS: high×high + high×low + low×high + low×low.
- * Uses TMM0=C, TMM1=A_high, TMM2=A_low, TMM3=B_high, TMM4=B_low. */
-NK_INTERNAL void nk_dots_f32ozaki_update_graniteamx_(   //
-    nk_dots_f16_state_graniteamx_t *state,              //
-    nk_dots_f16_a16x32_graniteamx_t const *a_high_tile, //
-    nk_dots_f16_a16x32_graniteamx_t const *a_low_tile,  //
-    nk_dots_f16_b32x16_graniteamx_t const *b_high_tile, //
-    nk_dots_f16_b32x16_graniteamx_t const *b_low_tile) {
-
-    _tile_loadd(0, state->data, 64);
-    _tile_loadd(1, a_high_tile->data, 64);
-    _tile_loadd(2, a_low_tile->data, 64);
-    _tile_loadd(3, b_high_tile->data, 64);
-    _tile_loadd(4, b_low_tile->data, 64);
-
-    _tile_dpfp16ps(0, 1, 3); // C += A_high × B_high
-    _tile_dpfp16ps(0, 1, 4); // C += A_high × B_low
-    _tile_dpfp16ps(0, 2, 3); // C += A_low  × B_high
-    _tile_dpfp16ps(0, 2, 4); // C += A_low  × B_low
-
-    _tile_stored(0, state->data, 64);
-}
-
-/* Split a row of 32 F32 values into high and low FP16 halves (vectorized).
- * The high half captures the top ~10 mantissa bits, the low half captures the residual ~13 bits.
- * Both halves are stored as one tile row (32 FP16 = 64 bytes). */
-NK_INTERNAL void nk_dots_f32ozaki_split_row_graniteamx_( //
-    nk_f32_t const *src, nk_size_t valid_cols,           //
-    nk_f16_t *dst_high, nk_f16_t *dst_low) {
-
-    // First 16 F32 elements
-    nk_size_t const first_count = (valid_cols > 16) ? 16 : valid_cols;
-    __mmask16 first_mask = (first_count >= 16) ? 0xFFFF : ((__mmask16)1 << first_count) - 1;
-    __m512 original_first_f32x16 = _mm512_maskz_loadu_ps(first_mask, src);
-    __m256i high_first_f16x16 = _mm512_cvtps_ph(original_first_f32x16, _MM_FROUND_TO_NEAREST_INT);
-    __m512 high_roundtrip_first_f32x16 = _mm512_cvtph_ps(high_first_f16x16);
-    __m512 residual_first_f32x16 = _mm512_sub_ps(original_first_f32x16, high_roundtrip_first_f32x16);
-    __m256i low_first_f16x16 = _mm512_cvtps_ph(residual_first_f32x16, _MM_FROUND_TO_NEAREST_INT);
-
-    // Second 16 F32 elements
-    __m256i high_second_f16x16, low_second_f16x16;
-    if (valid_cols > 16) {
-        nk_size_t const second_count = valid_cols - 16;
-        __mmask16 second_mask = (second_count >= 16) ? 0xFFFF : ((__mmask16)1 << second_count) - 1;
-        __m512 original_second_f32x16 = _mm512_maskz_loadu_ps(second_mask, src + 16);
-        high_second_f16x16 = _mm512_cvtps_ph(original_second_f32x16, _MM_FROUND_TO_NEAREST_INT);
-        __m512 high_roundtrip_second_f32x16 = _mm512_cvtph_ps(high_second_f16x16);
-        __m512 residual_second_f32x16 = _mm512_sub_ps(original_second_f32x16, high_roundtrip_second_f32x16);
-        low_second_f16x16 = _mm512_cvtps_ph(residual_second_f32x16, _MM_FROUND_TO_NEAREST_INT);
-    }
-    else {
-        high_second_f16x16 = _mm256_setzero_si256();
-        low_second_f16x16 = _mm256_setzero_si256();
-    }
-
-    // Combine into 32-wide rows: [first_16 | second_16]
-    __m512i high_row_i16x32 = _mm512_inserti64x4(_mm512_castsi256_si512(high_first_f16x16), high_second_f16x16, 1);
-    __m512i low_row_i16x32 = _mm512_inserti64x4(_mm512_castsi256_si512(low_first_f16x16), low_second_f16x16, 1);
-    _mm512_store_si512((__m512i *)dst_high, high_row_i16x32);
-    _mm512_store_si512((__m512i *)dst_low, low_row_i16x32);
-}
-
-/* Split a row of 32 F32 values into high and low FP16 halves with per-element scaling.
- * Pre-multiplies each F32 value by scale_f32x16 before splitting. */
-NK_INTERNAL void nk_dots_f32ozaki_split_row_scaled_graniteamx_( //
-    nk_f32_t const *src, nk_size_t valid_cols,                  //
-    __m512 scale_first_f32x16, __m512 scale_second_f32x16,      //
-    nk_f16_t *dst_high, nk_f16_t *dst_low) {
-
-    // First 16 F32 elements
-    nk_size_t const first_count = (valid_cols > 16) ? 16 : valid_cols;
-    __mmask16 first_mask = (first_count >= 16) ? 0xFFFF : ((__mmask16)1 << first_count) - 1;
-    __m512 original_first_f32x16 = _mm512_mul_ps(_mm512_maskz_loadu_ps(first_mask, src), scale_first_f32x16);
-    __m256i high_first_f16x16 = _mm512_cvtps_ph(original_first_f32x16, _MM_FROUND_TO_NEAREST_INT);
-    __m512 high_roundtrip_first_f32x16 = _mm512_cvtph_ps(high_first_f16x16);
-    __m512 residual_first_f32x16 = _mm512_sub_ps(original_first_f32x16, high_roundtrip_first_f32x16);
-    __m256i low_first_f16x16 = _mm512_cvtps_ph(residual_first_f32x16, _MM_FROUND_TO_NEAREST_INT);
-
-    // Second 16 F32 elements
-    __m256i high_second_f16x16, low_second_f16x16;
-    if (valid_cols > 16) {
-        nk_size_t const second_count = valid_cols - 16;
-        __mmask16 second_mask = (second_count >= 16) ? 0xFFFF : ((__mmask16)1 << second_count) - 1;
-        __m512 original_second_f32x16 = _mm512_mul_ps(_mm512_maskz_loadu_ps(second_mask, src + 16),
-                                                      scale_second_f32x16);
-        high_second_f16x16 = _mm512_cvtps_ph(original_second_f32x16, _MM_FROUND_TO_NEAREST_INT);
-        __m512 high_roundtrip_second_f32x16 = _mm512_cvtph_ps(high_second_f16x16);
-        __m512 residual_second_f32x16 = _mm512_sub_ps(original_second_f32x16, high_roundtrip_second_f32x16);
-        low_second_f16x16 = _mm512_cvtps_ph(residual_second_f32x16, _MM_FROUND_TO_NEAREST_INT);
-    }
-    else {
-        high_second_f16x16 = _mm256_setzero_si256();
-        low_second_f16x16 = _mm256_setzero_si256();
-    }
-
-    __m512i high_row_i16x32 = _mm512_inserti64x4(_mm512_castsi256_si512(high_first_f16x16), high_second_f16x16, 1);
-    __m512i low_row_i16x32 = _mm512_inserti64x4(_mm512_castsi256_si512(low_first_f16x16), low_second_f16x16, 1);
-    _mm512_store_si512((__m512i *)dst_high, high_row_i16x32);
-    _mm512_store_si512((__m512i *)dst_low, low_row_i16x32);
-}
-
-/* Split a block of F32 A rows into high/low FP16 tiles, zero-filling unused rows.
- * Used by the Ozaki packed GEMM to prepare A tiles for a given depth offset. */
-NK_INTERNAL void nk_dots_f32ozaki_split_block_graniteamx_(                                              //
-    nk_f32_t const *a_base, nk_size_t a_stride_elements, nk_size_t depth_offset, nk_size_t valid_depth, //
-    nk_size_t valid_rows,                                                                               //
-    nk_dots_f16_a16x32_graniteamx_t *high_tile, nk_dots_f16_a16x32_graniteamx_t *low_tile) {
-
-    for (nk_size_t row_idx = 0; row_idx < valid_rows; row_idx++) {
-        nk_f32_t const *src = a_base + row_idx * a_stride_elements + depth_offset;
-        nk_dots_f32ozaki_split_row_graniteamx_(src, valid_depth, (nk_f16_t *)high_tile->data[row_idx],
-                                               (nk_f16_t *)low_tile->data[row_idx]);
-    }
-    for (nk_size_t row_idx = valid_rows; row_idx < 16; row_idx++) {
-        _mm512_store_si512((__m512i *)high_tile->data[row_idx], _mm512_setzero_si512());
-        _mm512_store_si512((__m512i *)low_tile->data[row_idx], _mm512_setzero_si512());
-    }
-    nk_compiler_barrier_sapphireamx_();
 }
 
 #pragma endregion Helpers
@@ -869,604 +717,6 @@ NK_PUBLIC void nk_dots_symmetric_f16_graniteamx(                                
 }
 
 #pragma endregion F16 Native
-
-#pragma region F32 Ozaki
-
-NK_PUBLIC nk_size_t nk_dots_packed_size_f32_graniteamx(nk_size_t column_count, nk_size_t depth) {
-    nk_size_t const tmm_rows = 16;
-    nk_size_t const tmm_cols = 32;
-    nk_size_t const tile_bytes = 512 * sizeof(nk_f16_t); // 16 × 32 × 2 = 1KB
-
-    nk_size_t const full_column_tiles = column_count / tmm_rows;
-    nk_size_t const tiles_along_depth = nk_size_divide_round_up_(depth, tmm_cols);
-    nk_size_t const column_remainder_count = column_count - full_column_tiles * tmm_rows;
-
-    // Header (64 bytes aligned)
-    nk_size_t size = sizeof(nk_dots_f32ozaki_packed_header_graniteamx_t);
-
-    // B_high tiles + B_low tiles (2× the normal FP16 tiles)
-    size += 2 * full_column_tiles * tiles_along_depth * tile_bytes;
-
-    // Column edge: hi + lo remainder rows for ALL depth, row-major
-    if (column_remainder_count > 0) size += 2 * column_remainder_count * depth * sizeof(nk_f16_t);
-
-    // Per-column norms (f64 for F32 inputs)
-    size += column_count * sizeof(nk_f64_t);
-
-    // Per-column-tile inverse scale factors
-    size += full_column_tiles * sizeof(nk_f32_t);
-
-    return size;
-}
-
-NK_PUBLIC void nk_dots_pack_f32_graniteamx(                     //
-    nk_f32_t const *b, nk_size_t column_count, nk_size_t depth, //
-    nk_size_t b_stride_in_bytes, void *b_packed) {
-
-    nk_size_t const tmm_rows = 16;
-    nk_size_t const tmm_cols = 32;
-    nk_size_t const tile_elements = 512;
-    nk_size_t const tile_bytes = tile_elements * sizeof(nk_f16_t);
-    nk_size_t const b_stride_elements = b_stride_in_bytes / sizeof(nk_f32_t);
-
-    nk_size_t const column_tiles_count = column_count / tmm_rows;
-    nk_size_t const depth_tiles_count = nk_size_divide_round_up_(depth, tmm_cols);
-    nk_size_t const column_remainder_count = column_count - column_tiles_count * tmm_rows;
-    nk_size_t const total_tiles = column_tiles_count * depth_tiles_count;
-
-    // Write header
-    nk_dots_f32ozaki_packed_header_graniteamx_t *header = (nk_dots_f32ozaki_packed_header_graniteamx_t *)b_packed;
-    header->full_column_tiles = (nk_u32_t)column_tiles_count;
-    header->full_depth_tiles = (nk_u32_t)depth_tiles_count;
-    header->column_remainder_count = (nk_u32_t)column_remainder_count;
-
-    // Compute offsets: [header][B_high tiles][B_low tiles][edge_high][edge_low][norms][scales]
-    nk_size_t const high_tiles_offset = sizeof(nk_dots_f32ozaki_packed_header_graniteamx_t);
-    nk_size_t const low_tiles_offset = high_tiles_offset + total_tiles * tile_bytes;
-    header->b_low_tiles_offset = (nk_u32_t)low_tiles_offset;
-
-    nk_size_t const column_edge_offset = low_tiles_offset + total_tiles * tile_bytes;
-    header->column_edge_offset = (nk_u32_t)column_edge_offset;
-
-    nk_size_t const edge_size = column_remainder_count > 0 ? 2 * column_remainder_count * depth * sizeof(nk_f16_t) : 0;
-    nk_size_t const norms_offset = column_edge_offset + edge_size;
-    header->norms_byte_offset = (nk_u32_t)norms_offset;
-
-    nk_size_t const scales_offset = norms_offset + column_count * sizeof(nk_f64_t);
-    header->scales_offset = (nk_u32_t)scales_offset;
-
-    nk_f16_t *high_tiles_ptr = (nk_f16_t *)((char *)b_packed + high_tiles_offset);
-    nk_f16_t *low_tiles_ptr = (nk_f16_t *)((char *)b_packed + low_tiles_offset);
-    nk_f16_t *edge_high_ptr = (nk_f16_t *)((char *)b_packed + column_edge_offset);
-    nk_f16_t *edge_low_ptr = edge_high_ptr + (column_remainder_count > 0 ? column_remainder_count * depth : 0);
-    nk_f32_t *inv_scales = (nk_f32_t *)((char *)b_packed + scales_offset);
-
-    // Pack full column tiles with per-tile scaling
-    for (nk_size_t column_tile_idx = 0; column_tile_idx < column_tiles_count; column_tile_idx++) {
-        nk_size_t const src_row_start = column_tile_idx * tmm_rows;
-
-        // Scan max absolute value across all 16 columns × all depth elements
-        __m512 column_max_f32x16 = _mm512_setzero_ps();
-        for (nk_size_t depth_idx = 0; depth_idx < depth; depth_idx++) {
-            __m512 values_f32x16 = _mm512_set_ps(b[(src_row_start + 15) * b_stride_elements + depth_idx],
-                                                 b[(src_row_start + 14) * b_stride_elements + depth_idx],
-                                                 b[(src_row_start + 13) * b_stride_elements + depth_idx],
-                                                 b[(src_row_start + 12) * b_stride_elements + depth_idx],
-                                                 b[(src_row_start + 11) * b_stride_elements + depth_idx],
-                                                 b[(src_row_start + 10) * b_stride_elements + depth_idx],
-                                                 b[(src_row_start + 9) * b_stride_elements + depth_idx],
-                                                 b[(src_row_start + 8) * b_stride_elements + depth_idx],
-                                                 b[(src_row_start + 7) * b_stride_elements + depth_idx],
-                                                 b[(src_row_start + 6) * b_stride_elements + depth_idx],
-                                                 b[(src_row_start + 5) * b_stride_elements + depth_idx],
-                                                 b[(src_row_start + 4) * b_stride_elements + depth_idx],
-                                                 b[(src_row_start + 3) * b_stride_elements + depth_idx],
-                                                 b[(src_row_start + 2) * b_stride_elements + depth_idx],
-                                                 b[(src_row_start + 1) * b_stride_elements + depth_idx],
-                                                 b[(src_row_start + 0) * b_stride_elements + depth_idx]);
-            column_max_f32x16 = _mm512_max_ps(column_max_f32x16, _mm512_abs_ps(values_f32x16));
-        }
-        nk_f32_t tile_max_abs = _mm512_reduce_max_ps(column_max_f32x16);
-
-        // Compute scale factor: if max exceeds FP16 range, scale down; otherwise use 1.0
-        nk_f32_t scale = 1.0f;
-        nk_f32_t inv_scale = 1.0f;
-        if (tile_max_abs > 65504.0f) {
-            scale = 65504.0f / tile_max_abs;
-            inv_scale = tile_max_abs / 65504.0f;
-        }
-        inv_scales[column_tile_idx] = inv_scale;
-
-        // Pack each depth tile: split F32→FP16 high/low with scaling, transpose both halves
-        for (nk_size_t depth_tile_idx = 0; depth_tile_idx < depth_tiles_count; depth_tile_idx++) {
-            nk_size_t const tile_index = column_tile_idx * depth_tiles_count + depth_tile_idx;
-            nk_size_t const src_column_start = depth_tile_idx * tmm_cols;
-            nk_size_t const columns_to_pack = (src_column_start + tmm_cols <= depth) ? tmm_cols
-                                                                                     : (depth - src_column_start);
-
-            // Split each of the 16 source rows into high/low FP16 tiles
-            nk_dots_bf16_a16x32_sapphireamx_t source_high, source_low;
-            __m512 scale_first_f32x16 = _mm512_set1_ps(scale);
-            __m512 scale_second_f32x16 = _mm512_set1_ps(scale);
-
-            for (nk_size_t row_idx = 0; row_idx < tmm_rows; row_idx++) {
-                nk_f32_t const *src_row = b + (src_row_start + row_idx) * b_stride_elements + src_column_start;
-                nk_dots_f32ozaki_split_row_scaled_graniteamx_(
-                    src_row, columns_to_pack, scale_first_f32x16, scale_second_f32x16,
-                    (nk_f16_t *)source_high.data[row_idx], (nk_f16_t *)source_low.data[row_idx]);
-            }
-
-            // Transpose both halves using the BF16 transposer (identical 16-bit pair-interleaved layout)
-            nk_dots_bf16_b32x16_sapphireamx_t transposed_high, transposed_low;
-            nk_dots_pack_bf16_transposed_sapphireamx_(&source_high, &transposed_high);
-            nk_dots_pack_bf16_transposed_sapphireamx_(&source_low, &transposed_low);
-
-            // Copy to packed buffer
-            nk_f16_t *high_out = high_tiles_ptr + tile_index * tile_elements;
-            nk_f16_t *low_out = low_tiles_ptr + tile_index * tile_elements;
-            for (nk_size_t i = 0; i < tile_bytes; i += 64) {
-                _mm512_storeu_si512((char *)high_out + i, _mm512_load_si512((char const *)&transposed_high + i));
-                _mm512_storeu_si512((char *)low_out + i, _mm512_load_si512((char const *)&transposed_low + i));
-            }
-        }
-    }
-
-    // Pack column-remainder using vectorized splitting
-    if (column_remainder_count > 0) {
-        nk_size_t const remainder_start_row = column_tiles_count * tmm_rows;
-        for (nk_size_t row_idx = 0; row_idx < column_remainder_count; row_idx++) {
-            nk_f32_t const *src_row = b + (remainder_start_row + row_idx) * b_stride_elements;
-            nk_f16_t *dst_high_row = edge_high_ptr + row_idx * depth;
-            nk_f16_t *dst_low_row = edge_low_ptr + row_idx * depth;
-            nk_size_t col_idx = 0;
-
-            // Process 16 F32 elements at a time
-            for (; col_idx + 16 <= depth; col_idx += 16) {
-                __m512 original_f32x16 = _mm512_loadu_ps(src_row + col_idx);
-                __m256i high_f16x16 = _mm512_cvtps_ph(original_f32x16, _MM_FROUND_TO_NEAREST_INT);
-                __m512 roundtrip_f32x16 = _mm512_cvtph_ps(high_f16x16);
-                __m512 residual_f32x16 = _mm512_sub_ps(original_f32x16, roundtrip_f32x16);
-                __m256i low_f16x16 = _mm512_cvtps_ph(residual_f32x16, _MM_FROUND_TO_NEAREST_INT);
-                _mm256_storeu_si256((__m256i *)(dst_high_row + col_idx), high_f16x16);
-                _mm256_storeu_si256((__m256i *)(dst_low_row + col_idx), low_f16x16);
-            }
-            if (col_idx < depth) {
-                __mmask16 tail_mask = (__mmask16)((1u << (depth - col_idx)) - 1);
-                __m512 original_f32x16 = _mm512_maskz_loadu_ps(tail_mask, src_row + col_idx);
-                __m256i high_f16x16 = _mm512_cvtps_ph(original_f32x16, _MM_FROUND_TO_NEAREST_INT);
-                __m512 roundtrip_f32x16 = _mm512_cvtph_ps(high_f16x16);
-                __m512 residual_f32x16 = _mm512_sub_ps(original_f32x16, roundtrip_f32x16);
-                __m256i low_f16x16 = _mm512_cvtps_ph(residual_f32x16, _MM_FROUND_TO_NEAREST_INT);
-                _mm256_mask_storeu_epi16(dst_high_row + col_idx, tail_mask, high_f16x16);
-                _mm256_mask_storeu_epi16(dst_low_row + col_idx, tail_mask, low_f16x16);
-            }
-        }
-    }
-
-    // Compute and store per-column norms (f64 for F32 inputs)
-    nk_f64_t *norms = (nk_f64_t *)((char *)b_packed + norms_offset);
-    for (nk_size_t col = 0; col < column_count; col++)
-        norms[col] = nk_dots_reduce_sumsq_f32_(b + col * b_stride_elements, depth);
-}
-
-NK_PUBLIC void nk_dots_packed_f32_graniteamx(             //
-    nk_f32_t const *a, void const *b_packed, nk_f64_t *c, //
-    nk_size_t rows_count, nk_size_t cols_count, nk_size_t depth, nk_size_t a_stride_bytes, nk_size_t c_stride_bytes) {
-    nk_unused_(cols_count);
-
-    // Parse packed B header
-    nk_dots_f32ozaki_packed_header_graniteamx_t const *header =
-        (nk_dots_f32ozaki_packed_header_graniteamx_t const *)b_packed;
-    nk_size_t const column_tiles_count = header->full_column_tiles;
-    nk_size_t const depth_tiles_count = header->full_depth_tiles;
-    nk_size_t const column_remainder_count = header->column_remainder_count;
-
-    // Packed B data regions
-    nk_size_t const high_tiles_offset = sizeof(nk_dots_f32ozaki_packed_header_graniteamx_t);
-    nk_f16_t const *b_high_base = (nk_f16_t const *)((char const *)b_packed + high_tiles_offset);
-    nk_f16_t const *b_low_base = (nk_f16_t const *)((char const *)b_packed + header->b_low_tiles_offset);
-    nk_f16_t const *col_edge_ptr = (nk_f16_t const *)((char const *)b_packed + header->column_edge_offset);
-    nk_f32_t const *inv_scales = (nk_f32_t const *)((char const *)b_packed + header->scales_offset);
-
-    // Stride conversions
-    nk_size_t const a_stride_elements = a_stride_bytes / sizeof(nk_f32_t);
-    nk_size_t const c_stride_elements = c_stride_bytes / sizeof(nk_f64_t);
-
-    // Tile dimensions
-    nk_size_t const tile_depth = 32;
-    nk_size_t const tile_size = 512;
-    nk_size_t const full_cols = column_tiles_count * 16;
-
-    nk_size_t const row_blocks_count = nk_size_divide_round_up_(rows_count, 32);
-    nk_size_t const col_blocks_count = column_tiles_count / 2;
-
-    if (depth_tiles_count == 0) return;
-
-    nk_size_t const full_depth_tiles_count = depth / tile_depth;
-    nk_size_t const depth_remainder = depth % tile_depth;
-
-    // Tile buffers for Ozaki A splitting
-    nk_dots_f16_a16x32_graniteamx_t a_top_high_tile, a_top_low_tile;
-    nk_dots_f16_a16x32_graniteamx_t a_bottom_high_tile, a_bottom_low_tile;
-    nk_dots_f16_state2x2_graniteamx_t c_accum_buffer;
-
-    nk_amx_tile_configure_sapphireamx_();
-
-    for (nk_size_t row_block_idx = 0; row_block_idx < row_blocks_count; row_block_idx++) {
-        nk_size_t const row_block_start = row_block_idx * 32;
-        nk_size_t const valid_rows_count = (row_block_start + 32 <= rows_count) ? 32 : (rows_count - row_block_start);
-        nk_size_t const rows_in_high_tile = (valid_rows_count > 16) ? 16 : valid_rows_count;
-        nk_size_t const rows_in_low_tile = (valid_rows_count > 16) ? valid_rows_count - 16 : 0;
-
-        for (nk_size_t column_block_idx = 0; column_block_idx < col_blocks_count; column_block_idx++) {
-            nk_size_t const col_block_start = column_block_idx * 32;
-            nk_size_t const left_col_tile = column_block_idx * 2;
-            nk_size_t const right_col_tile = column_block_idx * 2 + 1;
-            nk_size_t const b_column_left_base = left_col_tile * depth_tiles_count;
-            nk_size_t const b_column_right_base = right_col_tile * depth_tiles_count;
-
-            _tile_zero(4);
-            _tile_zero(5);
-            _tile_zero(6);
-            _tile_zero(7);
-
-            for (nk_size_t depth_tile_idx = 0; depth_tile_idx < depth_tiles_count; depth_tile_idx++) {
-                nk_size_t const depth_offset = depth_tile_idx * tile_depth;
-                nk_size_t const valid_depth = (depth_tile_idx < full_depth_tiles_count) ? tile_depth : depth_remainder;
-
-                // Split top and bottom A rows into high/low FP16 tiles
-                nk_dots_f32ozaki_split_block_graniteamx_(a + row_block_start * a_stride_elements, a_stride_elements,
-                                                         depth_offset, valid_depth, rows_in_high_tile, &a_top_high_tile,
-                                                         &a_top_low_tile);
-                nk_dots_f32ozaki_split_block_graniteamx_(a + (row_block_start + 16) * a_stride_elements,
-                                                         a_stride_elements, depth_offset, valid_depth, rows_in_low_tile,
-                                                         &a_bottom_high_tile, &a_bottom_low_tile);
-
-                // Load B_high and B_low for left column tile
-                nk_dots_f16_b32x16_graniteamx_t const *b_high_left =
-                    (nk_dots_f16_b32x16_graniteamx_t const *)(b_high_base +
-                                                              (b_column_left_base + depth_tile_idx) * tile_size);
-                nk_dots_f16_b32x16_graniteamx_t const *b_low_left =
-                    (nk_dots_f16_b32x16_graniteamx_t const *)(b_low_base +
-                                                              (b_column_left_base + depth_tile_idx) * tile_size);
-
-                // Top rows × left column: 4 TDPFP16PS into TMM4
-                _tile_loadd(2, b_high_left->data, 64);
-                _tile_loadd(3, b_low_left->data, 64);
-
-                _tile_loadd(0, a_top_high_tile.data, 64);
-                _tile_dpfp16ps(4, 0, 2);
-                _tile_dpfp16ps(4, 0, 3);
-                _tile_loadd(0, a_top_low_tile.data, 64);
-                _tile_dpfp16ps(4, 0, 2);
-                _tile_dpfp16ps(4, 0, 3);
-
-                // Bottom rows × left column: 4 TDPFP16PS into TMM6
-                _tile_loadd(1, a_bottom_high_tile.data, 64);
-                _tile_dpfp16ps(6, 1, 2);
-                _tile_dpfp16ps(6, 1, 3);
-                _tile_loadd(1, a_bottom_low_tile.data, 64);
-                _tile_dpfp16ps(6, 1, 2);
-                _tile_dpfp16ps(6, 1, 3);
-
-                // Load B_high and B_low for right column tile
-                nk_dots_f16_b32x16_graniteamx_t const *b_high_right =
-                    (nk_dots_f16_b32x16_graniteamx_t const *)(b_high_base +
-                                                              (b_column_right_base + depth_tile_idx) * tile_size);
-                nk_dots_f16_b32x16_graniteamx_t const *b_low_right =
-                    (nk_dots_f16_b32x16_graniteamx_t const *)(b_low_base +
-                                                              (b_column_right_base + depth_tile_idx) * tile_size);
-
-                // Top rows × right column: 4 TDPFP16PS into TMM5
-                _tile_loadd(2, b_high_right->data, 64);
-                _tile_loadd(3, b_low_right->data, 64);
-
-                _tile_loadd(0, a_top_high_tile.data, 64);
-                _tile_dpfp16ps(5, 0, 2);
-                _tile_dpfp16ps(5, 0, 3);
-                _tile_loadd(0, a_top_low_tile.data, 64);
-                _tile_dpfp16ps(5, 0, 2);
-                _tile_dpfp16ps(5, 0, 3);
-
-                // Bottom rows × right column: 4 TDPFP16PS into TMM7
-                _tile_loadd(1, a_bottom_high_tile.data, 64);
-                _tile_dpfp16ps(7, 1, 2);
-                _tile_dpfp16ps(7, 1, 3);
-                _tile_loadd(1, a_bottom_low_tile.data, 64);
-                _tile_dpfp16ps(7, 1, 2);
-                _tile_dpfp16ps(7, 1, 3);
-            }
-
-            // Store accumulators, applying inverse scale factors and widening to f64
-            _tile_stored(4, c_accum_buffer.c[0][0].data, 64);
-            _tile_stored(5, c_accum_buffer.c[0][1].data, 64);
-            _tile_stored(6, c_accum_buffer.c[1][0].data, 64);
-            _tile_stored(7, c_accum_buffer.c[1][1].data, 64);
-
-            // Apply inverse scale for left and right column tiles
-            nk_f32_t left_inv_scale = inv_scales[left_col_tile];
-            nk_f32_t right_inv_scale = inv_scales[right_col_tile];
-            if (left_inv_scale != 1.0f) {
-                __m512 inv_scale_f32x16 = _mm512_set1_ps(left_inv_scale);
-                for (nk_size_t r = 0; r < 16; r++) {
-                    _mm512_store_ps(c_accum_buffer.c[0][0].data[r],
-                                    _mm512_mul_ps(_mm512_load_ps(c_accum_buffer.c[0][0].data[r]), inv_scale_f32x16));
-                    _mm512_store_ps(c_accum_buffer.c[1][0].data[r],
-                                    _mm512_mul_ps(_mm512_load_ps(c_accum_buffer.c[1][0].data[r]), inv_scale_f32x16));
-                }
-            }
-            if (right_inv_scale != 1.0f) {
-                __m512 inv_scale_f32x16 = _mm512_set1_ps(right_inv_scale);
-                for (nk_size_t r = 0; r < 16; r++) {
-                    _mm512_store_ps(c_accum_buffer.c[0][1].data[r],
-                                    _mm512_mul_ps(_mm512_load_ps(c_accum_buffer.c[0][1].data[r]), inv_scale_f32x16));
-                    _mm512_store_ps(c_accum_buffer.c[1][1].data[r],
-                                    _mm512_mul_ps(_mm512_load_ps(c_accum_buffer.c[1][1].data[r]), inv_scale_f32x16));
-                }
-            }
-
-            nk_dots_f32ozaki_output2x2_f64_graniteamx_(&c_accum_buffer,
-                                                       c + row_block_start * c_stride_elements + col_block_start,
-                                                       c_stride_elements, valid_rows_count, 32);
-        }
-    }
-
-    // Handle odd column-tile
-    if (column_tiles_count % 2 == 1) {
-        nk_size_t const column_tile_idx = column_tiles_count - 1;
-        nk_size_t const col_start = column_tile_idx * 16;
-        nk_size_t const b_column_base = column_tile_idx * depth_tiles_count;
-
-        for (nk_size_t row_block_idx = 0; row_block_idx < row_blocks_count; row_block_idx++) {
-            nk_size_t const row_block_start = row_block_idx * 32;
-            nk_size_t const valid_rows_count = (row_block_start + 32 <= rows_count) ? 32
-                                                                                    : (rows_count - row_block_start);
-            nk_size_t const rows_in_high_tile = (valid_rows_count > 16) ? 16 : valid_rows_count;
-            nk_size_t const rows_in_low_tile = (valid_rows_count > 16) ? valid_rows_count - 16 : 0;
-
-            nk_dots_f16_state_graniteamx_t c_high_state, c_low_state;
-
-            _tile_zero(4);
-            _tile_zero(6);
-
-            for (nk_size_t depth_tile_idx = 0; depth_tile_idx < depth_tiles_count; depth_tile_idx++) {
-                nk_size_t const depth_offset = depth_tile_idx * tile_depth;
-                nk_size_t const valid_depth = (depth_tile_idx < full_depth_tiles_count) ? tile_depth : depth_remainder;
-
-                nk_dots_f32ozaki_split_block_graniteamx_(a + row_block_start * a_stride_elements, a_stride_elements,
-                                                         depth_offset, valid_depth, rows_in_high_tile, &a_top_high_tile,
-                                                         &a_top_low_tile);
-                nk_dots_f32ozaki_split_block_graniteamx_(a + (row_block_start + 16) * a_stride_elements,
-                                                         a_stride_elements, depth_offset, valid_depth, rows_in_low_tile,
-                                                         &a_bottom_high_tile, &a_bottom_low_tile);
-
-                nk_dots_f16_b32x16_graniteamx_t const *b_high_tile =
-                    (nk_dots_f16_b32x16_graniteamx_t const *)(b_high_base +
-                                                              (b_column_base + depth_tile_idx) * tile_size);
-                nk_dots_f16_b32x16_graniteamx_t const *b_low_tile =
-                    (nk_dots_f16_b32x16_graniteamx_t const *)(b_low_base +
-                                                              (b_column_base + depth_tile_idx) * tile_size);
-
-                _tile_loadd(2, b_high_tile->data, 64);
-                _tile_loadd(3, b_low_tile->data, 64);
-
-                _tile_loadd(0, a_top_high_tile.data, 64);
-                _tile_dpfp16ps(4, 0, 2);
-                _tile_dpfp16ps(4, 0, 3);
-                _tile_loadd(0, a_top_low_tile.data, 64);
-                _tile_dpfp16ps(4, 0, 2);
-                _tile_dpfp16ps(4, 0, 3);
-
-                _tile_loadd(1, a_bottom_high_tile.data, 64);
-                _tile_dpfp16ps(6, 1, 2);
-                _tile_dpfp16ps(6, 1, 3);
-                _tile_loadd(1, a_bottom_low_tile.data, 64);
-                _tile_dpfp16ps(6, 1, 2);
-                _tile_dpfp16ps(6, 1, 3);
-            }
-
-            _tile_stored(4, c_high_state.data, 64);
-            _tile_stored(6, c_low_state.data, 64);
-
-            // Apply inverse scale
-            nk_f32_t col_inv_scale = inv_scales[column_tile_idx];
-            if (col_inv_scale != 1.0f) {
-                __m512 inv_scale_f32x16 = _mm512_set1_ps(col_inv_scale);
-                for (nk_size_t r = 0; r < 16; r++) {
-                    _mm512_store_ps(c_high_state.data[r],
-                                    _mm512_mul_ps(_mm512_load_ps(c_high_state.data[r]), inv_scale_f32x16));
-                    _mm512_store_ps(c_low_state.data[r],
-                                    _mm512_mul_ps(_mm512_load_ps(c_low_state.data[r]), inv_scale_f32x16));
-                }
-            }
-
-            nk_dots_f32ozaki_store_f64_graniteamx_(&c_high_state, c + row_block_start * c_stride_elements + col_start,
-                                                   c_stride_elements, rows_in_high_tile, 16);
-            if (rows_in_low_tile > 0) {
-                nk_dots_f32ozaki_store_f64_graniteamx_(&c_low_state,
-                                                       c + (row_block_start + 16) * c_stride_elements + col_start,
-                                                       c_stride_elements, rows_in_low_tile, 16);
-            }
-        }
-    }
-
-    // Handle column-edge (remaining columns < 16) — no scaling needed for edge (small tile)
-    if (column_remainder_count > 0) {
-        nk_f16_t const *edge_high = col_edge_ptr;
-        nk_f16_t const *edge_low = col_edge_ptr + column_remainder_count * depth;
-
-        for (nk_size_t row_block_idx = 0; row_block_idx < row_blocks_count; row_block_idx++) {
-            nk_size_t const row_block_start = row_block_idx * 32;
-            nk_size_t const valid_rows_count = (row_block_start + 32 <= rows_count) ? 32
-                                                                                    : (rows_count - row_block_start);
-            nk_size_t const rows_in_high_tile = (valid_rows_count > 16) ? 16 : valid_rows_count;
-            nk_size_t const rows_in_low_tile = (valid_rows_count > 16) ? valid_rows_count - 16 : 0;
-
-            nk_dots_f16_state_graniteamx_t c_high_state, c_low_state;
-            nk_dots_bf16_a16x32_sapphireamx_t b_as_a_high, b_as_a_low;
-            nk_dots_bf16_b32x16_sapphireamx_t b_tile_high, b_tile_low;
-
-            _tile_zero(4);
-            _tile_zero(6);
-
-            for (nk_size_t depth_tile_idx = 0; depth_tile_idx < depth_tiles_count; depth_tile_idx++) {
-                nk_size_t const depth_offset = depth_tile_idx * tile_depth;
-                nk_size_t const valid_depth = (depth_tile_idx < full_depth_tiles_count) ? tile_depth : depth_remainder;
-
-                // Split top A rows
-                for (nk_size_t row_idx = 0; row_idx < rows_in_high_tile; row_idx++) {
-                    nk_f32_t const *src = a + (row_block_start + row_idx) * a_stride_elements + depth_offset;
-                    nk_dots_f32ozaki_split_row_graniteamx_(src, valid_depth, (nk_f16_t *)a_top_high_tile.data[row_idx],
-                                                           (nk_f16_t *)a_top_low_tile.data[row_idx]);
-                }
-                for (nk_size_t row_idx = rows_in_high_tile; row_idx < 16; row_idx++) {
-                    _mm512_store_si512((__m512i *)a_top_high_tile.data[row_idx], _mm512_setzero_si512());
-                    _mm512_store_si512((__m512i *)a_top_low_tile.data[row_idx], _mm512_setzero_si512());
-                }
-
-                // Split bottom A rows
-                for (nk_size_t row_idx = 0; row_idx < rows_in_low_tile; row_idx++) {
-                    nk_f32_t const *src = a + (row_block_start + 16 + row_idx) * a_stride_elements + depth_offset;
-                    nk_dots_f32ozaki_split_row_graniteamx_(src, valid_depth,
-                                                           (nk_f16_t *)a_bottom_high_tile.data[row_idx],
-                                                           (nk_f16_t *)a_bottom_low_tile.data[row_idx]);
-                }
-                for (nk_size_t row_idx = rows_in_low_tile; row_idx < 16; row_idx++) {
-                    _mm512_store_si512((__m512i *)a_bottom_high_tile.data[row_idx], _mm512_setzero_si512());
-                    _mm512_store_si512((__m512i *)a_bottom_low_tile.data[row_idx], _mm512_setzero_si512());
-                }
-                nk_compiler_barrier_sapphireamx_();
-
-                // Load edge B high/low and transpose
-                nk_dots_bf16_load_a_sapphireamx_(&b_as_a_high, (nk_bf16_t const *)(edge_high + depth_offset), depth,
-                                                 column_remainder_count, valid_depth);
-                nk_dots_bf16_load_a_sapphireamx_(&b_as_a_low, (nk_bf16_t const *)(edge_low + depth_offset), depth,
-                                                 column_remainder_count, valid_depth);
-                nk_dots_pack_bf16_transposed_sapphireamx_(&b_as_a_high, &b_tile_high);
-                nk_dots_pack_bf16_transposed_sapphireamx_(&b_as_a_low, &b_tile_low);
-
-                // 4 Ozaki terms for top rows
-                _tile_loadd(2, b_tile_high.data, 64);
-                _tile_loadd(3, b_tile_low.data, 64);
-
-                _tile_loadd(0, a_top_high_tile.data, 64);
-                _tile_dpfp16ps(4, 0, 2);
-                _tile_dpfp16ps(4, 0, 3);
-                _tile_loadd(0, a_top_low_tile.data, 64);
-                _tile_dpfp16ps(4, 0, 2);
-                _tile_dpfp16ps(4, 0, 3);
-
-                // 4 Ozaki terms for bottom rows
-                _tile_loadd(1, a_bottom_high_tile.data, 64);
-                _tile_dpfp16ps(6, 1, 2);
-                _tile_dpfp16ps(6, 1, 3);
-                _tile_loadd(1, a_bottom_low_tile.data, 64);
-                _tile_dpfp16ps(6, 1, 2);
-                _tile_dpfp16ps(6, 1, 3);
-            }
-
-            _tile_stored(4, c_high_state.data, 64);
-            _tile_stored(6, c_low_state.data, 64);
-
-            nk_dots_f32ozaki_store_f64_graniteamx_(&c_high_state, c + row_block_start * c_stride_elements + full_cols,
-                                                   c_stride_elements, rows_in_high_tile, column_remainder_count);
-            if (rows_in_low_tile > 0) {
-                nk_dots_f32ozaki_store_f64_graniteamx_(&c_low_state,
-                                                       c + (row_block_start + 16) * c_stride_elements + full_cols,
-                                                       c_stride_elements, rows_in_low_tile, column_remainder_count);
-            }
-        }
-    }
-
-    _tile_release();
-}
-
-NK_PUBLIC void nk_dots_symmetric_f32_graniteamx(                                   //
-    nk_f32_t const *vectors, nk_size_t vectors_count, nk_size_t depth,             //
-    nk_size_t stride_in_bytes, nk_f64_t *result, nk_size_t result_stride_in_bytes, //
-    nk_size_t row_start, nk_size_t row_count) {
-
-    nk_size_t const stride_elements = stride_in_bytes / sizeof(nk_f32_t);
-    nk_size_t const result_stride_elements = result_stride_in_bytes / sizeof(nk_f64_t);
-    nk_size_t const row_end = (row_count == 0)
-                                  ? vectors_count
-                                  : (row_start + row_count < vectors_count ? row_start + row_count : vectors_count);
-
-    // 1-deep depth grouping for Ozaki: split A and B from F32, accumulate per depth tile
-    nk_size_t const depth_tiles = nk_size_divide_round_up_(depth, 32);
-
-    nk_dots_f16_a16x32_graniteamx_t a_high_tile, a_low_tile;
-    nk_dots_f16_a16x32_graniteamx_t b_src_high_tile, b_src_low_tile;
-    nk_dots_f16_b32x16_graniteamx_t b_high_tile, b_low_tile;
-    nk_dots_f16_state_graniteamx_t state;
-
-    nk_amx_tile_configure_sapphireamx_();
-
-    for (nk_size_t row_tile = row_start; row_tile < row_end; row_tile += 16) {
-        nk_size_t const valid_rows = (row_tile + 16 <= row_end) ? 16 : (row_end - row_tile);
-
-        for (nk_size_t col_tile = 0; col_tile < vectors_count; col_tile += 16) {
-            nk_size_t const valid_cols = (col_tile + 16 <= vectors_count) ? 16 : (vectors_count - col_tile);
-
-            nk_dots_f16_init_graniteamx_(&state);
-
-            for (nk_size_t depth_tile_idx = 0; depth_tile_idx < depth_tiles; depth_tile_idx++) {
-                nk_size_t const depth_start = depth_tile_idx * 32;
-                nk_size_t const valid_depth = (depth_start + 32 <= depth)
-                                                  ? 32
-                                                  : (depth > depth_start ? depth - depth_start : 0);
-                if (valid_depth == 0) continue;
-
-                // Split A rows: F32 → FP16 high/low
-                for (nk_size_t row_idx = 0; row_idx < valid_rows; row_idx++) {
-                    nk_f32_t const *src = vectors + (row_tile + row_idx) * stride_elements + depth_start;
-                    nk_dots_f32ozaki_split_row_graniteamx_(src, valid_depth, (nk_f16_t *)a_high_tile.data[row_idx],
-                                                           (nk_f16_t *)a_low_tile.data[row_idx]);
-                }
-                for (nk_size_t row_idx = valid_rows; row_idx < 16; row_idx++) {
-                    _mm512_store_si512((__m512i *)a_high_tile.data[row_idx], _mm512_setzero_si512());
-                    _mm512_store_si512((__m512i *)a_low_tile.data[row_idx], _mm512_setzero_si512());
-                }
-
-                // Split B columns: F32 → FP16 high/low, then transpose
-                if (row_tile == col_tile) {
-                    // Self-correlation on diagonal: reuse A data as B
-                    nk_dots_pack_bf16_transposed_sapphireamx_((nk_dots_bf16_a16x32_sapphireamx_t const *)&a_high_tile,
-                                                              (nk_dots_bf16_b32x16_sapphireamx_t *)&b_high_tile);
-                    nk_dots_pack_bf16_transposed_sapphireamx_((nk_dots_bf16_a16x32_sapphireamx_t const *)&a_low_tile,
-                                                              (nk_dots_bf16_b32x16_sapphireamx_t *)&b_low_tile);
-                }
-                else {
-                    for (nk_size_t col_idx = 0; col_idx < valid_cols; col_idx++) {
-                        nk_f32_t const *src = vectors + (col_tile + col_idx) * stride_elements + depth_start;
-                        nk_dots_f32ozaki_split_row_graniteamx_(src, valid_depth,
-                                                               (nk_f16_t *)b_src_high_tile.data[col_idx],
-                                                               (nk_f16_t *)b_src_low_tile.data[col_idx]);
-                    }
-                    for (nk_size_t col_idx = valid_cols; col_idx < 16; col_idx++) {
-                        _mm512_store_si512((__m512i *)b_src_high_tile.data[col_idx], _mm512_setzero_si512());
-                        _mm512_store_si512((__m512i *)b_src_low_tile.data[col_idx], _mm512_setzero_si512());
-                    }
-                    nk_dots_pack_bf16_transposed_sapphireamx_(
-                        (nk_dots_bf16_a16x32_sapphireamx_t const *)&b_src_high_tile,
-                        (nk_dots_bf16_b32x16_sapphireamx_t *)&b_high_tile);
-                    nk_dots_pack_bf16_transposed_sapphireamx_(
-                        (nk_dots_bf16_a16x32_sapphireamx_t const *)&b_src_low_tile,
-                        (nk_dots_bf16_b32x16_sapphireamx_t *)&b_low_tile);
-                }
-
-                nk_compiler_barrier_sapphireamx_();
-                nk_dots_f32ozaki_update_graniteamx_(&state, &a_high_tile, &a_low_tile, &b_high_tile, &b_low_tile);
-            }
-
-            // Widen F32 state to F64 and store
-            nk_dots_f32ozaki_store_f64_graniteamx_(&state, result + row_tile * result_stride_elements + col_tile,
-                                                   result_stride_elements, valid_rows, valid_cols);
-        }
-    }
-}
-
-#pragma endregion F32 Ozaki
 
 #if defined(__clang__)
 #pragma clang attribute pop
