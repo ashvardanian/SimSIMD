@@ -205,10 +205,15 @@ def probe_all_isas() -> list[tuple[str, str]]:
     for arch_match, table in tables:
         for name, probe_file, gcc_flags, msvc_flags in table:
             if arch_match and os.path.isfile(probe_file):
-                # Allow env-var override: NK_TARGET_FOO=0 forces off
-                env_val = os.environ.get(f"NK_TARGET_{name}")
-                if env_val == "0":
+                # Allow env-var override: NK_TARGET_FOO=1/true forces on, =0/false forces off
+                env_val = os.environ.get(f"NK_TARGET_{name}", "").lower()
+                if env_val in ("1", "true"):
+                    macros.append((f"NK_TARGET_{name}", "1"))
+                    print(f"[NumKong] NK_TARGET_{name}: force-enabled via environment")
+                    continue
+                if env_val in ("0", "false"):
                     macros.append((f"NK_TARGET_{name}", "0"))
+                    print(f"[NumKong] NK_TARGET_{name}: force-disabled via environment")
                     continue
                 flags = msvc_flags if is_msvc else gcc_flags
                 ok = probe_isa(cc, probe_file, flags, is_msvc)
