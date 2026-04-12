@@ -32,8 +32,9 @@
 #if NK_TARGET_ARM64_
 #if NK_TARGET_SVE
 
-#include "numkong/types.h"    // `nk_u1x8_t`
-#include "numkong/set/neon.h" // `nk_hamming_u1_neon`
+#include "numkong/types.h"      // `nk_u1x8_t`
+#include "numkong/reduce/sve.h" // `nk_svaddv_f64_`
+#include "numkong/set/neon.h"   // `nk_hamming_u1_neon`
 
 #if defined(__cplusplus)
 extern "C" {
@@ -73,7 +74,7 @@ NK_PUBLIC void nk_hamming_u1_sve(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size
             i += words_per_register;
             ++cycle;
         } while (i < n_bytes && cycle < 31);
-        differences += svaddv_u8(all_predicate_b8x, popcount_u8x);
+        differences += nk_svaddv_u8_(all_predicate_b8x, popcount_u8x);
         popcount_u8x = svdup_n_u8(0);
         cycle = 0; // Reset the cycle counter.
     }
@@ -110,9 +111,9 @@ NK_PUBLIC void nk_jaccard_u1_sve(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size
             i += words_per_register;
             ++cycle;
         } while (i < n_bytes && cycle < 31);
-        intersection_count += svaddv_u8(all_predicate_b8x, intersection_popcount_u8x);
+        intersection_count += nk_svaddv_u8_(all_predicate_b8x, intersection_popcount_u8x);
         intersection_popcount_u8x = svdup_n_u8(0);
-        union_count += svaddv_u8(all_predicate_b8x, union_popcount_u8x);
+        union_count += nk_svaddv_u8_(all_predicate_b8x, union_popcount_u8x);
         union_popcount_u8x = svdup_n_u8(0);
         cycle = 0; // Reset the cycle counter.
     }

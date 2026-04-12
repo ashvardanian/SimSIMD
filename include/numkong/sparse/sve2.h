@@ -12,6 +12,7 @@
 #if NK_TARGET_ARM64_
 
 #include "numkong/types.h"
+#include "numkong/reduce/sve.h" // `nk_svaddv_f64_`
 
 #if defined(__cplusplus)
 extern "C" {
@@ -395,7 +396,7 @@ NK_PUBLIC void nk_sparse_dot_u32f32_sve2(                 //
         a_idx += a_step;
         b_idx += b_step;
     }
-    *product = svaddv_f64(predicate_all_b64x, product_f64x);
+    *product = nk_svaddv_f64_(predicate_all_b64x, product_f64x);
 }
 
 #if defined(__clang__)
@@ -485,7 +486,7 @@ NK_PUBLIC void nk_sparse_dot_u16bf16_sve2(                  //
         a_idx += a_step;
         b_idx += b_step;
     }
-    *product = svaddv_f32(svptrue_b32(), product_f32x);
+    *product = nk_svaddv_f32_(svptrue_b32(), product_f32x);
 }
 
 #if defined(__clang__)

@@ -41,8 +41,9 @@
 #include "numkong/types.h"
 #include "numkong/set/serial.h"
 #include "numkong/sets/serial.h"
-#include "numkong/dots/sme.h" // `nk_sme_zero_za32_*` constants
-#include "numkong/reduce.h"   // `nk_reduce_moments_u1`
+#include "numkong/reduce/sve.h" // `nk_svaddv_f64_`
+#include "numkong/dots/sme.h"   // `nk_sme_zero_za32_*`
+#include "numkong/reduce.h"     // `nk_reduce_moments_u1`
 
 #if defined(__cplusplus)
 extern "C" {
@@ -100,7 +101,7 @@ NK_PUBLIC nk_u32_t nk_sets_reduce_sumsq_u1_streaming_(nk_u1x8_t const *data, nk_
         svbool_t predicate_b8x = svwhilelt_b8_u64(offset, n_bytes);
         acc_u32x = svdot_u32(acc_u32x, svcnt_u8_z(predicate_b8x, svld1_u8(predicate_b8x, data + offset)), ones_u8x);
     }
-    return (nk_u32_t)svaddv_u32(svptrue_b32(), acc_u32x);
+    return (nk_u32_t)nk_svaddv_u32_(svptrue_b32(), acc_u32x);
 }
 
 #pragma region Hamming Distance
