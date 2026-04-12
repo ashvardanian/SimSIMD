@@ -8,6 +8,43 @@
 //! - [`VDot`]: Complex-valued dot product
 //! - [`Roots`]: Scalar square root and reciprocal square root
 //! - [`SpatialSimilarity`]: Blanket trait combining `Dot + Angular + Euclidean`
+//!
+//! # Accumulator Widening — The Core Value Proposition
+//!
+//! Every spatial kernel promotes its accumulator to a wider type than the inputs.
+//! This is not cosmetic — on long vectors of low-precision data, naive same-width
+//! accumulation overflows silently (integers) or loses huge amounts of precision
+//! (half-floats). NumKong widens systematically so every kernel in this module
+//! returns a result that matches a textbook-accurate reference in the wide type:
+//!
+//! - **`f32` → `f64`**: single-precision inputs accumulate in double precision. A
+//!   `dot` over 2048 `f32` values returns `f64` and uses Neumaier-compensated
+//!   summation internally.
+//! - **`f16` → `f32`** and **`bf16` → `f32`**: half-precision dots, norms, and
+//!   distances accumulate in `f32` rather than clamping at `f16::MAX = 65 504`.
+//! - **`i8` → `i32`** (unsigned `u8` → `u32`): byte-level quantised inputs widen
+//!   into 32-bit integer accumulators. Two `i8` vectors of all `100`s and length
+//!   2048 have a true dot of `20 480 000`, which overflows `i8` (saturates at
+//!   `±127`) and `i16` (`±32 767`) but is exact in `i32`.
+//! - **FP8 variants** (`e4m3` / `e5m2` / `e2m3` / `e3m2`) all accumulate in `f32`.
+//! - **4-bit packed** `i4x2` / `u4x2` behave like `i8` / `u8` but compute over
+//!   double the element count because each byte holds two logical values.
+//!
+//! This widening is the reason quantised retrieval pipelines (e.g. BFloat16 or
+//! INT8 embeddings in vector search) can rely on NumKong without post-hoc rescaling.
+//!
+//! # Example — INT8 Dot Without Overflow
+//!
+//! ```
+//! use numkong::Dot;
+//!
+//! // 2048-dim i8 vectors full of 100s: true dot = 2048 * 100 * 100 = 20_480_000,
+//! // which would overflow i16 but fits exactly in i32.
+//! let left = vec![100_i8; 2048];
+//! let right = vec![100_i8; 2048];
+//! let exact: i32 = i8::dot(&left, &right).unwrap();
+//! assert_eq!(exact, 20_480_000);
+//! ```
 
 use crate::types::{
     bf16, bf16c, e2m3, e3m2, e4m3, e5m2, f16, f16c, f32c, f64c, i4x2, u4x2, StorageElement,
@@ -92,28 +129,65 @@ extern "C" {
 
 // region: Scalar Roots
 
-/// Scalar square-root and reciprocal-square-root operations backed by NumKong's exported kernels.
+/// Scalar square-root and reciprocal-square-root operations backed by NumKong's
+/// exported kernels.
+///
+/// Unlike the standard library's `f32::sqrt` / `f64::sqrt`, this trait routes into
+/// the hand-tuned NumKong C kernels. On platforms where the ISA offers dedicated
+/// reciprocal-sqrt instructions (e.g. `vrsqrte` on Arm NEON, `vrsqrt14` on AVX-512)
+/// `rsqrt` uses a single refined Newton step to hit ~1 ULP accuracy — roughly 2-4×
+/// faster than computing `1.0 / sqrt(x)` explicitly.
+///
+/// Implementations are provided for the three scalar float types: `f32`, `f64`, and
+/// `f16`. Half-precision input is upcast to `f32`, computed, and downcast.
 pub trait Roots: Sized {
+    /// Non-negative square root of `self`. Equivalent to the intrinsic `sqrt`
+    /// but routed through NumKong's kernel table — picks up any runtime-dispatched
+    /// fast path available on the host CPU.
     fn sqrt(self) -> Self;
+
+    /// Reciprocal square root `1 / sqrt(self)` computed as a single primitive op
+    /// when the hardware supports it, or a Newton-refined fallback otherwise.
+    /// Useful inside normalization-heavy kernels (e.g. cosine similarity) where
+    /// a division plus a sqrt would otherwise dominate the cost.
     fn rsqrt(self) -> Self;
 }
 
 impl Roots for f32 {
-    fn sqrt(self) -> Self { unsafe { nk_f32_sqrt(self) } }
+    /// Single-precision square root. Dispatches to the SIMD-assisted kernel.
+    fn sqrt(self) -> Self {
+        unsafe { nk_f32_sqrt(self) }
+    }
 
-    fn rsqrt(self) -> Self { unsafe { nk_f32_rsqrt(self) } }
+    /// Single-precision reciprocal square root with a Newton refinement step.
+    fn rsqrt(self) -> Self {
+        unsafe { nk_f32_rsqrt(self) }
+    }
 }
 
 impl Roots for f64 {
-    fn sqrt(self) -> Self { unsafe { nk_f64_sqrt(self) } }
+    /// Double-precision square root — full IEEE 754 accuracy.
+    fn sqrt(self) -> Self {
+        unsafe { nk_f64_sqrt(self) }
+    }
 
-    fn rsqrt(self) -> Self { unsafe { nk_f64_rsqrt(self) } }
+    /// Double-precision reciprocal square root.
+    fn rsqrt(self) -> Self {
+        unsafe { nk_f64_rsqrt(self) }
+    }
 }
 
 impl Roots for f16 {
-    fn sqrt(self) -> Self { f16(unsafe { nk_f16_sqrt(self.0) }) }
+    /// Half-precision square root. Input is upcast to `f32` internally and the
+    /// result is rounded back to `f16`.
+    fn sqrt(self) -> Self {
+        f16(unsafe { nk_f16_sqrt(self.0) })
+    }
 
-    fn rsqrt(self) -> Self { f16(unsafe { nk_f16_rsqrt(self.0) }) }
+    /// Half-precision reciprocal square root with `f32` intermediate precision.
+    fn rsqrt(self) -> Self {
+        f16(unsafe { nk_f16_rsqrt(self.0) })
+    }
 }
 
 // endregion: Scalar Roots
@@ -142,7 +216,9 @@ pub trait Dot: StorageElement {
     fn dot(a: &[Self], b: &[Self]) -> Option<Self::Output>;
 
     /// Alias for `dot`.
-    fn inner(a: &[Self], b: &[Self]) -> Option<Self::Output> { Self::dot(a, b) }
+    fn inner(a: &[Self], b: &[Self]) -> Option<Self::Output> {
+        Self::dot(a, b)
+    }
 }
 
 impl Dot for f64 {
@@ -314,12 +390,12 @@ impl Dot for i4x2 {
             return None;
         }
         let mut result: Self::Output = 0;
-        let n = a.len() * 2; // Each i4x2 contains 2 elements
+        let element_count = a.len() * 2; // Each i4x2 contains 2 elements
         unsafe {
             nk_dot_i4(
                 a.as_ptr() as *const u8,
                 b.as_ptr() as *const u8,
-                n,
+                element_count,
                 &mut result,
             )
         };
@@ -334,12 +410,12 @@ impl Dot for u4x2 {
             return None;
         }
         let mut result: Self::Output = 0;
-        let n = a.len() * 2; // Each u4x2 contains 2 elements
+        let element_count = a.len() * 2; // Each u4x2 contains 2 elements
         unsafe {
             nk_dot_u4(
                 a.as_ptr() as *const u8,
                 b.as_ptr() as *const u8,
-                n,
+                element_count,
                 &mut result,
             )
         };
@@ -452,7 +528,9 @@ pub trait Angular: StorageElement {
     fn angular(a: &[Self], b: &[Self]) -> Option<Self::Output>;
 
     /// Alias for `angular`.
-    fn cosine(a: &[Self], b: &[Self]) -> Option<Self::Output> { Self::angular(a, b) }
+    fn cosine(a: &[Self], b: &[Self]) -> Option<Self::Output> {
+        Self::angular(a, b)
+    }
 }
 
 impl Angular for f64 {
@@ -624,12 +702,12 @@ impl Angular for i4x2 {
             return None;
         }
         let mut result: Self::Output = 0.0;
-        let n = a.len() * 2; // Each i4x2 contains 2 elements
+        let element_count = a.len() * 2; // Each i4x2 contains 2 elements
         unsafe {
             nk_angular_i4(
                 a.as_ptr() as *const u8,
                 b.as_ptr() as *const u8,
-                n,
+                element_count,
                 &mut result,
             )
         };
@@ -644,12 +722,12 @@ impl Angular for u4x2 {
             return None;
         }
         let mut result: Self::Output = 0.0;
-        let n = a.len() * 2; // Each u4x2 contains 2 elements
+        let element_count = a.len() * 2; // Each u4x2 contains 2 elements
         unsafe {
             nk_angular_u4(
                 a.as_ptr() as *const u8,
                 b.as_ptr() as *const u8,
-                n,
+                element_count,
                 &mut result,
             )
         };
@@ -1003,12 +1081,12 @@ impl Euclidean for i4x2 {
             return None;
         }
         let mut result: Self::SqEuclideanOutput = 0;
-        let n = a.len() * 2; // Each i4x2 contains 2 elements
+        let element_count = a.len() * 2; // Each i4x2 contains 2 elements
         unsafe {
             nk_sqeuclidean_i4(
                 a.as_ptr() as *const u8,
                 b.as_ptr() as *const u8,
-                n,
+                element_count,
                 &mut result,
             )
         };
@@ -1020,12 +1098,12 @@ impl Euclidean for i4x2 {
             return None;
         }
         let mut result: Self::EuclideanOutput = 0.0;
-        let n = a.len() * 2; // Each i4x2 contains 2 elements
+        let element_count = a.len() * 2; // Each i4x2 contains 2 elements
         unsafe {
             nk_euclidean_i4(
                 a.as_ptr() as *const u8,
                 b.as_ptr() as *const u8,
-                n,
+                element_count,
                 &mut result,
             )
         };
@@ -1042,12 +1120,12 @@ impl Euclidean for u4x2 {
             return None;
         }
         let mut result: Self::SqEuclideanOutput = 0;
-        let n = a.len() * 2; // Each u4x2 contains 2 elements
+        let element_count = a.len() * 2; // Each u4x2 contains 2 elements
         unsafe {
             nk_sqeuclidean_u4(
                 a.as_ptr() as *const u8,
                 b.as_ptr() as *const u8,
-                n,
+                element_count,
                 &mut result,
             )
         };
@@ -1059,12 +1137,12 @@ impl Euclidean for u4x2 {
             return None;
         }
         let mut result: Self::EuclideanOutput = 0.0;
-        let n = a.len() * 2; // Each u4x2 contains 2 elements
+        let element_count = a.len() * 2; // Each u4x2 contains 2 elements
         unsafe {
             nk_euclidean_u4(
                 a.as_ptr() as *const u8,
                 b.as_ptr() as *const u8,
-                n,
+                element_count,
                 &mut result,
             )
         };
@@ -1076,12 +1154,24 @@ impl Euclidean for u4x2 {
 
 // region: VDot
 
-/// Computes the conjugating dot product.
+/// Computes the conjugating (Hermitian) dot product.
 ///
-/// For real-valued types this is identical to [`Dot::dot`]. For complex-valued types this
-/// computes the Hermitian inner product `∑ᵢ conj(aᵢ) × bᵢ`.
+/// For real-valued types this is identical to [`Dot::dot`]. For complex-valued
+/// types it computes `∑ᵢ conj(aᵢ) × bᵢ`, which is the convention used in quantum
+/// mechanics and most linear-algebra textbooks (BLAS `cdotc`, NumPy `vdot`).
+///
+/// Unlike an ordinary complex dot product, the Hermitian form produces a proper
+/// inner product: `vdot(x, x)` is always a non-negative real number equal to
+/// `‖x‖²`, and `vdot(x, y) == conj(vdot(y, x))`. This matters in retrieval and
+/// signal-processing pipelines where cancellation between a vector and its
+/// conjugate should leave the norm intact.
 pub trait VDot: Dot {
-    fn vdot(a: &[Self], b: &[Self]) -> Option<Self::Output> { Self::dot(a, b) }
+    /// Hermitian inner product. On real-valued types this falls back to `Dot::dot`;
+    /// on complex types it returns `∑ᵢ conj(aᵢ) × bᵢ` computed in the widened
+    /// accumulator described by `Dot::Output`.
+    fn vdot(a: &[Self], b: &[Self]) -> Option<Self::Output> {
+        Self::dot(a, b)
+    }
 }
 
 impl VDot for f64 {}
@@ -1185,7 +1275,7 @@ impl VDot for f64c {
 
 /// `SpatialSimilarity` bundles spatial distance metrics: Dot, Angular, and Euclidean.
 pub trait SpatialSimilarity: Dot + Angular + Euclidean {}
-impl<T: Dot + Angular + Euclidean> SpatialSimilarity for T {}
+impl<Scalar: Dot + Angular + Euclidean> SpatialSimilarity for Scalar {}
 
 #[cfg(test)]
 mod tests {
@@ -1196,38 +1286,38 @@ mod tests {
         FloatLike, NumberLike, StorageElement, TestableType,
     };
 
-    /// Test a two-input metric: convert f32 inputs to T, call `op`, compare to `expected`.
-    pub(crate) fn check_binary<T, R, F>(
+    /// Test a two-input metric: convert f32 inputs to Scalar, call `op`, compare to `expected`.
+    pub(crate) fn check_binary<Scalar, R, F>(
         a_vals: &[f32],
         b_vals: &[f32],
         op: F,
         expected: f64,
         label: &str,
     ) where
-        T: FloatLike + TestableType,
+        Scalar: FloatLike + TestableType,
         R: FloatLike,
-        F: FnOnce(&[T], &[T]) -> Option<R>,
+        F: FnOnce(&[Scalar], &[Scalar]) -> Option<R>,
     {
-        let a: Vec<T> = a_vals.iter().map(|&v| T::from_f32(v)).collect();
-        let b: Vec<T> = b_vals.iter().map(|&v| T::from_f32(v)).collect();
+        let a: Vec<Scalar> = a_vals.iter().map(|&v| Scalar::from_f32(v)).collect();
+        let b: Vec<Scalar> = b_vals.iter().map(|&v| Scalar::from_f32(v)).collect();
         let result = op(&a, &b).unwrap().to_f64();
         assert_close(
             result,
             expected,
-            T::atol(),
-            T::rtol(),
-            &format!("{}<{}>", label, core::any::type_name::<T>()),
+            Scalar::atol(),
+            Scalar::rtol(),
+            &format!("{}<{}>", label, core::any::type_name::<Scalar>()),
         );
     }
 
     // region: Dot Products
 
-    fn check_dot<T>(a_vals: &[f32], b_vals: &[f32], expected: f64)
+    fn check_dot<Scalar>(a_vals: &[f32], b_vals: &[f32], expected: f64)
     where
-        T: FloatLike + TestableType + Dot,
-        T::Output: FloatLike,
+        Scalar: FloatLike + TestableType + Dot,
+        Scalar::Output: FloatLike,
     {
-        check_binary::<T, T::Output, _>(a_vals, b_vals, T::dot, expected, "dot");
+        check_binary::<Scalar, Scalar::Output, _>(a_vals, b_vals, Scalar::dot, expected, "dot");
     }
 
     #[test]
@@ -1250,12 +1340,18 @@ mod tests {
 
     // region: Angular Distances
 
-    fn check_angular<T>(a_vals: &[f32], b_vals: &[f32], expected: f64)
+    fn check_angular<Scalar>(a_vals: &[f32], b_vals: &[f32], expected: f64)
     where
-        T: FloatLike + TestableType + Angular,
-        T::Output: FloatLike,
+        Scalar: FloatLike + TestableType + Angular,
+        Scalar::Output: FloatLike,
     {
-        check_binary::<T, T::Output, _>(a_vals, b_vals, T::angular, expected, "angular");
+        check_binary::<Scalar, Scalar::Output, _>(
+            a_vals,
+            b_vals,
+            Scalar::angular,
+            expected,
+            "angular",
+        );
     }
 
     #[test]
@@ -1282,29 +1378,29 @@ mod tests {
 
     // region: Euclidean Distances
 
-    fn check_sqeuclidean<T>(a_vals: &[f32], b_vals: &[f32], expected: f64)
+    fn check_sqeuclidean<Scalar>(a_vals: &[f32], b_vals: &[f32], expected: f64)
     where
-        T: FloatLike + TestableType + Euclidean,
-        T::SqEuclideanOutput: FloatLike,
+        Scalar: FloatLike + TestableType + Euclidean,
+        Scalar::SqEuclideanOutput: FloatLike,
     {
-        check_binary::<T, T::SqEuclideanOutput, _>(
+        check_binary::<Scalar, Scalar::SqEuclideanOutput, _>(
             a_vals,
             b_vals,
-            T::sqeuclidean,
+            Scalar::sqeuclidean,
             expected,
             "sqeuclidean",
         );
     }
 
-    fn check_euclidean<T>(a_vals: &[f32], b_vals: &[f32], expected: f64)
+    fn check_euclidean<Scalar>(a_vals: &[f32], b_vals: &[f32], expected: f64)
     where
-        T: FloatLike + TestableType + Euclidean,
-        T::EuclideanOutput: FloatLike,
+        Scalar: FloatLike + TestableType + Euclidean,
+        Scalar::EuclideanOutput: FloatLike,
     {
-        check_binary::<T, T::EuclideanOutput, _>(
+        check_binary::<Scalar, Scalar::EuclideanOutput, _>(
             a_vals,
             b_vals,
-            T::euclidean,
+            Scalar::euclidean,
             expected,
             "euclidean",
         );
@@ -1351,12 +1447,20 @@ mod tests {
         fn imag(&self) -> f64;
     }
     impl ComplexValue for f32c {
-        fn real(&self) -> f64 { self.re as f64 }
-        fn imag(&self) -> f64 { self.im as f64 }
+        fn real(&self) -> f64 {
+            self.re as f64
+        }
+        fn imag(&self) -> f64 {
+            self.im as f64
+        }
     }
     impl ComplexValue for f64c {
-        fn real(&self) -> f64 { self.re }
-        fn imag(&self) -> f64 { self.im }
+        fn real(&self) -> f64 {
+            self.re
+        }
+        fn imag(&self) -> f64 {
+            self.im
+        }
     }
 
     trait ComplexSample: Copy + StorageElement + Dot + VDot + Bilinear {
@@ -1372,8 +1476,12 @@ mod tests {
                 im: f16::from_f32(im),
             }
         }
-        fn atol() -> f64 { 5e-2 }
-        fn rtol() -> f64 { 5e-2 }
+        fn atol() -> f64 {
+            5e-2
+        }
+        fn rtol() -> f64 {
+            5e-2
+        }
     }
 
     impl ComplexSample for bf16c {
@@ -1383,14 +1491,24 @@ mod tests {
                 im: bf16::from_f32(im),
             }
         }
-        fn atol() -> f64 { 5e-2 }
-        fn rtol() -> f64 { 5e-2 }
+        fn atol() -> f64 {
+            5e-2
+        }
+        fn rtol() -> f64 {
+            5e-2
+        }
     }
 
     impl ComplexSample for f32c {
-        fn from_real_imag(re: f32, im: f32) -> Self { Self { re, im } }
-        fn atol() -> f64 { 1e-6 }
-        fn rtol() -> f64 { 1e-6 }
+        fn from_real_imag(re: f32, im: f32) -> Self {
+            Self { re, im }
+        }
+        fn atol() -> f64 {
+            1e-6
+        }
+        fn rtol() -> f64 {
+            1e-6
+        }
     }
 
     impl ComplexSample for f64c {
@@ -1400,12 +1518,16 @@ mod tests {
                 im: im as f64,
             }
         }
-        fn atol() -> f64 { 1e-12 }
-        fn rtol() -> f64 { 1e-12 }
+        fn atol() -> f64 {
+            1e-12
+        }
+        fn rtol() -> f64 {
+            1e-12
+        }
     }
 
     /// Test a complex two-input operation with real + imaginary expected outputs.
-    fn check_complex<T, R, F>(
+    fn check_complex<Scalar, R, F>(
         a: &[(f32, f32)],
         b: &[(f32, f32)],
         op: F,
@@ -1413,40 +1535,40 @@ mod tests {
         expected_im: f64,
         label: &str,
     ) where
-        T: ComplexSample,
+        Scalar: ComplexSample,
         R: ComplexValue,
-        F: FnOnce(&[T], &[T]) -> Option<R>,
+        F: FnOnce(&[Scalar], &[Scalar]) -> Option<R>,
     {
-        let a_t: Vec<T> = a
+        let a_t: Vec<Scalar> = a
             .iter()
-            .map(|&(re, im)| T::from_real_imag(re, im))
+            .map(|&(re, im)| Scalar::from_real_imag(re, im))
             .collect();
-        let b_t: Vec<T> = b
+        let b_t: Vec<Scalar> = b
             .iter()
-            .map(|&(re, im)| T::from_real_imag(re, im))
+            .map(|&(re, im)| Scalar::from_real_imag(re, im))
             .collect();
         let result = op(&a_t, &b_t).unwrap();
-        let tol = T::atol() + T::rtol() * expected_re.abs().max(expected_im.abs());
+        let tol = Scalar::atol() + Scalar::rtol() * expected_re.abs().max(expected_im.abs());
         assert_close(
             result.real(),
             expected_re,
             tol,
             0.0,
-            &format!("{}<{}> real", label, core::any::type_name::<T>()),
+            &format!("{}<{}> real", label, core::any::type_name::<Scalar>()),
         );
         assert_close(
             result.imag(),
             expected_im,
             tol,
             0.0,
-            &format!("{}<{}> imag", label, core::any::type_name::<T>()),
+            &format!("{}<{}> imag", label, core::any::type_name::<Scalar>()),
         );
     }
 
-    fn check_complex_dot<T>(a: &[f32], b: &[f32], expected_re: f64, expected_im: f64)
+    fn check_complex_dot<Scalar>(a: &[f32], b: &[f32], expected_re: f64, expected_im: f64)
     where
-        T: ComplexSample,
-        <T as Dot>::Output: ComplexValue,
+        Scalar: ComplexSample,
+        <Scalar as Dot>::Output: ComplexValue,
     {
         let a_pairs: Vec<(f32, f32)> = a
             .chunks_exact(2)
@@ -1456,20 +1578,20 @@ mod tests {
             .chunks_exact(2)
             .map(|chunk| (chunk[0], chunk[1]))
             .collect();
-        check_complex::<T, <T as Dot>::Output, _>(
+        check_complex::<Scalar, <Scalar as Dot>::Output, _>(
             &a_pairs,
             &b_pairs,
-            <T as Dot>::dot,
+            <Scalar as Dot>::dot,
             expected_re,
             expected_im,
             "complex_dot",
         );
     }
 
-    fn check_complex_vdot<T>(a: &[f32], b: &[f32], expected_re: f64, expected_im: f64)
+    fn check_complex_vdot<Scalar>(a: &[f32], b: &[f32], expected_re: f64, expected_im: f64)
     where
-        T: ComplexSample,
-        <T as Dot>::Output: ComplexValue,
+        Scalar: ComplexSample,
+        <Scalar as Dot>::Output: ComplexValue,
     {
         let a_pairs: Vec<(f32, f32)> = a
             .chunks_exact(2)
@@ -1479,44 +1601,50 @@ mod tests {
             .chunks_exact(2)
             .map(|chunk| (chunk[0], chunk[1]))
             .collect();
-        check_complex::<T, <T as Dot>::Output, _>(
+        check_complex::<Scalar, <Scalar as Dot>::Output, _>(
             &a_pairs,
             &b_pairs,
-            T::vdot,
+            Scalar::vdot,
             expected_re,
             expected_im,
             "complex_vdot",
         );
     }
 
-    fn check_complex_bilinear_identity<T>(n: usize)
+    fn check_complex_bilinear_identity<Scalar>(element_count: usize)
     where
-        T: ComplexSample,
-        <T as Bilinear>::Output: ComplexValue,
+        Scalar: ComplexSample,
+        <Scalar as Bilinear>::Output: ComplexValue,
     {
-        let mut a = vec![T::zero(); n];
-        let mut b = vec![T::zero(); n];
-        a[0] = T::one();
-        b[0] = T::one();
-        let mut c = vec![T::zero(); n * n];
-        for i in 0..n {
-            c[i * n + i] = T::one();
+        let mut a = vec![Scalar::zero(); element_count];
+        let mut b = vec![Scalar::zero(); element_count];
+        a[0] = Scalar::one();
+        b[0] = Scalar::one();
+        let mut c = vec![Scalar::zero(); element_count * element_count];
+        for i in 0..element_count {
+            c[i * element_count + i] = Scalar::one();
         }
-        let result = T::bilinear(&a, &b, &c).unwrap();
-        let tol = T::atol() + T::rtol();
+        let result = Scalar::bilinear(&a, &b, &c).unwrap();
+        let tol = Scalar::atol() + Scalar::rtol();
         assert_close(
             result.real(),
             1.0,
             tol,
             0.0,
-            &format!("complex_bilinear<{}> real", core::any::type_name::<T>()),
+            &format!(
+                "complex_bilinear<{}> real",
+                core::any::type_name::<Scalar>()
+            ),
         );
         assert_close(
             result.imag(),
             0.0,
             tol,
             0.0,
-            &format!("complex_bilinear<{}> imag", core::any::type_name::<T>()),
+            &format!(
+                "complex_bilinear<{}> imag",
+                core::any::type_name::<Scalar>()
+            ),
         );
     }
 

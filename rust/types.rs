@@ -1,19 +1,42 @@
 //! Scalar types and conversion trait for mixed-precision computing.
 //!
-//! This module provides portable scalar types:
+//! This module defines **15+ numeric types** spanning 1-bit packed storage to
+//! 128-bit complex. All of them implement [`StorageElement`] (for containers) and
+//! [`NumberLike`] (for conversion to / from `f32` / `f64`), so generic code can
+//! treat them uniformly.
+//!
+//! ## IEEE / Brain Floats
 //!
 //! - [`struct@f16`]: IEEE 754 half-precision (16-bit) floating point
-//! - [`bf16`]: Brain floating point (bfloat16) - truncated single precision
-//! - [`e4m3`]: 8-bit floating point with 4 exponent, 3 mantissa bits (OCP FP8)
-//! - [`e5m2`]: 8-bit floating point with 5 exponent, 2 mantissa bits (OCP FP8)
-//! - [`e2m3`]: 6-bit floating point with 2 exponent, 3 mantissa bits (padded to 8-bit)
-//! - [`e3m2`]: 6-bit floating point with 3 exponent, 2 mantissa bits (padded to 8-bit)
-//! - [`i4x2`]: Packed pair of signed 4-bit integers
+//! - [`bf16`]: Brain floating point (bfloat16) — truncated single precision
+//! - The Rust primitives [`f32`](prim@f32) and [`f64`](prim@f64) also implement
+//!   these traits
+//!
+//! ## 8-bit Floats (OCP / MX)
+//!
+//! - [`e4m3`]: 4-exponent, 3-mantissa FP8 (max ≈ 448)
+//! - [`e5m2`]: 5-exponent, 2-mantissa FP8 (wider range, ~57 344 max)
+//! - [`e2m3`]: 2-exponent, 3-mantissa 6-bit float padded to 8-bit (max 7.5)
+//! - [`e3m2`]: 3-exponent, 2-mantissa 6-bit float padded to 8-bit (max 28)
+//!
+//! ## Signed / Unsigned Integers
+//!
+//! `i8` / `u8`, `i16` / `u16`, `i32` / `u32`, `i64` / `u64` all implement
+//! [`StorageElement`] and [`NumberLike`] via the primitive blanket impls below.
+//!
+//! ## Sub-byte Packed Types
+//!
+//! - [`i4x2`]: Packed pair of signed 4-bit integers (one byte → two values)
 //! - [`u4x2`]: Packed pair of unsigned 4-bit integers
 //! - [`u1x8`]: Packed 8 binary values in a single byte
 //!
-//! All types support standard arithmetic operations and conversion to/from `f32`
-//! via the [`FloatLike`] trait.
+//! ## Complex
+//!
+//! - [`f16c`], [`bf16c`], [`f32c`], [`f64c`] — generic `complex<Scalar>` wrappers
+//!   that expose `re`, `im`, `conj`, and arithmetic operators.
+//!
+//! All types support standard arithmetic operations and conversion to / from
+//! `f32` via the [`FloatLike`] trait.
 
 #![allow(non_camel_case_types)]
 
@@ -35,33 +58,35 @@ extern "C" {
 
 /// Compatibility function for pre 1.85 Rust versions lacking `f32::abs`.
 #[inline(always)]
-pub(crate) fn f32_abs_compat(x: f32) -> f32 { f32::from_bits(x.to_bits() & 0x7FFF_FFFF) }
+pub(crate) fn f32_abs_compat(x: f32) -> f32 {
+    f32::from_bits(x.to_bits() & 0x7FFF_FFFF)
+}
 
 /// Compatibility function for pre 1.85 Rust versions lacking `f32::round`.
 #[inline(always)]
 pub(crate) fn f32_round_compat(x: f32) -> f32 {
-    let t = x as i32 as f32;
-    let d = x - t;
-    if d >= 0.5 {
-        t + 1.0
-    } else if d <= -0.5 {
-        t - 1.0
+    let truncated_value = x as i32 as f32;
+    let fractional_part = x - truncated_value;
+    if fractional_part >= 0.5 {
+        truncated_value + 1.0
+    } else if fractional_part <= -0.5 {
+        truncated_value - 1.0
     } else {
-        t
+        truncated_value
     }
 }
 
 /// Compatibility function for pre 1.85 Rust versions lacking `f64::round`.
 #[inline(always)]
 pub(crate) fn f64_round_compat(x: f64) -> f64 {
-    let t = x as i64 as f64;
-    let d = x - t;
-    if d >= 0.5 {
-        t + 1.0
-    } else if d <= -0.5 {
-        t - 1.0
+    let truncated_value = x as i64 as f64;
+    let fractional_part = x - truncated_value;
+    if fractional_part >= 0.5 {
+        truncated_value + 1.0
+    } else if fractional_part <= -0.5 {
+        truncated_value - 1.0
     } else {
-        t
+        truncated_value
     }
 }
 
@@ -110,6 +135,15 @@ impl f16 {
     pub const NAN: Self = f16(0x7E00);
 
     /// Converts an `f32` value to `f16`. Out-of-range values saturate.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use numkong::f16;
+    /// // Roundtrip a value well inside f16's ±65504 range.
+    /// let half = f16::from_f32(3.14);
+    /// assert!((half.to_f32() - 3.14).abs() < 1e-2);
+    /// ```
     #[inline(always)]
     pub fn from_f32(value: f32) -> Self {
         let mut result: u16 = 0;
@@ -118,6 +152,14 @@ impl f16 {
     }
 
     /// Converts this value back to `f32`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use numkong::f16;
+    /// let half = f16::from_f32(-2.5);
+    /// assert_eq!(half.to_f32(), -2.5);
+    /// ```
     #[inline(always)]
     pub fn to_f32(self) -> f32 {
         let mut result: f32 = 0.0;
@@ -127,34 +169,48 @@ impl f16 {
 
     /// Returns true if this value is NaN.
     #[inline(always)]
-    pub fn is_nan(self) -> bool { self.to_f32().is_nan() }
+    pub fn is_nan(self) -> bool {
+        self.to_f32().is_nan()
+    }
 
     /// Returns true if this value is ±∞.
     #[inline(always)]
-    pub fn is_infinite(self) -> bool { self.to_f32().is_infinite() }
+    pub fn is_infinite(self) -> bool {
+        self.to_f32().is_infinite()
+    }
 
     /// Returns true if this number is neither infinite nor NaN.
     #[inline(always)]
-    pub fn is_finite(self) -> bool { self.to_f32().is_finite() }
+    pub fn is_finite(self) -> bool {
+        self.to_f32().is_finite()
+    }
 
     /// Returns |self|.
     #[inline(always)]
-    pub fn abs(self) -> Self { Self::from_f32(f32_abs_compat(self.to_f32())) }
+    pub fn abs(self) -> Self {
+        Self::from_f32(f32_abs_compat(self.to_f32()))
+    }
 
     /// Returns ⌊self⌋. Requires `std`.
     #[cfg(feature = "std")]
     #[inline(always)]
-    pub fn floor(self) -> Self { Self::from_f32(self.to_f32().floor()) }
+    pub fn floor(self) -> Self {
+        Self::from_f32(self.to_f32().floor())
+    }
 
     /// Returns ⌈self⌉. Requires `std`.
     #[cfg(feature = "std")]
     #[inline(always)]
-    pub fn ceil(self) -> Self { Self::from_f32(self.to_f32().ceil()) }
+    pub fn ceil(self) -> Self {
+        Self::from_f32(self.to_f32().ceil())
+    }
 
     /// Rounds to the nearest integer; half-way cases go away from zero. Requires `std`.
     #[cfg(feature = "std")]
     #[inline(always)]
-    pub fn round(self) -> Self { Self::from_f32(self.to_f32().round()) }
+    pub fn round(self) -> Self {
+        Self::from_f32(self.to_f32().round())
+    }
 }
 
 impl core::fmt::Debug for f16 {
@@ -195,31 +251,41 @@ impl core::fmt::Binary for f16 {
 impl core::ops::Add for f16 {
     type Output = Self;
     #[inline(always)]
-    fn add(self, rhs: Self) -> Self::Output { Self::from_f32(self.to_f32() + rhs.to_f32()) }
+    fn add(self, right: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() + right.to_f32())
+    }
 }
 
 impl core::ops::Sub for f16 {
     type Output = Self;
     #[inline(always)]
-    fn sub(self, rhs: Self) -> Self::Output { Self::from_f32(self.to_f32() - rhs.to_f32()) }
+    fn sub(self, right: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() - right.to_f32())
+    }
 }
 
 impl core::ops::Mul for f16 {
     type Output = Self;
     #[inline(always)]
-    fn mul(self, rhs: Self) -> Self::Output { Self::from_f32(self.to_f32() * rhs.to_f32()) }
+    fn mul(self, right: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() * right.to_f32())
+    }
 }
 
 impl core::ops::Div for f16 {
     type Output = Self;
     #[inline(always)]
-    fn div(self, rhs: Self) -> Self::Output { Self::from_f32(self.to_f32() / rhs.to_f32()) }
+    fn div(self, right: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() / right.to_f32())
+    }
 }
 
 impl core::ops::Neg for f16 {
     type Output = Self;
     #[inline(always)]
-    fn neg(self) -> Self::Output { Self::from_f32(-self.to_f32()) }
+    fn neg(self) -> Self::Output {
+        Self::from_f32(-self.to_f32())
+    }
 }
 
 impl core::cmp::PartialOrd for f16 {
@@ -265,6 +331,15 @@ impl bf16 {
     pub const NAN: Self = bf16(0x7FC0);
 
     /// Converts an `f32` value to `bf16`. Out-of-range values saturate.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use numkong::bf16;
+    /// // bf16 matches f32's ±3.39e38 range but with only 7 bits of mantissa.
+    /// let brain = bf16::from_f32(1.0e30);
+    /// assert!((brain.to_f32() - 1.0e30).abs() < 1.0e28);
+    /// ```
     #[inline(always)]
     pub fn from_f32(value: f32) -> Self {
         let mut result: u16 = 0;
@@ -282,40 +357,54 @@ impl bf16 {
 
     /// Returns true if this value is NaN.
     #[inline(always)]
-    pub fn is_nan(self) -> bool { self.to_f32().is_nan() }
+    pub fn is_nan(self) -> bool {
+        self.to_f32().is_nan()
+    }
 
     /// Returns true if this value is positive or negative infinity.
     #[inline(always)]
-    pub fn is_infinite(self) -> bool { self.to_f32().is_infinite() }
+    pub fn is_infinite(self) -> bool {
+        self.to_f32().is_infinite()
+    }
 
     /// Returns true if this number is neither infinite nor NaN.
     #[inline(always)]
-    pub fn is_finite(self) -> bool { self.to_f32().is_finite() }
+    pub fn is_finite(self) -> bool {
+        self.to_f32().is_finite()
+    }
 
     /// Returns the absolute value of self.
     #[inline(always)]
-    pub fn abs(self) -> Self { Self::from_f32(f32_abs_compat(self.to_f32())) }
+    pub fn abs(self) -> Self {
+        Self::from_f32(f32_abs_compat(self.to_f32()))
+    }
 
     /// Returns the largest integer less than or equal to a number.
     ///
     /// This method is only available when the `std` feature is enabled.
     #[cfg(feature = "std")]
     #[inline(always)]
-    pub fn floor(self) -> Self { Self::from_f32(self.to_f32().floor()) }
+    pub fn floor(self) -> Self {
+        Self::from_f32(self.to_f32().floor())
+    }
 
     /// Returns the smallest integer greater than or equal to a number.
     ///
     /// This method is only available when the `std` feature is enabled.
     #[cfg(feature = "std")]
     #[inline(always)]
-    pub fn ceil(self) -> Self { Self::from_f32(self.to_f32().ceil()) }
+    pub fn ceil(self) -> Self {
+        Self::from_f32(self.to_f32().ceil())
+    }
 
     /// Returns the nearest integer to a number. Round half-way cases away from 0.0.
     ///
     /// This method is only available when the `std` feature is enabled.
     #[cfg(feature = "std")]
     #[inline(always)]
-    pub fn round(self) -> Self { Self::from_f32(self.to_f32().round()) }
+    pub fn round(self) -> Self {
+        Self::from_f32(self.to_f32().round())
+    }
 }
 
 impl core::fmt::Debug for bf16 {
@@ -356,31 +445,41 @@ impl core::fmt::Binary for bf16 {
 impl core::ops::Add for bf16 {
     type Output = Self;
     #[inline(always)]
-    fn add(self, rhs: Self) -> Self::Output { Self::from_f32(self.to_f32() + rhs.to_f32()) }
+    fn add(self, right: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() + right.to_f32())
+    }
 }
 
 impl core::ops::Sub for bf16 {
     type Output = Self;
     #[inline(always)]
-    fn sub(self, rhs: Self) -> Self::Output { Self::from_f32(self.to_f32() - rhs.to_f32()) }
+    fn sub(self, right: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() - right.to_f32())
+    }
 }
 
 impl core::ops::Mul for bf16 {
     type Output = Self;
     #[inline(always)]
-    fn mul(self, rhs: Self) -> Self::Output { Self::from_f32(self.to_f32() * rhs.to_f32()) }
+    fn mul(self, right: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() * right.to_f32())
+    }
 }
 
 impl core::ops::Div for bf16 {
     type Output = Self;
     #[inline(always)]
-    fn div(self, rhs: Self) -> Self::Output { Self::from_f32(self.to_f32() / rhs.to_f32()) }
+    fn div(self, right: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() / right.to_f32())
+    }
 }
 
 impl core::ops::Neg for bf16 {
     type Output = Self;
     #[inline(always)]
-    fn neg(self) -> Self::Output { Self::from_f32(-self.to_f32()) }
+    fn neg(self) -> Self::Output {
+        Self::from_f32(-self.to_f32())
+    }
 }
 
 impl core::cmp::PartialOrd for bf16 {
@@ -421,6 +520,15 @@ impl e4m3 {
     pub const NAN: Self = e4m3(0x7F);
 
     /// Converts an `f32` value to `e4m3`. Out-of-range values saturate.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use numkong::e4m3;
+    /// // e4m3 quantises to ~4 effective decimal digits inside ±448.
+    /// let fp8 = e4m3::from_f32(3.5);
+    /// assert_eq!(fp8.to_f32(), 3.5);
+    /// ```
     #[inline(always)]
     pub fn from_f32(value: f32) -> Self {
         let mut result: u8 = 0;
@@ -438,41 +546,55 @@ impl e4m3 {
 
     /// Returns true if this value is NaN.
     #[inline(always)]
-    pub fn is_nan(self) -> bool { (self.0 & 0x7F) == 0x7F }
+    pub fn is_nan(self) -> bool {
+        (self.0 & 0x7F) == 0x7F
+    }
 
     /// Returns true if this value is ±∞. Always false for E4M3 (no infinities).
     #[inline(always)]
-    pub fn is_infinite(self) -> bool { false }
+    pub fn is_infinite(self) -> bool {
+        false
+    }
 
     /// Returns true if this number is neither infinite nor NaN.
     /// Note: E4M3 format has no infinities.
     #[inline(always)]
-    pub fn is_finite(self) -> bool { !self.is_nan() }
+    pub fn is_finite(self) -> bool {
+        !self.is_nan()
+    }
 
     /// Returns the absolute value of self.
     #[inline(always)]
-    pub fn abs(self) -> Self { Self::from_f32(f32_abs_compat(self.to_f32())) }
+    pub fn abs(self) -> Self {
+        Self::from_f32(f32_abs_compat(self.to_f32()))
+    }
 
     /// Returns the largest integer less than or equal to a number.
     ///
     /// This method is only available when the `std` feature is enabled.
     #[cfg(feature = "std")]
     #[inline(always)]
-    pub fn floor(self) -> Self { Self::from_f32(self.to_f32().floor()) }
+    pub fn floor(self) -> Self {
+        Self::from_f32(self.to_f32().floor())
+    }
 
     /// Returns the smallest integer greater than or equal to a number.
     ///
     /// This method is only available when the `std` feature is enabled.
     #[cfg(feature = "std")]
     #[inline(always)]
-    pub fn ceil(self) -> Self { Self::from_f32(self.to_f32().ceil()) }
+    pub fn ceil(self) -> Self {
+        Self::from_f32(self.to_f32().ceil())
+    }
 
     /// Returns the nearest integer to a number. Round half-way cases away from 0.0.
     ///
     /// This method is only available when the `std` feature is enabled.
     #[cfg(feature = "std")]
     #[inline(always)]
-    pub fn round(self) -> Self { Self::from_f32(self.to_f32().round()) }
+    pub fn round(self) -> Self {
+        Self::from_f32(self.to_f32().round())
+    }
 }
 
 impl core::fmt::Debug for e4m3 {
@@ -513,31 +635,41 @@ impl core::fmt::Binary for e4m3 {
 impl core::ops::Add for e4m3 {
     type Output = Self;
     #[inline(always)]
-    fn add(self, rhs: Self) -> Self::Output { Self::from_f32(self.to_f32() + rhs.to_f32()) }
+    fn add(self, right: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() + right.to_f32())
+    }
 }
 
 impl core::ops::Sub for e4m3 {
     type Output = Self;
     #[inline(always)]
-    fn sub(self, rhs: Self) -> Self::Output { Self::from_f32(self.to_f32() - rhs.to_f32()) }
+    fn sub(self, right: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() - right.to_f32())
+    }
 }
 
 impl core::ops::Mul for e4m3 {
     type Output = Self;
     #[inline(always)]
-    fn mul(self, rhs: Self) -> Self::Output { Self::from_f32(self.to_f32() * rhs.to_f32()) }
+    fn mul(self, right: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() * right.to_f32())
+    }
 }
 
 impl core::ops::Div for e4m3 {
     type Output = Self;
     #[inline(always)]
-    fn div(self, rhs: Self) -> Self::Output { Self::from_f32(self.to_f32() / rhs.to_f32()) }
+    fn div(self, right: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() / right.to_f32())
+    }
 }
 
 impl core::ops::Neg for e4m3 {
     type Output = Self;
     #[inline(always)]
-    fn neg(self) -> Self::Output { Self::from_f32(-self.to_f32()) }
+    fn neg(self) -> Self::Output {
+        Self::from_f32(-self.to_f32())
+    }
 }
 
 impl core::cmp::PartialOrd for e4m3 {
@@ -582,6 +714,16 @@ impl e5m2 {
     /// Quiet NaN (Not a Number).
     pub const NAN: Self = e5m2(0x7F);
 
+    /// Convert an `f32` value to `e5m2`. Out-of-range values saturate.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use numkong::e5m2;
+    /// // e5m2 trades mantissa precision for wider range (up to ~57 344).
+    /// let fp8 = e5m2::from_f32(1024.0);
+    /// assert_eq!(fp8.to_f32(), 1024.0);
+    /// ```
     #[inline(always)]
     pub fn from_f32(value: f32) -> Self {
         let mut result: u8 = 0;
@@ -621,28 +763,36 @@ impl e5m2 {
 
     /// Returns the absolute value of self.
     #[inline(always)]
-    pub fn abs(self) -> Self { Self::from_f32(f32_abs_compat(self.to_f32())) }
+    pub fn abs(self) -> Self {
+        Self::from_f32(f32_abs_compat(self.to_f32()))
+    }
 
     /// Returns the largest integer less than or equal to a number.
     ///
     /// This method is only available when the `std` feature is enabled.
     #[cfg(feature = "std")]
     #[inline(always)]
-    pub fn floor(self) -> Self { Self::from_f32(self.to_f32().floor()) }
+    pub fn floor(self) -> Self {
+        Self::from_f32(self.to_f32().floor())
+    }
 
     /// Returns the smallest integer greater than or equal to a number.
     ///
     /// This method is only available when the `std` feature is enabled.
     #[cfg(feature = "std")]
     #[inline(always)]
-    pub fn ceil(self) -> Self { Self::from_f32(self.to_f32().ceil()) }
+    pub fn ceil(self) -> Self {
+        Self::from_f32(self.to_f32().ceil())
+    }
 
     /// Returns the nearest integer to a number. Round half-way cases away from 0.0.
     ///
     /// This method is only available when the `std` feature is enabled.
     #[cfg(feature = "std")]
     #[inline(always)]
-    pub fn round(self) -> Self { Self::from_f32(self.to_f32().round()) }
+    pub fn round(self) -> Self {
+        Self::from_f32(self.to_f32().round())
+    }
 }
 
 impl core::fmt::Debug for e5m2 {
@@ -683,31 +833,41 @@ impl core::fmt::Binary for e5m2 {
 impl core::ops::Add for e5m2 {
     type Output = Self;
     #[inline(always)]
-    fn add(self, rhs: Self) -> Self::Output { Self::from_f32(self.to_f32() + rhs.to_f32()) }
+    fn add(self, right: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() + right.to_f32())
+    }
 }
 
 impl core::ops::Sub for e5m2 {
     type Output = Self;
     #[inline(always)]
-    fn sub(self, rhs: Self) -> Self::Output { Self::from_f32(self.to_f32() - rhs.to_f32()) }
+    fn sub(self, right: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() - right.to_f32())
+    }
 }
 
 impl core::ops::Mul for e5m2 {
     type Output = Self;
     #[inline(always)]
-    fn mul(self, rhs: Self) -> Self::Output { Self::from_f32(self.to_f32() * rhs.to_f32()) }
+    fn mul(self, right: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() * right.to_f32())
+    }
 }
 
 impl core::ops::Div for e5m2 {
     type Output = Self;
     #[inline(always)]
-    fn div(self, rhs: Self) -> Self::Output { Self::from_f32(self.to_f32() / rhs.to_f32()) }
+    fn div(self, right: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() / right.to_f32())
+    }
 }
 
 impl core::ops::Neg for e5m2 {
     type Output = Self;
     #[inline(always)]
-    fn neg(self) -> Self::Output { Self::from_f32(-self.to_f32()) }
+    fn neg(self) -> Self::Output {
+        Self::from_f32(-self.to_f32())
+    }
 }
 
 impl core::cmp::PartialOrd for e5m2 {
@@ -750,6 +910,17 @@ impl e2m3 {
     /// Negative one.
     pub const NEG_ONE: Self = e2m3(0x28);
 
+    /// Convert an `f32` value to `e2m3`. Out-of-range values saturate.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use numkong::e2m3;
+    /// // e2m3 covers ±7.5 with 3 mantissa bits — suitable for fine ratios
+    /// // in a narrow dynamic range.
+    /// let tiny = e2m3::from_f32(1.5);
+    /// assert_eq!(tiny.to_f32(), 1.5);
+    /// ```
     #[inline(always)]
     pub fn from_f32(value: f32) -> Self {
         let mut result: u8 = 0;
@@ -774,12 +945,16 @@ impl e2m3 {
     /// Returns true if this value is positive or negative infinity.
     /// E2M3FN format has no infinities.
     #[inline(always)]
-    pub fn is_infinite(self) -> bool { false }
+    pub fn is_infinite(self) -> bool {
+        false
+    }
 
     /// Returns true if this number is neither infinite nor NaN.
     /// Note: E2M3FN format has no infinities or NaN.
     #[inline(always)]
-    pub fn is_finite(self) -> bool { true }
+    pub fn is_finite(self) -> bool {
+        true
+    }
 
     /// Returns the absolute value of self.
     #[inline(always)]
@@ -792,21 +967,27 @@ impl e2m3 {
     /// This method is only available when the `std` feature is enabled.
     #[cfg(feature = "std")]
     #[inline(always)]
-    pub fn floor(self) -> Self { Self::from_f32(self.to_f32().floor()) }
+    pub fn floor(self) -> Self {
+        Self::from_f32(self.to_f32().floor())
+    }
 
     /// Returns the smallest integer greater than or equal to a number.
     ///
     /// This method is only available when the `std` feature is enabled.
     #[cfg(feature = "std")]
     #[inline(always)]
-    pub fn ceil(self) -> Self { Self::from_f32(self.to_f32().ceil()) }
+    pub fn ceil(self) -> Self {
+        Self::from_f32(self.to_f32().ceil())
+    }
 
     /// Returns the nearest integer to a number. Round half-way cases away from 0.0.
     ///
     /// This method is only available when the `std` feature is enabled.
     #[cfg(feature = "std")]
     #[inline(always)]
-    pub fn round(self) -> Self { Self::from_f32(self.to_f32().round()) }
+    pub fn round(self) -> Self {
+        Self::from_f32(self.to_f32().round())
+    }
 }
 
 impl core::fmt::Debug for e2m3 {
@@ -847,31 +1028,41 @@ impl core::fmt::Binary for e2m3 {
 impl core::ops::Add for e2m3 {
     type Output = Self;
     #[inline(always)]
-    fn add(self, rhs: Self) -> Self::Output { Self::from_f32(self.to_f32() + rhs.to_f32()) }
+    fn add(self, right: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() + right.to_f32())
+    }
 }
 
 impl core::ops::Sub for e2m3 {
     type Output = Self;
     #[inline(always)]
-    fn sub(self, rhs: Self) -> Self::Output { Self::from_f32(self.to_f32() - rhs.to_f32()) }
+    fn sub(self, right: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() - right.to_f32())
+    }
 }
 
 impl core::ops::Mul for e2m3 {
     type Output = Self;
     #[inline(always)]
-    fn mul(self, rhs: Self) -> Self::Output { Self::from_f32(self.to_f32() * rhs.to_f32()) }
+    fn mul(self, right: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() * right.to_f32())
+    }
 }
 
 impl core::ops::Div for e2m3 {
     type Output = Self;
     #[inline(always)]
-    fn div(self, rhs: Self) -> Self::Output { Self::from_f32(self.to_f32() / rhs.to_f32()) }
+    fn div(self, right: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() / right.to_f32())
+    }
 }
 
 impl core::ops::Neg for e2m3 {
     type Output = Self;
     #[inline(always)]
-    fn neg(self) -> Self::Output { Self::from_f32(-self.to_f32()) }
+    fn neg(self) -> Self::Output {
+        Self::from_f32(-self.to_f32())
+    }
 }
 
 impl core::cmp::PartialOrd for e2m3 {
@@ -913,6 +1104,16 @@ impl e3m2 {
     /// Negative one.
     pub const NEG_ONE: Self = e3m2(0x2C);
 
+    /// Convert an `f32` value to `e3m2`. Out-of-range values saturate.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use numkong::e3m2;
+    /// // e3m2 trades mantissa bits for a larger range (±28).
+    /// let tiny = e3m2::from_f32(16.0);
+    /// assert_eq!(tiny.to_f32(), 16.0);
+    /// ```
     #[inline(always)]
     pub fn from_f32(value: f32) -> Self {
         let mut result: u8 = 0;
@@ -961,21 +1162,27 @@ impl e3m2 {
     /// This method is only available when the `std` feature is enabled.
     #[cfg(feature = "std")]
     #[inline(always)]
-    pub fn floor(self) -> Self { Self::from_f32(self.to_f32().floor()) }
+    pub fn floor(self) -> Self {
+        Self::from_f32(self.to_f32().floor())
+    }
 
     /// Returns the smallest integer greater than or equal to a number.
     ///
     /// This method is only available when the `std` feature is enabled.
     #[cfg(feature = "std")]
     #[inline(always)]
-    pub fn ceil(self) -> Self { Self::from_f32(self.to_f32().ceil()) }
+    pub fn ceil(self) -> Self {
+        Self::from_f32(self.to_f32().ceil())
+    }
 
     /// Returns the nearest integer to a number. Round half-way cases away from 0.0.
     ///
     /// This method is only available when the `std` feature is enabled.
     #[cfg(feature = "std")]
     #[inline(always)]
-    pub fn round(self) -> Self { Self::from_f32(self.to_f32().round()) }
+    pub fn round(self) -> Self {
+        Self::from_f32(self.to_f32().round())
+    }
 }
 
 impl core::fmt::Debug for e3m2 {
@@ -1016,31 +1223,41 @@ impl core::fmt::Binary for e3m2 {
 impl core::ops::Add for e3m2 {
     type Output = Self;
     #[inline(always)]
-    fn add(self, rhs: Self) -> Self::Output { Self::from_f32(self.to_f32() + rhs.to_f32()) }
+    fn add(self, right: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() + right.to_f32())
+    }
 }
 
 impl core::ops::Sub for e3m2 {
     type Output = Self;
     #[inline(always)]
-    fn sub(self, rhs: Self) -> Self::Output { Self::from_f32(self.to_f32() - rhs.to_f32()) }
+    fn sub(self, right: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() - right.to_f32())
+    }
 }
 
 impl core::ops::Mul for e3m2 {
     type Output = Self;
     #[inline(always)]
-    fn mul(self, rhs: Self) -> Self::Output { Self::from_f32(self.to_f32() * rhs.to_f32()) }
+    fn mul(self, right: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() * right.to_f32())
+    }
 }
 
 impl core::ops::Div for e3m2 {
     type Output = Self;
     #[inline(always)]
-    fn div(self, rhs: Self) -> Self::Output { Self::from_f32(self.to_f32() / rhs.to_f32()) }
+    fn div(self, right: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() / right.to_f32())
+    }
 }
 
 impl core::ops::Neg for e3m2 {
     type Output = Self;
     #[inline(always)]
-    fn neg(self) -> Self::Output { Self::from_f32(-self.to_f32()) }
+    fn neg(self) -> Self::Output {
+        Self::from_f32(-self.to_f32())
+    }
 }
 
 impl core::cmp::PartialOrd for e3m2 {
@@ -1056,56 +1273,80 @@ impl core::cmp::PartialOrd for e3m2 {
 
 impl From<f32> for f16 {
     #[inline(always)]
-    fn from(value: f32) -> Self { Self::from_f32(value) }
+    fn from(value: f32) -> Self {
+        Self::from_f32(value)
+    }
 }
 impl From<f16> for f32 {
     #[inline(always)]
-    fn from(value: f16) -> Self { value.to_f32() }
+    fn from(value: f16) -> Self {
+        value.to_f32()
+    }
 }
 
 impl From<f32> for bf16 {
     #[inline(always)]
-    fn from(value: f32) -> Self { Self::from_f32(value) }
+    fn from(value: f32) -> Self {
+        Self::from_f32(value)
+    }
 }
 impl From<bf16> for f32 {
     #[inline(always)]
-    fn from(value: bf16) -> Self { value.to_f32() }
+    fn from(value: bf16) -> Self {
+        value.to_f32()
+    }
 }
 
 impl From<f32> for e4m3 {
     #[inline(always)]
-    fn from(value: f32) -> Self { Self::from_f32(value) }
+    fn from(value: f32) -> Self {
+        Self::from_f32(value)
+    }
 }
 impl From<e4m3> for f32 {
     #[inline(always)]
-    fn from(value: e4m3) -> Self { value.to_f32() }
+    fn from(value: e4m3) -> Self {
+        value.to_f32()
+    }
 }
 
 impl From<f32> for e5m2 {
     #[inline(always)]
-    fn from(value: f32) -> Self { Self::from_f32(value) }
+    fn from(value: f32) -> Self {
+        Self::from_f32(value)
+    }
 }
 impl From<e5m2> for f32 {
     #[inline(always)]
-    fn from(value: e5m2) -> Self { value.to_f32() }
+    fn from(value: e5m2) -> Self {
+        value.to_f32()
+    }
 }
 
 impl From<f32> for e2m3 {
     #[inline(always)]
-    fn from(value: f32) -> Self { Self::from_f32(value) }
+    fn from(value: f32) -> Self {
+        Self::from_f32(value)
+    }
 }
 impl From<e2m3> for f32 {
     #[inline(always)]
-    fn from(value: e2m3) -> Self { value.to_f32() }
+    fn from(value: e2m3) -> Self {
+        value.to_f32()
+    }
 }
 
 impl From<f32> for e3m2 {
     #[inline(always)]
-    fn from(value: f32) -> Self { Self::from_f32(value) }
+    fn from(value: f32) -> Self {
+        Self::from_f32(value)
+    }
 }
 impl From<e3m2> for f32 {
     #[inline(always)]
-    fn from(value: e3m2) -> Self { value.to_f32() }
+    fn from(value: e3m2) -> Self {
+        value.to_f32()
+    }
 }
 
 // endregion: From<f32> Conversions
@@ -1157,11 +1398,15 @@ impl core::fmt::Binary for u1x8 {
 impl u1x8 {
     /// Create from raw packed bits.
     #[inline(always)]
-    pub const fn new(bits: u8) -> Self { u1x8(bits) }
+    pub const fn new(bits: u8) -> Self {
+        u1x8(bits)
+    }
 
     /// Get the raw packed bits.
     #[inline(always)]
-    pub const fn bits(self) -> u8 { self.0 }
+    pub const fn bits(self) -> u8 {
+        self.0
+    }
 
     /// Construct from 8 booleans (b0 = LSB, b7 = MSB).
     #[inline(always)]
@@ -1212,7 +1457,9 @@ impl From<(bool, bool, bool, bool, bool, bool, bool, bool)> for u1x8 {
 
 impl From<u1x8> for (bool, bool, bool, bool, bool, bool, bool, bool) {
     #[inline(always)]
-    fn from(v: u1x8) -> Self { v.to_bools() }
+    fn from(v: u1x8) -> Self {
+        v.to_bools()
+    }
 }
 
 // endregion: u1x8 Type
@@ -1229,18 +1476,18 @@ pub struct u4x2(pub u8);
 
 impl core::fmt::Debug for u4x2 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        let (lo, hi) = self.to_u8s();
-        write!(f, "u4x2({}, {}, 0x{:02x})", lo, hi, self.0)
+        let (low, high) = self.to_u8s();
+        write!(f, "u4x2({}, {}, 0x{:02x})", low, high, self.0)
     }
 }
 
 impl core::fmt::Display for u4x2 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        let (lo, hi) = self.to_u8s();
+        let (low, high) = self.to_u8s();
         if f.alternate() {
-            write!(f, "({}, {}) [0x{:02x}]", lo, hi, self.0)
+            write!(f, "({}, {}) [0x{:02x}]", low, high, self.0)
         } else {
-            write!(f, "({}, {})", lo, hi)
+            write!(f, "({}, {})", low, high)
         }
     }
 }
@@ -1266,33 +1513,43 @@ impl core::fmt::Binary for u4x2 {
 impl u4x2 {
     /// Create from raw packed byte.
     #[inline(always)]
-    pub const fn new(packed: u8) -> Self { u4x2(packed) }
+    pub const fn new(packed: u8) -> Self {
+        u4x2(packed)
+    }
 
     /// Get the raw packed byte.
     #[inline(always)]
-    pub const fn packed(self) -> u8 { self.0 }
+    pub const fn packed(self) -> u8 {
+        self.0
+    }
 
     /// Construct from two u8 values with saturation to 0..15.
     #[inline(always)]
-    pub const fn from_u8s(lo: u8, hi: u8) -> Self {
-        let lo_sat = if lo > 15 { 15 } else { lo };
-        let hi_sat = if hi > 15 { 15 } else { hi };
-        u4x2(lo_sat | (hi_sat << 4))
+    pub const fn from_u8s(low: u8, high: u8) -> Self {
+        let low_sat = if low > 15 { 15 } else { low };
+        let high_sat = if high > 15 { 15 } else { high };
+        u4x2(low_sat | (high_sat << 4))
     }
 
     /// Extract to two u8 values (0..15 each).
     #[inline(always)]
-    pub const fn to_u8s(self) -> (u8, u8) { (self.0 & 0x0F, self.0 >> 4) }
+    pub const fn to_u8s(self) -> (u8, u8) {
+        (self.0 & 0x0F, self.0 >> 4)
+    }
 }
 
 impl From<(u8, u8)> for u4x2 {
     #[inline(always)]
-    fn from(v: (u8, u8)) -> Self { u4x2::from_u8s(v.0, v.1) }
+    fn from(v: (u8, u8)) -> Self {
+        u4x2::from_u8s(v.0, v.1)
+    }
 }
 
 impl From<u4x2> for (u8, u8) {
     #[inline(always)]
-    fn from(v: u4x2) -> Self { v.to_u8s() }
+    fn from(v: u4x2) -> Self {
+        v.to_u8s()
+    }
 }
 
 // endregion: u4x2 Type
@@ -1309,18 +1566,18 @@ pub struct i4x2(pub u8);
 
 impl core::fmt::Debug for i4x2 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        let (lo, hi) = self.to_i8s();
-        write!(f, "i4x2({}, {}, 0x{:02x})", lo, hi, self.0)
+        let (low, high) = self.to_i8s();
+        write!(f, "i4x2({}, {}, 0x{:02x})", low, high, self.0)
     }
 }
 
 impl core::fmt::Display for i4x2 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        let (lo, hi) = self.to_i8s();
+        let (low, high) = self.to_i8s();
         if f.alternate() {
-            write!(f, "({}, {}) [0x{:02x}]", lo, hi, self.0)
+            write!(f, "({}, {}) [0x{:02x}]", low, high, self.0)
         } else {
-            write!(f, "({}, {})", lo, hi)
+            write!(f, "({}, {})", low, high)
         }
     }
 }
@@ -1346,52 +1603,68 @@ impl core::fmt::Binary for i4x2 {
 impl i4x2 {
     /// Create from raw packed byte.
     #[inline(always)]
-    pub const fn new(packed: u8) -> Self { i4x2(packed) }
+    pub const fn new(packed: u8) -> Self {
+        i4x2(packed)
+    }
 
     /// Get the raw packed byte.
     #[inline(always)]
-    pub const fn packed(self) -> u8 { self.0 }
+    pub const fn packed(self) -> u8 {
+        self.0
+    }
 
     /// Construct from two i8 values with saturation to -8..7.
     #[inline(always)]
-    pub const fn from_i8s(lo: i8, hi: i8) -> Self {
-        let lo_sat = if lo < -8 {
+    pub const fn from_i8s(low: i8, high: i8) -> Self {
+        let low_sat = if low < -8 {
             -8
-        } else if lo > 7 {
+        } else if low > 7 {
             7
         } else {
-            lo
+            low
         };
-        let hi_sat = if hi < -8 {
+        let high_sat = if high < -8 {
             -8
-        } else if hi > 7 {
+        } else if high > 7 {
             7
         } else {
-            hi
+            high
         };
-        i4x2(((lo_sat as u8) & 0x0F) | (((hi_sat as u8) & 0x0F) << 4))
+        i4x2(((low_sat as u8) & 0x0F) | (((high_sat as u8) & 0x0F) << 4))
     }
 
     /// Extract to two i8 values (sign-extended from 4 bits).
     #[inline(always)]
     pub const fn to_i8s(self) -> (i8, i8) {
-        let lo = (self.0 & 0x0F) as i8;
-        let hi = ((self.0 >> 4) & 0x0F) as i8;
+        let low = (self.0 & 0x0F) as i8;
+        let high = ((self.0 >> 4) & 0x0F) as i8;
         // Sign extend from 4 bits: if bit 3 is set, fill upper bits with 1s
-        let lo = if lo & 0x08 != 0 { lo | (!0x0Fi8) } else { lo };
-        let hi = if hi & 0x08 != 0 { hi | (!0x0Fi8) } else { hi };
-        (lo, hi)
+        let low = if low & 0x08 != 0 {
+            low | (!0x0Fi8)
+        } else {
+            low
+        };
+        let high = if high & 0x08 != 0 {
+            high | (!0x0Fi8)
+        } else {
+            high
+        };
+        (low, high)
     }
 }
 
 impl From<(i8, i8)> for i4x2 {
     #[inline(always)]
-    fn from(v: (i8, i8)) -> Self { i4x2::from_i8s(v.0, v.1) }
+    fn from(v: (i8, i8)) -> Self {
+        i4x2::from_i8s(v.0, v.1)
+    }
 }
 
 impl From<i4x2> for (i8, i8) {
     #[inline(always)]
-    fn from(v: i4x2) -> Self { v.to_i8s() }
+    fn from(v: i4x2) -> Self {
+        v.to_i8s()
+    }
 }
 
 // endregion: i4x2 Type
@@ -1409,7 +1682,9 @@ pub trait StorageElement: Sized + Copy + Clone + Default {
     fn one() -> Self;
     /// Number of logical dimensions packed into one storage value.
     /// Default: 1 for all normal types. Override for sub-byte packed types.
-    fn dimensions_per_value() -> usize { 1 }
+    fn dimensions_per_value() -> usize {
+        1
+    }
 }
 
 /// Trait for types that support conversion to/from f32 with classification and constants.
@@ -1422,192 +1697,436 @@ pub trait NumberLike: StorageElement {
     /// Convert from this type to f32.
     fn to_f32(self) -> f32;
     /// Convert from f64 to this type (default: via f32 roundtrip).
-    fn from_f64(v: f64) -> Self { Self::from_f32(v as f32) }
+    fn from_f64(v: f64) -> Self {
+        Self::from_f32(v as f32)
+    }
     /// Convert from this type to f64 (default: via f32 roundtrip).
-    fn to_f64(self) -> f64 { self.to_f32() as f64 }
+    fn to_f64(self) -> f64 {
+        self.to_f32() as f64
+    }
 
-    fn abs(self) -> Self { Self::from_f32(f32_abs_compat(self.to_f32())) }
-    fn is_nan(self) -> bool { self.to_f32().is_nan() }
-    fn is_finite(self) -> bool { self.to_f32().is_finite() }
-    fn is_infinite(self) -> bool { self.to_f32().is_infinite() }
+    fn abs(self) -> Self {
+        Self::from_f32(f32_abs_compat(self.to_f32()))
+    }
+    fn is_nan(self) -> bool {
+        self.to_f32().is_nan()
+    }
+    fn is_finite(self) -> bool {
+        self.to_f32().is_finite()
+    }
+    fn is_infinite(self) -> bool {
+        self.to_f32().is_infinite()
+    }
 
-    fn has_infinity() -> bool { false }
-    fn has_nan() -> bool { false }
-    fn has_subnormals() -> bool { false }
-    fn max_value() -> f32 { f32::MAX }
-    fn min_positive() -> f32 { f32::MIN_POSITIVE }
+    fn has_infinity() -> bool {
+        false
+    }
+    fn has_nan() -> bool {
+        false
+    }
+    fn has_subnormals() -> bool {
+        false
+    }
+    fn max_value() -> f32 {
+        f32::MAX
+    }
+    fn min_positive() -> f32 {
+        f32::MIN_POSITIVE
+    }
 }
 
 /// Backward-compatible alias: any type implementing [`NumberLike`] also implements `FloatLike`.
 pub trait FloatLike: NumberLike {}
-impl<T: NumberLike> FloatLike for T {}
+impl<Scalar: NumberLike> FloatLike for Scalar {}
 
 impl StorageElement for f32 {
-    fn zero() -> Self { 0.0 }
-    fn one() -> Self { 1.0 }
+    fn zero() -> Self {
+        0.0
+    }
+    fn one() -> Self {
+        1.0
+    }
 }
 
 impl NumberLike for f32 {
-    fn from_f32(v: f32) -> Self { v }
-    fn to_f32(self) -> f32 { self }
-    fn from_f64(v: f64) -> Self { v as f32 }
-    fn to_f64(self) -> f64 { self as f64 }
-    fn abs(self) -> Self { f32_abs_compat(self) }
-    fn is_nan(self) -> bool { f32::is_nan(self) }
-    fn is_finite(self) -> bool { f32::is_finite(self) }
-    fn is_infinite(self) -> bool { f32::is_infinite(self) }
-    fn has_infinity() -> bool { true }
-    fn has_nan() -> bool { true }
-    fn has_subnormals() -> bool { true }
-    fn max_value() -> f32 { f32::MAX }
-    fn min_positive() -> f32 { f32::MIN_POSITIVE }
+    fn from_f32(v: f32) -> Self {
+        v
+    }
+    fn to_f32(self) -> f32 {
+        self
+    }
+    fn from_f64(v: f64) -> Self {
+        v as f32
+    }
+    fn to_f64(self) -> f64 {
+        self as f64
+    }
+    fn abs(self) -> Self {
+        f32_abs_compat(self)
+    }
+    fn is_nan(self) -> bool {
+        f32::is_nan(self)
+    }
+    fn is_finite(self) -> bool {
+        f32::is_finite(self)
+    }
+    fn is_infinite(self) -> bool {
+        f32::is_infinite(self)
+    }
+    fn has_infinity() -> bool {
+        true
+    }
+    fn has_nan() -> bool {
+        true
+    }
+    fn has_subnormals() -> bool {
+        true
+    }
+    fn max_value() -> f32 {
+        f32::MAX
+    }
+    fn min_positive() -> f32 {
+        f32::MIN_POSITIVE
+    }
 }
 
 impl StorageElement for f64 {
-    fn zero() -> Self { 0.0 }
-    fn one() -> Self { 1.0 }
+    fn zero() -> Self {
+        0.0
+    }
+    fn one() -> Self {
+        1.0
+    }
 }
 
 impl NumberLike for f64 {
-    fn from_f32(v: f32) -> Self { v as f64 }
-    fn to_f32(self) -> f32 { self as f32 }
-    fn from_f64(v: f64) -> Self { v }
-    fn to_f64(self) -> f64 { self }
-    fn abs(self) -> Self { f64::from_bits(self.to_bits() & 0x7FFF_FFFF_FFFF_FFFF) }
-    fn is_nan(self) -> bool { f64::is_nan(self) }
-    fn is_finite(self) -> bool { f64::is_finite(self) }
-    fn is_infinite(self) -> bool { f64::is_infinite(self) }
-    fn has_infinity() -> bool { true }
-    fn has_nan() -> bool { true }
-    fn has_subnormals() -> bool { true }
-    fn max_value() -> f32 { f32::MAX }
-    fn min_positive() -> f32 { f32::MIN_POSITIVE }
+    fn from_f32(v: f32) -> Self {
+        v as f64
+    }
+    fn to_f32(self) -> f32 {
+        self as f32
+    }
+    fn from_f64(v: f64) -> Self {
+        v
+    }
+    fn to_f64(self) -> f64 {
+        self
+    }
+    fn abs(self) -> Self {
+        f64::from_bits(self.to_bits() & 0x7FFF_FFFF_FFFF_FFFF)
+    }
+    fn is_nan(self) -> bool {
+        f64::is_nan(self)
+    }
+    fn is_finite(self) -> bool {
+        f64::is_finite(self)
+    }
+    fn is_infinite(self) -> bool {
+        f64::is_infinite(self)
+    }
+    fn has_infinity() -> bool {
+        true
+    }
+    fn has_nan() -> bool {
+        true
+    }
+    fn has_subnormals() -> bool {
+        true
+    }
+    fn max_value() -> f32 {
+        f32::MAX
+    }
+    fn min_positive() -> f32 {
+        f32::MIN_POSITIVE
+    }
 }
 
 impl StorageElement for f16 {
-    fn zero() -> Self { f16(0) }
-    fn one() -> Self { f16::from_f32(1.0) }
+    fn zero() -> Self {
+        f16(0)
+    }
+    fn one() -> Self {
+        f16::from_f32(1.0)
+    }
 }
 
 impl NumberLike for f16 {
-    fn from_f32(v: f32) -> Self { f16::from_f32(v) }
-    fn to_f32(self) -> f32 { self.to_f32() }
-    fn abs(self) -> Self { self.abs() }
-    fn is_nan(self) -> bool { self.is_nan() }
-    fn is_finite(self) -> bool { self.is_finite() }
-    fn is_infinite(self) -> bool { self.is_infinite() }
-    fn has_infinity() -> bool { true }
-    fn has_nan() -> bool { true }
-    fn has_subnormals() -> bool { true }
-    fn max_value() -> f32 { 65504.0 }
-    fn min_positive() -> f32 { 6.1e-5 }
+    fn from_f32(v: f32) -> Self {
+        f16::from_f32(v)
+    }
+    fn to_f32(self) -> f32 {
+        self.to_f32()
+    }
+    fn abs(self) -> Self {
+        self.abs()
+    }
+    fn is_nan(self) -> bool {
+        self.is_nan()
+    }
+    fn is_finite(self) -> bool {
+        self.is_finite()
+    }
+    fn is_infinite(self) -> bool {
+        self.is_infinite()
+    }
+    fn has_infinity() -> bool {
+        true
+    }
+    fn has_nan() -> bool {
+        true
+    }
+    fn has_subnormals() -> bool {
+        true
+    }
+    fn max_value() -> f32 {
+        65504.0
+    }
+    fn min_positive() -> f32 {
+        6.1e-5
+    }
 }
 
 impl StorageElement for bf16 {
-    fn zero() -> Self { bf16(0) }
-    fn one() -> Self { bf16::from_f32(1.0) }
+    fn zero() -> Self {
+        bf16(0)
+    }
+    fn one() -> Self {
+        bf16::from_f32(1.0)
+    }
 }
 
 impl NumberLike for bf16 {
-    fn from_f32(v: f32) -> Self { bf16::from_f32(v) }
-    fn to_f32(self) -> f32 { self.to_f32() }
-    fn abs(self) -> Self { self.abs() }
-    fn is_nan(self) -> bool { self.is_nan() }
-    fn is_finite(self) -> bool { self.is_finite() }
-    fn is_infinite(self) -> bool { self.is_infinite() }
-    fn has_infinity() -> bool { true }
-    fn has_nan() -> bool { true }
-    fn has_subnormals() -> bool { true }
-    fn max_value() -> f32 { 3.4e38 }
-    fn min_positive() -> f32 { 1.2e-38 }
+    fn from_f32(v: f32) -> Self {
+        bf16::from_f32(v)
+    }
+    fn to_f32(self) -> f32 {
+        self.to_f32()
+    }
+    fn abs(self) -> Self {
+        self.abs()
+    }
+    fn is_nan(self) -> bool {
+        self.is_nan()
+    }
+    fn is_finite(self) -> bool {
+        self.is_finite()
+    }
+    fn is_infinite(self) -> bool {
+        self.is_infinite()
+    }
+    fn has_infinity() -> bool {
+        true
+    }
+    fn has_nan() -> bool {
+        true
+    }
+    fn has_subnormals() -> bool {
+        true
+    }
+    fn max_value() -> f32 {
+        3.4e38
+    }
+    fn min_positive() -> f32 {
+        1.2e-38
+    }
 }
 
 impl StorageElement for e4m3 {
-    fn zero() -> Self { e4m3(0) }
-    fn one() -> Self { e4m3::from_f32(1.0) }
+    fn zero() -> Self {
+        e4m3(0)
+    }
+    fn one() -> Self {
+        e4m3::from_f32(1.0)
+    }
 }
 
 impl NumberLike for e4m3 {
-    fn from_f32(v: f32) -> Self { e4m3::from_f32(v) }
-    fn to_f32(self) -> f32 { self.to_f32() }
-    fn abs(self) -> Self { self.abs() }
-    fn is_nan(self) -> bool { self.is_nan() }
-    fn is_finite(self) -> bool { self.is_finite() }
-    fn is_infinite(self) -> bool { self.is_infinite() }
-    fn has_nan() -> bool { true }
-    fn has_subnormals() -> bool { true }
-    fn max_value() -> f32 { 448.0 }
-    fn min_positive() -> f32 { 0.001953125 }
+    fn from_f32(v: f32) -> Self {
+        e4m3::from_f32(v)
+    }
+    fn to_f32(self) -> f32 {
+        self.to_f32()
+    }
+    fn abs(self) -> Self {
+        self.abs()
+    }
+    fn is_nan(self) -> bool {
+        self.is_nan()
+    }
+    fn is_finite(self) -> bool {
+        self.is_finite()
+    }
+    fn is_infinite(self) -> bool {
+        self.is_infinite()
+    }
+    fn has_nan() -> bool {
+        true
+    }
+    fn has_subnormals() -> bool {
+        true
+    }
+    fn max_value() -> f32 {
+        448.0
+    }
+    fn min_positive() -> f32 {
+        0.001953125
+    }
 }
 
 impl StorageElement for e5m2 {
-    fn zero() -> Self { e5m2(0) }
-    fn one() -> Self { e5m2::from_f32(1.0) }
+    fn zero() -> Self {
+        e5m2(0)
+    }
+    fn one() -> Self {
+        e5m2::from_f32(1.0)
+    }
 }
 
 impl NumberLike for e5m2 {
-    fn from_f32(v: f32) -> Self { e5m2::from_f32(v) }
-    fn to_f32(self) -> f32 { self.to_f32() }
-    fn abs(self) -> Self { self.abs() }
-    fn is_nan(self) -> bool { self.is_nan() }
-    fn is_finite(self) -> bool { self.is_finite() }
-    fn is_infinite(self) -> bool { self.is_infinite() }
-    fn has_infinity() -> bool { true }
-    fn has_nan() -> bool { true }
-    fn has_subnormals() -> bool { true }
-    fn max_value() -> f32 { 57344.0 }
-    fn min_positive() -> f32 { 6.103_515_6e-5 }
+    fn from_f32(v: f32) -> Self {
+        e5m2::from_f32(v)
+    }
+    fn to_f32(self) -> f32 {
+        self.to_f32()
+    }
+    fn abs(self) -> Self {
+        self.abs()
+    }
+    fn is_nan(self) -> bool {
+        self.is_nan()
+    }
+    fn is_finite(self) -> bool {
+        self.is_finite()
+    }
+    fn is_infinite(self) -> bool {
+        self.is_infinite()
+    }
+    fn has_infinity() -> bool {
+        true
+    }
+    fn has_nan() -> bool {
+        true
+    }
+    fn has_subnormals() -> bool {
+        true
+    }
+    fn max_value() -> f32 {
+        57344.0
+    }
+    fn min_positive() -> f32 {
+        6.103_515_6e-5
+    }
 }
 
 impl StorageElement for e2m3 {
-    fn zero() -> Self { e2m3(0) }
-    fn one() -> Self { e2m3::from_f32(1.0) }
+    fn zero() -> Self {
+        e2m3(0)
+    }
+    fn one() -> Self {
+        e2m3::from_f32(1.0)
+    }
 }
 
 impl NumberLike for e2m3 {
-    fn from_f32(v: f32) -> Self { e2m3::from_f32(v) }
-    fn to_f32(self) -> f32 { self.to_f32() }
-    fn abs(self) -> Self { self.abs() }
-    fn is_nan(self) -> bool { self.is_nan() }
-    fn is_finite(self) -> bool { self.is_finite() }
-    fn is_infinite(self) -> bool { self.is_infinite() }
-    fn has_subnormals() -> bool { true }
-    fn max_value() -> f32 { 7.5 }
-    fn min_positive() -> f32 { 0.0625 }
+    fn from_f32(v: f32) -> Self {
+        e2m3::from_f32(v)
+    }
+    fn to_f32(self) -> f32 {
+        self.to_f32()
+    }
+    fn abs(self) -> Self {
+        self.abs()
+    }
+    fn is_nan(self) -> bool {
+        self.is_nan()
+    }
+    fn is_finite(self) -> bool {
+        self.is_finite()
+    }
+    fn is_infinite(self) -> bool {
+        self.is_infinite()
+    }
+    fn has_subnormals() -> bool {
+        true
+    }
+    fn max_value() -> f32 {
+        7.5
+    }
+    fn min_positive() -> f32 {
+        0.0625
+    }
 }
 
 impl StorageElement for e3m2 {
-    fn zero() -> Self { e3m2(0) }
-    fn one() -> Self { e3m2::from_f32(1.0) }
+    fn zero() -> Self {
+        e3m2(0)
+    }
+    fn one() -> Self {
+        e3m2::from_f32(1.0)
+    }
 }
 
 impl NumberLike for e3m2 {
-    fn from_f32(v: f32) -> Self { e3m2::from_f32(v) }
-    fn to_f32(self) -> f32 { self.to_f32() }
-    fn abs(self) -> Self { self.abs() }
-    fn is_nan(self) -> bool { self.is_nan() }
-    fn is_finite(self) -> bool { self.is_finite() }
-    fn is_infinite(self) -> bool { self.is_infinite() }
-    fn has_subnormals() -> bool { true }
-    fn max_value() -> f32 { 28.0 }
-    fn min_positive() -> f32 { 0.125 }
+    fn from_f32(v: f32) -> Self {
+        e3m2::from_f32(v)
+    }
+    fn to_f32(self) -> f32 {
+        self.to_f32()
+    }
+    fn abs(self) -> Self {
+        self.abs()
+    }
+    fn is_nan(self) -> bool {
+        self.is_nan()
+    }
+    fn is_finite(self) -> bool {
+        self.is_finite()
+    }
+    fn is_infinite(self) -> bool {
+        self.is_infinite()
+    }
+    fn has_subnormals() -> bool {
+        true
+    }
+    fn max_value() -> f32 {
+        28.0
+    }
+    fn min_positive() -> f32 {
+        0.125
+    }
 }
 
 impl StorageElement for i8 {
-    fn zero() -> Self { 0 }
-    fn one() -> Self { 1 }
+    fn zero() -> Self {
+        0
+    }
+    fn one() -> Self {
+        1
+    }
 }
 
 impl NumberLike for i8 {
-    fn from_f32(v: f32) -> Self { f32_round_compat(v) as i8 }
-    fn to_f32(self) -> f32 { self as f32 }
-    fn from_f64(v: f64) -> Self { f64_round_compat(v) as i8 }
-    fn to_f64(self) -> f64 { self as f64 }
+    fn from_f32(v: f32) -> Self {
+        f32_round_compat(v) as i8
+    }
+    fn to_f32(self) -> f32 {
+        self as f32
+    }
+    fn from_f64(v: f64) -> Self {
+        f64_round_compat(v) as i8
+    }
+    fn to_f64(self) -> f64 {
+        self as f64
+    }
 }
 
 impl StorageElement for u8 {
-    fn zero() -> Self { 0 }
-    fn one() -> Self { 1 }
+    fn zero() -> Self {
+        0
+    }
+    fn one() -> Self {
+        1
+    }
 }
 
 impl NumberLike for u8 {
@@ -1619,7 +2138,9 @@ impl NumberLike for u8 {
             r as u8
         }
     }
-    fn to_f32(self) -> f32 { self as f32 }
+    fn to_f32(self) -> f32 {
+        self as f32
+    }
     fn from_f64(v: f64) -> Self {
         let r = f64_round_compat(v);
         if r < 0.0 {
@@ -1628,24 +2149,42 @@ impl NumberLike for u8 {
             r as u8
         }
     }
-    fn to_f64(self) -> f64 { self as f64 }
+    fn to_f64(self) -> f64 {
+        self as f64
+    }
 }
 
 impl StorageElement for i32 {
-    fn zero() -> Self { 0 }
-    fn one() -> Self { 1 }
+    fn zero() -> Self {
+        0
+    }
+    fn one() -> Self {
+        1
+    }
 }
 
 impl NumberLike for i32 {
-    fn from_f32(v: f32) -> Self { f32_round_compat(v) as i32 }
-    fn to_f32(self) -> f32 { self as f32 }
-    fn from_f64(v: f64) -> Self { f64_round_compat(v) as i32 }
-    fn to_f64(self) -> f64 { self as f64 }
+    fn from_f32(v: f32) -> Self {
+        f32_round_compat(v) as i32
+    }
+    fn to_f32(self) -> f32 {
+        self as f32
+    }
+    fn from_f64(v: f64) -> Self {
+        f64_round_compat(v) as i32
+    }
+    fn to_f64(self) -> f64 {
+        self as f64
+    }
 }
 
 impl StorageElement for u32 {
-    fn zero() -> Self { 0 }
-    fn one() -> Self { 1 }
+    fn zero() -> Self {
+        0
+    }
+    fn one() -> Self {
+        1
+    }
 }
 
 impl NumberLike for u32 {
@@ -1657,7 +2196,9 @@ impl NumberLike for u32 {
             r as u32
         }
     }
-    fn to_f32(self) -> f32 { self as f32 }
+    fn to_f32(self) -> f32 {
+        self as f32
+    }
     fn from_f64(v: f64) -> Self {
         let r = f64_round_compat(v);
         if r < 0.0 {
@@ -1666,24 +2207,42 @@ impl NumberLike for u32 {
             r as u32
         }
     }
-    fn to_f64(self) -> f64 { self as f64 }
+    fn to_f64(self) -> f64 {
+        self as f64
+    }
 }
 
 impl StorageElement for i16 {
-    fn zero() -> Self { 0 }
-    fn one() -> Self { 1 }
+    fn zero() -> Self {
+        0
+    }
+    fn one() -> Self {
+        1
+    }
 }
 
 impl NumberLike for i16 {
-    fn from_f32(v: f32) -> Self { f32_round_compat(v) as i16 }
-    fn to_f32(self) -> f32 { self as f32 }
-    fn from_f64(v: f64) -> Self { f64_round_compat(v) as i16 }
-    fn to_f64(self) -> f64 { self as f64 }
+    fn from_f32(v: f32) -> Self {
+        f32_round_compat(v) as i16
+    }
+    fn to_f32(self) -> f32 {
+        self as f32
+    }
+    fn from_f64(v: f64) -> Self {
+        f64_round_compat(v) as i16
+    }
+    fn to_f64(self) -> f64 {
+        self as f64
+    }
 }
 
 impl StorageElement for u16 {
-    fn zero() -> Self { 0 }
-    fn one() -> Self { 1 }
+    fn zero() -> Self {
+        0
+    }
+    fn one() -> Self {
+        1
+    }
 }
 
 impl NumberLike for u16 {
@@ -1695,7 +2254,9 @@ impl NumberLike for u16 {
             r as u16
         }
     }
-    fn to_f32(self) -> f32 { self as f32 }
+    fn to_f32(self) -> f32 {
+        self as f32
+    }
     fn from_f64(v: f64) -> Self {
         let r = f64_round_compat(v);
         if r < 0.0 {
@@ -1704,24 +2265,42 @@ impl NumberLike for u16 {
             r as u16
         }
     }
-    fn to_f64(self) -> f64 { self as f64 }
+    fn to_f64(self) -> f64 {
+        self as f64
+    }
 }
 
 impl StorageElement for i64 {
-    fn zero() -> Self { 0 }
-    fn one() -> Self { 1 }
+    fn zero() -> Self {
+        0
+    }
+    fn one() -> Self {
+        1
+    }
 }
 
 impl NumberLike for i64 {
-    fn from_f32(v: f32) -> Self { f32_round_compat(v) as i64 }
-    fn to_f32(self) -> f32 { self as f32 }
-    fn from_f64(v: f64) -> Self { f64_round_compat(v) as i64 }
-    fn to_f64(self) -> f64 { self as f64 }
+    fn from_f32(v: f32) -> Self {
+        f32_round_compat(v) as i64
+    }
+    fn to_f32(self) -> f32 {
+        self as f32
+    }
+    fn from_f64(v: f64) -> Self {
+        f64_round_compat(v) as i64
+    }
+    fn to_f64(self) -> f64 {
+        self as f64
+    }
 }
 
 impl StorageElement for u64 {
-    fn zero() -> Self { 0 }
-    fn one() -> Self { 1 }
+    fn zero() -> Self {
+        0
+    }
+    fn one() -> Self {
+        1
+    }
 }
 
 impl NumberLike for u64 {
@@ -1733,7 +2312,9 @@ impl NumberLike for u64 {
             r as u64
         }
     }
-    fn to_f32(self) -> f32 { self as f32 }
+    fn to_f32(self) -> f32 {
+        self as f32
+    }
     fn from_f64(v: f64) -> Self {
         let r = f64_round_compat(v);
         if r < 0.0 {
@@ -1742,18 +2323,30 @@ impl NumberLike for u64 {
             r as u64
         }
     }
-    fn to_f64(self) -> f64 { self as f64 }
+    fn to_f64(self) -> f64 {
+        self as f64
+    }
 }
 
 impl StorageElement for usize {
-    fn zero() -> Self { 0 }
-    fn one() -> Self { 1 }
+    fn zero() -> Self {
+        0
+    }
+    fn one() -> Self {
+        1
+    }
 }
 
 impl StorageElement for i4x2 {
-    fn zero() -> Self { i4x2::from((0i8, 0i8)) }
-    fn one() -> Self { i4x2::from((1i8, 1i8)) }
-    fn dimensions_per_value() -> usize { 2 }
+    fn zero() -> Self {
+        i4x2::from((0i8, 0i8))
+    }
+    fn one() -> Self {
+        i4x2::from((1i8, 1i8))
+    }
+    fn dimensions_per_value() -> usize {
+        2
+    }
 }
 
 impl NumberLike for i4x2 {
@@ -1768,9 +2361,15 @@ impl NumberLike for i4x2 {
 }
 
 impl StorageElement for u4x2 {
-    fn zero() -> Self { u4x2::from((0u8, 0u8)) }
-    fn one() -> Self { u4x2::from((1u8, 1u8)) }
-    fn dimensions_per_value() -> usize { 2 }
+    fn zero() -> Self {
+        u4x2::from((0u8, 0u8))
+    }
+    fn one() -> Self {
+        u4x2::from((1u8, 1u8))
+    }
+    fn dimensions_per_value() -> usize {
+        2
+    }
 }
 
 impl NumberLike for u4x2 {
@@ -1786,9 +2385,15 @@ impl NumberLike for u4x2 {
 }
 
 impl StorageElement for u1x8 {
-    fn zero() -> Self { u1x8(0x00) }
-    fn one() -> Self { u1x8(0xFF) }
-    fn dimensions_per_value() -> usize { 8 }
+    fn zero() -> Self {
+        u1x8(0x00)
+    }
+    fn one() -> Self {
+        u1x8(0xFF)
+    }
+    fn dimensions_per_value() -> usize {
+        8
+    }
 }
 
 impl NumberLike for u1x8 {
@@ -1799,7 +2404,9 @@ impl NumberLike for u1x8 {
             u1x8(0x00)
         }
     }
-    fn to_f32(self) -> f32 { self.0.count_ones() as f32 }
+    fn to_f32(self) -> f32 {
+        self.0.count_ones() as f32
+    }
 }
 
 // endregion: StorageElement + NumberLike + FloatLike Traits
@@ -1807,29 +2414,42 @@ impl NumberLike for u1x8 {
 // region: Complex Types
 
 #[inline(always)]
-fn complex_mul_components<T>(lhs_re: T, lhs_im: T, rhs_re: T, rhs_im: T) -> (T, T)
+fn complex_mul_components<Scalar>(
+    left_re: Scalar,
+    left_im: Scalar,
+    right_re: Scalar,
+    right_im: Scalar,
+) -> (Scalar, Scalar)
 where
-    T: Copy + core::ops::Add<Output = T> + core::ops::Sub<Output = T> + core::ops::Mul<Output = T>,
+    Scalar: Copy
+        + core::ops::Add<Output = Scalar>
+        + core::ops::Sub<Output = Scalar>
+        + core::ops::Mul<Output = Scalar>,
 {
     (
-        lhs_re * rhs_re - lhs_im * rhs_im,
-        lhs_re * rhs_im + lhs_im * rhs_re,
+        left_re * right_re - left_im * right_im,
+        left_re * right_im + left_im * right_re,
     )
 }
 
 #[inline(always)]
-fn complex_div_components<T>(lhs_re: T, lhs_im: T, rhs_re: T, rhs_im: T) -> (T, T)
+fn complex_div_components<Scalar>(
+    left_re: Scalar,
+    left_im: Scalar,
+    right_re: Scalar,
+    right_im: Scalar,
+) -> (Scalar, Scalar)
 where
-    T: Copy
-        + core::ops::Add<Output = T>
-        + core::ops::Sub<Output = T>
-        + core::ops::Mul<Output = T>
-        + core::ops::Div<Output = T>,
+    Scalar: Copy
+        + core::ops::Add<Output = Scalar>
+        + core::ops::Sub<Output = Scalar>
+        + core::ops::Mul<Output = Scalar>
+        + core::ops::Div<Output = Scalar>,
 {
-    let denom = rhs_re * rhs_re + rhs_im * rhs_im;
+    let denom = right_re * right_re + right_im * right_im;
     (
-        (lhs_re * rhs_re + lhs_im * rhs_im) / denom,
-        (lhs_im * rhs_re - lhs_re * rhs_im) / denom,
+        (left_re * right_re + left_im * right_im) / denom,
+        (left_im * right_re - left_re * right_im) / denom,
     )
 }
 
@@ -1851,58 +2471,76 @@ pub trait ComplexComponent:
 impl ComplexComponent for f16 {
     type Norm = f32;
 
-    fn from_norm(value: Self::Norm) -> Self { Self::from_f32(value) }
+    fn from_norm(value: Self::Norm) -> Self {
+        Self::from_f32(value)
+    }
 
-    fn norm_component(self) -> Self::Norm { self.to_f32() * self.to_f32() }
+    fn norm_component(self) -> Self::Norm {
+        self.to_f32() * self.to_f32()
+    }
 }
 
 impl ComplexComponent for bf16 {
     type Norm = f32;
 
-    fn from_norm(value: Self::Norm) -> Self { Self::from_f32(value) }
+    fn from_norm(value: Self::Norm) -> Self {
+        Self::from_f32(value)
+    }
 
-    fn norm_component(self) -> Self::Norm { self.to_f32() * self.to_f32() }
+    fn norm_component(self) -> Self::Norm {
+        self.to_f32() * self.to_f32()
+    }
 }
 
 impl ComplexComponent for f32 {
     type Norm = f32;
 
-    fn from_norm(value: Self::Norm) -> Self { value }
+    fn from_norm(value: Self::Norm) -> Self {
+        value
+    }
 
-    fn norm_component(self) -> Self::Norm { self * self }
+    fn norm_component(self) -> Self::Norm {
+        self * self
+    }
 }
 
 impl ComplexComponent for f64 {
     type Norm = f64;
 
-    fn from_norm(value: Self::Norm) -> Self { value }
+    fn from_norm(value: Self::Norm) -> Self {
+        value
+    }
 
-    fn norm_component(self) -> Self::Norm { self * self }
+    fn norm_component(self) -> Self::Norm {
+        self * self
+    }
 }
 
-/// Complex number with adjacent real and imaginary components of type `T`.
+/// Complex number with adjacent real and imaginary components of type `Scalar`.
 ///
-/// Layout: `{re: T, im: T}`. Supports conjugate, norm², and component access.
+/// Layout: `{re: Scalar, im: Scalar}`. Supports conjugate, norm², and component access.
 /// Concrete aliases: [`f16c`], [`bf16c`], [`f32c`], [`f64c`].
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
-pub struct complex<T> {
-    pub re: T,
-    pub im: T,
+pub struct complex<Scalar> {
+    pub re: Scalar,
+    pub im: Scalar,
 }
 
-impl<T> complex<T> {
-    pub const fn from_real_imag(re: T, im: T) -> Self { Self { re, im } }
+impl<Scalar> complex<Scalar> {
+    pub const fn from_real_imag(re: Scalar, im: Scalar) -> Self {
+        Self { re, im }
+    }
 
-    pub const fn to_real_imag(self) -> (T, T)
+    pub const fn to_real_imag(self) -> (Scalar, Scalar)
     where
-        T: Copy,
+        Scalar: Copy,
     {
         (self.re, self.im)
     }
 }
 
-impl<T: ComplexComponent> complex<T> {
+impl<Scalar: ComplexComponent> complex<Scalar> {
     pub fn conj(self) -> Self {
         Self {
             re: self.re,
@@ -1910,7 +2548,9 @@ impl<T: ComplexComponent> complex<T> {
         }
     }
 
-    pub fn norm_sqr(self) -> T::Norm { self.re.norm_component() + self.im.norm_component() }
+    pub fn norm_sqr(self) -> Scalar::Norm {
+        self.re.norm_component() + self.im.norm_component()
+    }
 }
 
 /// Half-precision (32-bit) complex number — two [`f16`] components. Kernel outputs widened to f32c.
@@ -1922,52 +2562,52 @@ pub type f32c = complex<f32>;
 /// Double-precision (128-bit) complex number — two `f64` components.
 pub type f64c = complex<f64>;
 
-impl<T: ComplexComponent> From<f32> for complex<T> {
+impl<Scalar: ComplexComponent> From<f32> for complex<Scalar> {
     fn from(value: f32) -> Self {
         Self {
-            re: T::from_f32(value),
-            im: T::zero(),
+            re: Scalar::from_f32(value),
+            im: Scalar::zero(),
         }
     }
 }
 
-impl<T: ComplexComponent> core::ops::Add for complex<T> {
+impl<Scalar: ComplexComponent> core::ops::Add for complex<Scalar> {
     type Output = Self;
-    fn add(self, rhs: Self) -> Self::Output {
+    fn add(self, right: Self) -> Self::Output {
         Self {
-            re: self.re + rhs.re,
-            im: self.im + rhs.im,
+            re: self.re + right.re,
+            im: self.im + right.im,
         }
     }
 }
 
-impl<T: ComplexComponent> core::ops::Sub for complex<T> {
+impl<Scalar: ComplexComponent> core::ops::Sub for complex<Scalar> {
     type Output = Self;
-    fn sub(self, rhs: Self) -> Self::Output {
+    fn sub(self, right: Self) -> Self::Output {
         Self {
-            re: self.re - rhs.re,
-            im: self.im - rhs.im,
+            re: self.re - right.re,
+            im: self.im - right.im,
         }
     }
 }
 
-impl<T: ComplexComponent> core::ops::Mul for complex<T> {
+impl<Scalar: ComplexComponent> core::ops::Mul for complex<Scalar> {
     type Output = Self;
-    fn mul(self, rhs: Self) -> Self::Output {
-        let (re, im) = complex_mul_components(self.re, self.im, rhs.re, rhs.im);
+    fn mul(self, right: Self) -> Self::Output {
+        let (re, im) = complex_mul_components(self.re, self.im, right.re, right.im);
         Self { re, im }
     }
 }
 
-impl<T: ComplexComponent> core::ops::Div for complex<T> {
+impl<Scalar: ComplexComponent> core::ops::Div for complex<Scalar> {
     type Output = Self;
-    fn div(self, rhs: Self) -> Self::Output {
-        let (re, im) = complex_div_components(self.re, self.im, rhs.re, rhs.im);
+    fn div(self, right: Self) -> Self::Output {
+        let (re, im) = complex_div_components(self.re, self.im, right.re, right.im);
         Self { re, im }
     }
 }
 
-impl<T: ComplexComponent> core::ops::Neg for complex<T> {
+impl<Scalar: ComplexComponent> core::ops::Neg for complex<Scalar> {
     type Output = Self;
     fn neg(self) -> Self::Output {
         Self {
@@ -1977,7 +2617,7 @@ impl<T: ComplexComponent> core::ops::Neg for complex<T> {
     }
 }
 
-impl<T: NumberLike> core::fmt::Display for complex<T> {
+impl<Scalar: NumberLike> core::fmt::Display for complex<Scalar> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let re = self.re.to_f32();
         let im = self.im.to_f32();
@@ -1995,54 +2635,80 @@ impl<T: NumberLike> core::fmt::Display for complex<T> {
     }
 }
 
-impl<T: ComplexComponent> StorageElement for complex<T> {
+impl<Scalar: ComplexComponent> StorageElement for complex<Scalar> {
     fn zero() -> Self {
         Self {
-            re: T::zero(),
-            im: T::zero(),
+            re: Scalar::zero(),
+            im: Scalar::zero(),
         }
     }
     fn one() -> Self {
         Self {
-            re: T::one(),
-            im: T::zero(),
+            re: Scalar::one(),
+            im: Scalar::zero(),
         }
     }
 }
 
-impl<T: ComplexComponent> NumberLike for complex<T> {
-    fn from_f32(v: f32) -> Self { Self::from(v) }
-    fn to_f32(self) -> f32 { self.re.to_f32() }
+impl<Scalar: ComplexComponent> NumberLike for complex<Scalar> {
+    fn from_f32(v: f32) -> Self {
+        Self::from(v)
+    }
+    fn to_f32(self) -> f32 {
+        self.re.to_f32()
+    }
     fn from_f64(v: f64) -> Self {
         Self {
-            re: T::from_f64(v),
-            im: T::zero(),
+            re: Scalar::from_f64(v),
+            im: Scalar::zero(),
         }
     }
-    fn to_f64(self) -> f64 { self.re.to_f64() }
+    fn to_f64(self) -> f64 {
+        self.re.to_f64()
+    }
     fn abs(self) -> Self {
         Self {
-            re: T::from_norm(self.norm_sqr()),
-            im: T::zero(),
+            re: Scalar::from_norm(self.norm_sqr()),
+            im: Scalar::zero(),
         }
     }
-    fn is_nan(self) -> bool { self.re.is_nan() || self.im.is_nan() }
-    fn is_finite(self) -> bool { self.re.is_finite() && self.im.is_finite() }
-    fn is_infinite(self) -> bool { self.re.is_infinite() || self.im.is_infinite() }
-    fn has_infinity() -> bool { T::has_infinity() }
-    fn has_nan() -> bool { T::has_nan() }
-    fn has_subnormals() -> bool { T::has_subnormals() }
-    fn max_value() -> f32 { T::max_value() }
-    fn min_positive() -> f32 { T::min_positive() }
+    fn is_nan(self) -> bool {
+        self.re.is_nan() || self.im.is_nan()
+    }
+    fn is_finite(self) -> bool {
+        self.re.is_finite() && self.im.is_finite()
+    }
+    fn is_infinite(self) -> bool {
+        self.re.is_infinite() || self.im.is_infinite()
+    }
+    fn has_infinity() -> bool {
+        Scalar::has_infinity()
+    }
+    fn has_nan() -> bool {
+        Scalar::has_nan()
+    }
+    fn has_subnormals() -> bool {
+        Scalar::has_subnormals()
+    }
+    fn max_value() -> f32 {
+        Scalar::max_value()
+    }
+    fn min_positive() -> f32 {
+        Scalar::min_positive()
+    }
 }
 
-impl<T: ComplexComponent> FloatConvertible for complex<T> {
-    type DimScalar = complex<T>;
-    type Unpacked = [complex<T>; 1];
+impl<Scalar: ComplexComponent> FloatConvertible for complex<Scalar> {
+    type DimScalar = complex<Scalar>;
+    type Unpacked = [complex<Scalar>; 1];
     #[inline(always)]
-    fn unpack(self) -> [complex<T>; 1] { [self] }
+    fn unpack(self) -> [complex<Scalar>; 1] {
+        [self]
+    }
     #[inline(always)]
-    fn pack(dims: [complex<T>; 1]) -> Self { dims[0] }
+    fn pack(dims: [complex<Scalar>; 1]) -> Self {
+        dims[0]
+    }
 }
 
 // endregion: Complex Types
@@ -2072,144 +2738,208 @@ impl FloatConvertible for f32 {
     type DimScalar = f32;
     type Unpacked = [f32; 1];
     #[inline(always)]
-    fn unpack(self) -> [f32; 1] { [self] }
+    fn unpack(self) -> [f32; 1] {
+        [self]
+    }
     #[inline(always)]
-    fn pack(dims: [f32; 1]) -> Self { dims[0] }
+    fn pack(dims: [f32; 1]) -> Self {
+        dims[0]
+    }
 }
 
 impl FloatConvertible for f64 {
     type DimScalar = f64;
     type Unpacked = [f64; 1];
     #[inline(always)]
-    fn unpack(self) -> [f64; 1] { [self] }
+    fn unpack(self) -> [f64; 1] {
+        [self]
+    }
     #[inline(always)]
-    fn pack(dims: [f64; 1]) -> Self { dims[0] }
+    fn pack(dims: [f64; 1]) -> Self {
+        dims[0]
+    }
 }
 
 impl FloatConvertible for f16 {
     type DimScalar = f16;
     type Unpacked = [f16; 1];
     #[inline(always)]
-    fn unpack(self) -> [f16; 1] { [self] }
+    fn unpack(self) -> [f16; 1] {
+        [self]
+    }
     #[inline(always)]
-    fn pack(dims: [f16; 1]) -> Self { dims[0] }
+    fn pack(dims: [f16; 1]) -> Self {
+        dims[0]
+    }
 }
 
 impl FloatConvertible for bf16 {
     type DimScalar = bf16;
     type Unpacked = [bf16; 1];
     #[inline(always)]
-    fn unpack(self) -> [bf16; 1] { [self] }
+    fn unpack(self) -> [bf16; 1] {
+        [self]
+    }
     #[inline(always)]
-    fn pack(dims: [bf16; 1]) -> Self { dims[0] }
+    fn pack(dims: [bf16; 1]) -> Self {
+        dims[0]
+    }
 }
 
 impl FloatConvertible for e4m3 {
     type DimScalar = e4m3;
     type Unpacked = [e4m3; 1];
     #[inline(always)]
-    fn unpack(self) -> [e4m3; 1] { [self] }
+    fn unpack(self) -> [e4m3; 1] {
+        [self]
+    }
     #[inline(always)]
-    fn pack(dims: [e4m3; 1]) -> Self { dims[0] }
+    fn pack(dims: [e4m3; 1]) -> Self {
+        dims[0]
+    }
 }
 
 impl FloatConvertible for e5m2 {
     type DimScalar = e5m2;
     type Unpacked = [e5m2; 1];
     #[inline(always)]
-    fn unpack(self) -> [e5m2; 1] { [self] }
+    fn unpack(self) -> [e5m2; 1] {
+        [self]
+    }
     #[inline(always)]
-    fn pack(dims: [e5m2; 1]) -> Self { dims[0] }
+    fn pack(dims: [e5m2; 1]) -> Self {
+        dims[0]
+    }
 }
 
 impl FloatConvertible for e2m3 {
     type DimScalar = e2m3;
     type Unpacked = [e2m3; 1];
     #[inline(always)]
-    fn unpack(self) -> [e2m3; 1] { [self] }
+    fn unpack(self) -> [e2m3; 1] {
+        [self]
+    }
     #[inline(always)]
-    fn pack(dims: [e2m3; 1]) -> Self { dims[0] }
+    fn pack(dims: [e2m3; 1]) -> Self {
+        dims[0]
+    }
 }
 
 impl FloatConvertible for e3m2 {
     type DimScalar = e3m2;
     type Unpacked = [e3m2; 1];
     #[inline(always)]
-    fn unpack(self) -> [e3m2; 1] { [self] }
+    fn unpack(self) -> [e3m2; 1] {
+        [self]
+    }
     #[inline(always)]
-    fn pack(dims: [e3m2; 1]) -> Self { dims[0] }
+    fn pack(dims: [e3m2; 1]) -> Self {
+        dims[0]
+    }
 }
 
 impl FloatConvertible for i8 {
     type DimScalar = i8;
     type Unpacked = [i8; 1];
     #[inline(always)]
-    fn unpack(self) -> [i8; 1] { [self] }
+    fn unpack(self) -> [i8; 1] {
+        [self]
+    }
     #[inline(always)]
-    fn pack(dims: [i8; 1]) -> Self { dims[0] }
+    fn pack(dims: [i8; 1]) -> Self {
+        dims[0]
+    }
 }
 
 impl FloatConvertible for u8 {
     type DimScalar = u8;
     type Unpacked = [u8; 1];
     #[inline(always)]
-    fn unpack(self) -> [u8; 1] { [self] }
+    fn unpack(self) -> [u8; 1] {
+        [self]
+    }
     #[inline(always)]
-    fn pack(dims: [u8; 1]) -> Self { dims[0] }
+    fn pack(dims: [u8; 1]) -> Self {
+        dims[0]
+    }
 }
 
 impl FloatConvertible for i16 {
     type DimScalar = i16;
     type Unpacked = [i16; 1];
     #[inline(always)]
-    fn unpack(self) -> [i16; 1] { [self] }
+    fn unpack(self) -> [i16; 1] {
+        [self]
+    }
     #[inline(always)]
-    fn pack(dims: [i16; 1]) -> Self { dims[0] }
+    fn pack(dims: [i16; 1]) -> Self {
+        dims[0]
+    }
 }
 
 impl FloatConvertible for u16 {
     type DimScalar = u16;
     type Unpacked = [u16; 1];
     #[inline(always)]
-    fn unpack(self) -> [u16; 1] { [self] }
+    fn unpack(self) -> [u16; 1] {
+        [self]
+    }
     #[inline(always)]
-    fn pack(dims: [u16; 1]) -> Self { dims[0] }
+    fn pack(dims: [u16; 1]) -> Self {
+        dims[0]
+    }
 }
 
 impl FloatConvertible for i32 {
     type DimScalar = i32;
     type Unpacked = [i32; 1];
     #[inline(always)]
-    fn unpack(self) -> [i32; 1] { [self] }
+    fn unpack(self) -> [i32; 1] {
+        [self]
+    }
     #[inline(always)]
-    fn pack(dims: [i32; 1]) -> Self { dims[0] }
+    fn pack(dims: [i32; 1]) -> Self {
+        dims[0]
+    }
 }
 
 impl FloatConvertible for u32 {
     type DimScalar = u32;
     type Unpacked = [u32; 1];
     #[inline(always)]
-    fn unpack(self) -> [u32; 1] { [self] }
+    fn unpack(self) -> [u32; 1] {
+        [self]
+    }
     #[inline(always)]
-    fn pack(dims: [u32; 1]) -> Self { dims[0] }
+    fn pack(dims: [u32; 1]) -> Self {
+        dims[0]
+    }
 }
 
 impl FloatConvertible for i64 {
     type DimScalar = i64;
     type Unpacked = [i64; 1];
     #[inline(always)]
-    fn unpack(self) -> [i64; 1] { [self] }
+    fn unpack(self) -> [i64; 1] {
+        [self]
+    }
     #[inline(always)]
-    fn pack(dims: [i64; 1]) -> Self { dims[0] }
+    fn pack(dims: [i64; 1]) -> Self {
+        dims[0]
+    }
 }
 
 impl FloatConvertible for u64 {
     type DimScalar = u64;
     type Unpacked = [u64; 1];
     #[inline(always)]
-    fn unpack(self) -> [u64; 1] { [self] }
+    fn unpack(self) -> [u64; 1] {
+        [self]
+    }
     #[inline(always)]
-    fn pack(dims: [u64; 1]) -> Self { dims[0] }
+    fn pack(dims: [u64; 1]) -> Self {
+        dims[0]
+    }
 }
 
 impl FloatConvertible for i4x2 {
@@ -2217,11 +2947,13 @@ impl FloatConvertible for i4x2 {
     type Unpacked = [i8; 2];
     #[inline(always)]
     fn unpack(self) -> [i8; 2] {
-        let (lo, hi) = self.to_i8s();
-        [lo, hi]
+        let (low, high) = self.to_i8s();
+        [low, high]
     }
     #[inline(always)]
-    fn pack(dims: [i8; 2]) -> Self { i4x2::from_i8s(dims[0], dims[1]) }
+    fn pack(dims: [i8; 2]) -> Self {
+        i4x2::from_i8s(dims[0], dims[1])
+    }
 }
 
 impl FloatConvertible for u4x2 {
@@ -2229,11 +2961,13 @@ impl FloatConvertible for u4x2 {
     type Unpacked = [u8; 2];
     #[inline(always)]
     fn unpack(self) -> [u8; 2] {
-        let (lo, hi) = self.to_u8s();
-        [lo, hi]
+        let (low, high) = self.to_u8s();
+        [low, high]
     }
     #[inline(always)]
-    fn pack(dims: [u8; 2]) -> Self { u4x2::from_u8s(dims[0], dims[1]) }
+    fn pack(dims: [u8; 2]) -> Self {
+        u4x2::from_u8s(dims[0], dims[1])
+    }
 }
 
 impl FloatConvertible for u1x8 {
@@ -2265,18 +2999,18 @@ impl FloatConvertible for u1x8 {
 
 /// Immutable proxy for a single logical dimension within a packed storage value.
 ///
-/// For normal types this is equivalent to a `T::DimScalar` copy.
+/// For normal types this is equivalent to a `Scalar::DimScalar` copy.
 /// For sub-byte types it represents one unpacked dimension from a packed value.
 /// The lifetime ensures the proxy does not outlive the container it came from.
-pub struct DimRef<'a, T: FloatConvertible> {
-    value: T::DimScalar,
-    _marker: core::marker::PhantomData<&'a T>,
+pub struct DimRef<'a, Scalar: FloatConvertible> {
+    value: Scalar::DimScalar,
+    _marker: core::marker::PhantomData<&'a Scalar>,
 }
 
-impl<'a, T: FloatConvertible> DimRef<'a, T> {
+impl<'a, Scalar: FloatConvertible> DimRef<'a, Scalar> {
     /// Create a new immutable dimension proxy.
     #[inline]
-    pub fn new(value: T::DimScalar) -> Self {
+    pub fn new(value: Scalar::DimScalar) -> Self {
         Self {
             value,
             _marker: core::marker::PhantomData,
@@ -2284,30 +3018,36 @@ impl<'a, T: FloatConvertible> DimRef<'a, T> {
     }
 }
 
-impl<T: FloatConvertible> Copy for DimRef<'_, T> {}
+impl<Scalar: FloatConvertible> Copy for DimRef<'_, Scalar> {}
 
-impl<T: FloatConvertible> Clone for DimRef<'_, T> {
+impl<Scalar: FloatConvertible> Clone for DimRef<'_, Scalar> {
     #[inline]
-    fn clone(&self) -> Self { *self }
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
-impl<T: FloatConvertible> core::ops::Deref for DimRef<'_, T> {
-    type Target = T::DimScalar;
+impl<Scalar: FloatConvertible> core::ops::Deref for DimRef<'_, Scalar> {
+    type Target = Scalar::DimScalar;
     #[inline]
-    fn deref(&self) -> &T::DimScalar { &self.value }
+    fn deref(&self) -> &Scalar::DimScalar {
+        &self.value
+    }
 }
 
-impl<T: FloatConvertible> PartialEq for DimRef<'_, T>
+impl<Scalar: FloatConvertible> PartialEq for DimRef<'_, Scalar>
 where
-    T::DimScalar: PartialEq,
+    Scalar::DimScalar: PartialEq,
 {
     #[inline]
-    fn eq(&self, other: &Self) -> bool { self.value == other.value }
+    fn eq(&self, other: &Self) -> bool {
+        self.value == other.value
+    }
 }
 
-impl<T: FloatConvertible> PartialOrd for DimRef<'_, T>
+impl<Scalar: FloatConvertible> PartialOrd for DimRef<'_, Scalar>
 where
-    T::DimScalar: PartialOrd,
+    Scalar::DimScalar: PartialOrd,
 {
     #[inline]
     fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
@@ -2315,18 +3055,22 @@ where
     }
 }
 
-impl<T: FloatConvertible> core::fmt::Debug for DimRef<'_, T>
+impl<Scalar: FloatConvertible> core::fmt::Debug for DimRef<'_, Scalar>
 where
-    T::DimScalar: core::fmt::Debug,
+    Scalar::DimScalar: core::fmt::Debug,
 {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result { self.value.fmt(f) }
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        self.value.fmt(f)
+    }
 }
 
-impl<T: FloatConvertible> core::fmt::Display for DimRef<'_, T>
+impl<Scalar: FloatConvertible> core::fmt::Display for DimRef<'_, Scalar>
 where
-    T::DimScalar: core::fmt::Display,
+    Scalar::DimScalar: core::fmt::Display,
 {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result { self.value.fmt(f) }
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        self.value.fmt(f)
+    }
 }
 
 /// Mutable proxy for a single logical dimension within a packed storage value.
@@ -2334,7 +3078,7 @@ where
 /// On [`Drop`], performs a read-modify-write: reads the current storage value,
 /// overwrites the sub-dimension at `sub_index`, and writes back.
 ///
-/// For normal types (`dimensions_per_value() == 1`), this is equivalent to `&mut T`.
+/// For normal types (`dimensions_per_value() == 1`), this is equivalent to `&mut Scalar`.
 /// For sub-byte types, this enables modifying individual nibbles/bits.
 ///
 /// # Aliasing
@@ -2342,21 +3086,21 @@ where
 /// In a standard `for` loop each proxy is dropped before the next is created.
 /// Holding multiple proxies to sub-dimensions of the same storage value
 /// simultaneously is safe but uses last-writer-wins semantics.
-pub struct DimMut<'a, T: FloatConvertible> {
-    ptr: *mut T,
+pub struct DimMut<'a, Scalar: FloatConvertible> {
+    ptr: *mut Scalar,
     sub_index: usize,
-    value: T::DimScalar,
-    _marker: core::marker::PhantomData<&'a mut T>,
+    value: Scalar::DimScalar,
+    _marker: core::marker::PhantomData<&'a mut Scalar>,
 }
 
-impl<'a, T: FloatConvertible> DimMut<'a, T> {
+impl<'a, Scalar: FloatConvertible> DimMut<'a, Scalar> {
     /// Create a new mutable dimension proxy.
     ///
     /// # Safety
     ///
     /// `ptr` must be valid for reads and writes for the duration of `'a`.
     #[inline]
-    pub unsafe fn new(ptr: *mut T, sub_index: usize, value: T::DimScalar) -> Self {
+    pub unsafe fn new(ptr: *mut Scalar, sub_index: usize, value: Scalar::DimScalar) -> Self {
         Self {
             ptr,
             sub_index,
@@ -2366,37 +3110,45 @@ impl<'a, T: FloatConvertible> DimMut<'a, T> {
     }
 }
 
-impl<T: FloatConvertible> core::ops::Deref for DimMut<'_, T> {
-    type Target = T::DimScalar;
+impl<Scalar: FloatConvertible> core::ops::Deref for DimMut<'_, Scalar> {
+    type Target = Scalar::DimScalar;
     #[inline]
-    fn deref(&self) -> &T::DimScalar { &self.value }
-}
-
-impl<T: FloatConvertible> core::ops::DerefMut for DimMut<'_, T> {
-    #[inline]
-    fn deref_mut(&mut self) -> &mut T::DimScalar { &mut self.value }
-}
-
-impl<T: FloatConvertible> Drop for DimMut<'_, T> {
-    fn drop(&mut self) {
-        let mut unpacked = unsafe { *self.ptr }.unpack();
-        unpacked.as_mut()[self.sub_index] = self.value;
-        unsafe { self.ptr.write(T::pack(unpacked)) };
+    fn deref(&self) -> &Scalar::DimScalar {
+        &self.value
     }
 }
 
-impl<T: FloatConvertible> core::fmt::Debug for DimMut<'_, T>
-where
-    T::DimScalar: core::fmt::Debug,
-{
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result { self.value.fmt(f) }
+impl<Scalar: FloatConvertible> core::ops::DerefMut for DimMut<'_, Scalar> {
+    #[inline]
+    fn deref_mut(&mut self) -> &mut Scalar::DimScalar {
+        &mut self.value
+    }
 }
 
-impl<T: FloatConvertible> core::fmt::Display for DimMut<'_, T>
+impl<Scalar: FloatConvertible> Drop for DimMut<'_, Scalar> {
+    fn drop(&mut self) {
+        let mut unpacked = unsafe { *self.ptr }.unpack();
+        unpacked.as_mut()[self.sub_index] = self.value;
+        unsafe { self.ptr.write(Scalar::pack(unpacked)) };
+    }
+}
+
+impl<Scalar: FloatConvertible> core::fmt::Debug for DimMut<'_, Scalar>
 where
-    T::DimScalar: core::fmt::Display,
+    Scalar::DimScalar: core::fmt::Debug,
 {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result { self.value.fmt(f) }
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        self.value.fmt(f)
+    }
+}
+
+impl<Scalar: FloatConvertible> core::fmt::Display for DimMut<'_, Scalar>
+where
+    Scalar::DimScalar: core::fmt::Display,
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        self.value.fmt(f)
+    }
 }
 
 // endregion: Dimension Proxies
@@ -2428,98 +3180,174 @@ pub(crate) fn assert_close(actual: f64, expected: f64, atol: f64, rtol: f64, msg
 
 #[cfg(test)]
 impl TestableType for f32 {
-    fn atol() -> f64 { 1e-4 }
-    fn rtol() -> f64 { 1e-4 }
+    fn atol() -> f64 {
+        1e-4
+    }
+    fn rtol() -> f64 {
+        1e-4
+    }
 }
 #[cfg(test)]
 impl TestableType for f64 {
-    fn atol() -> f64 { 1e-9 }
-    fn rtol() -> f64 { 1e-9 }
+    fn atol() -> f64 {
+        1e-9
+    }
+    fn rtol() -> f64 {
+        1e-9
+    }
 }
 #[cfg(test)]
 impl TestableType for f16 {
-    fn atol() -> f64 { 0.05 }
-    fn rtol() -> f64 { 0.05 }
+    fn atol() -> f64 {
+        0.05
+    }
+    fn rtol() -> f64 {
+        0.05
+    }
 }
 #[cfg(test)]
 impl TestableType for bf16 {
-    fn atol() -> f64 { 0.1 }
-    fn rtol() -> f64 { 0.1 }
+    fn atol() -> f64 {
+        0.1
+    }
+    fn rtol() -> f64 {
+        0.1
+    }
 }
 #[cfg(test)]
 impl TestableType for e4m3 {
-    fn atol() -> f64 { 0.5 }
-    fn rtol() -> f64 { 0.1 }
+    fn atol() -> f64 {
+        0.5
+    }
+    fn rtol() -> f64 {
+        0.1
+    }
 }
 #[cfg(test)]
 impl TestableType for e5m2 {
-    fn atol() -> f64 { 1.0 }
-    fn rtol() -> f64 { 0.1 }
+    fn atol() -> f64 {
+        1.0
+    }
+    fn rtol() -> f64 {
+        0.1
+    }
 }
 #[cfg(test)]
 impl TestableType for e2m3 {
-    fn atol() -> f64 { 0.5 }
-    fn rtol() -> f64 { 0.1 }
+    fn atol() -> f64 {
+        0.5
+    }
+    fn rtol() -> f64 {
+        0.1
+    }
 }
 #[cfg(test)]
 impl TestableType for e3m2 {
-    fn atol() -> f64 { 0.5 }
-    fn rtol() -> f64 { 0.1 }
+    fn atol() -> f64 {
+        0.5
+    }
+    fn rtol() -> f64 {
+        0.1
+    }
 }
 #[cfg(test)]
 impl TestableType for i8 {
-    fn atol() -> f64 { 1.0 }
-    fn rtol() -> f64 { 0.0 }
+    fn atol() -> f64 {
+        1.0
+    }
+    fn rtol() -> f64 {
+        0.0
+    }
 }
 #[cfg(test)]
 impl TestableType for u8 {
-    fn atol() -> f64 { 1.0 }
-    fn rtol() -> f64 { 0.0 }
+    fn atol() -> f64 {
+        1.0
+    }
+    fn rtol() -> f64 {
+        0.0
+    }
 }
 #[cfg(test)]
 impl TestableType for i32 {
-    fn atol() -> f64 { 1.0 }
-    fn rtol() -> f64 { 0.0 }
+    fn atol() -> f64 {
+        1.0
+    }
+    fn rtol() -> f64 {
+        0.0
+    }
 }
 #[cfg(test)]
 impl TestableType for u32 {
-    fn atol() -> f64 { 1.0 }
-    fn rtol() -> f64 { 0.0 }
+    fn atol() -> f64 {
+        1.0
+    }
+    fn rtol() -> f64 {
+        0.0
+    }
 }
 #[cfg(test)]
 impl TestableType for i16 {
-    fn atol() -> f64 { 1.0 }
-    fn rtol() -> f64 { 0.0 }
+    fn atol() -> f64 {
+        1.0
+    }
+    fn rtol() -> f64 {
+        0.0
+    }
 }
 #[cfg(test)]
 impl TestableType for u16 {
-    fn atol() -> f64 { 1.0 }
-    fn rtol() -> f64 { 0.0 }
+    fn atol() -> f64 {
+        1.0
+    }
+    fn rtol() -> f64 {
+        0.0
+    }
 }
 #[cfg(test)]
 impl TestableType for i64 {
-    fn atol() -> f64 { 1.0 }
-    fn rtol() -> f64 { 0.0 }
+    fn atol() -> f64 {
+        1.0
+    }
+    fn rtol() -> f64 {
+        0.0
+    }
 }
 #[cfg(test)]
 impl TestableType for u64 {
-    fn atol() -> f64 { 1.0 }
-    fn rtol() -> f64 { 0.0 }
+    fn atol() -> f64 {
+        1.0
+    }
+    fn rtol() -> f64 {
+        0.0
+    }
 }
 #[cfg(test)]
 impl TestableType for i4x2 {
-    fn atol() -> f64 { 1.0 }
-    fn rtol() -> f64 { 0.0 }
+    fn atol() -> f64 {
+        1.0
+    }
+    fn rtol() -> f64 {
+        0.0
+    }
 }
 #[cfg(test)]
 impl TestableType for u4x2 {
-    fn atol() -> f64 { 1.0 }
-    fn rtol() -> f64 { 0.0 }
+    fn atol() -> f64 {
+        1.0
+    }
+    fn rtol() -> f64 {
+        0.0
+    }
 }
 #[cfg(test)]
 impl TestableType for u1x8 {
-    fn atol() -> f64 { 0.0 }
-    fn rtol() -> f64 { 0.0 }
+    fn atol() -> f64 {
+        0.0
+    }
+    fn rtol() -> f64 {
+        0.0
+    }
 }
 
 // endregion: TestableType Trait
@@ -2528,8 +3356,8 @@ impl TestableType for u1x8 {
 mod tests {
     use super::*;
 
-    fn assert_scalar_roundtrip<T: FloatLike>(original: f32, abs_tol: f32, rel_tol: f32) {
-        let converted = T::from_f32(original);
+    fn assert_scalar_roundtrip<Scalar: FloatLike>(original: f32, abs_tol: f32, rel_tol: f32) {
+        let converted = Scalar::from_f32(original);
         let roundtrip = NumberLike::to_f32(converted);
         if original == 0.0 {
             assert_eq!(roundtrip, 0.0, "Zero should roundtrip exactly");
@@ -2547,7 +3375,7 @@ mod tests {
         );
     }
 
-    fn assert_scalar_almost_equal<T: FloatLike>(
+    fn assert_scalar_almost_equal<Scalar: FloatLike>(
         actual: f32,
         expected: f32,
         abs_tol: f32,
@@ -2571,52 +3399,64 @@ mod tests {
         );
     }
 
-    fn check_arithmetic<T>(a_val: f32, b_val: f32, abs_tol: f32, rel_tol: f32)
+    fn check_arithmetic<Scalar>(a_val: f32, b_val: f32, abs_tol: f32, rel_tol: f32)
     where
-        T: FloatLike
+        Scalar: FloatLike
             + PartialOrd
             + PartialEq
-            + core::ops::Add<Output = T>
-            + core::ops::Sub<Output = T>
-            + core::ops::Mul<Output = T>
-            + core::ops::Div<Output = T>
-            + core::ops::Neg<Output = T>,
+            + core::ops::Add<Output = Scalar>
+            + core::ops::Sub<Output = Scalar>
+            + core::ops::Mul<Output = Scalar>
+            + core::ops::Div<Output = Scalar>
+            + core::ops::Neg<Output = Scalar>,
     {
-        let a = T::from_f32(a_val);
-        let b = T::from_f32(b_val);
-        assert_scalar_almost_equal::<T>(
+        let a = Scalar::from_f32(a_val);
+        let b = Scalar::from_f32(b_val);
+        assert_scalar_almost_equal::<Scalar>(
             NumberLike::to_f32(a + b),
             a_val + b_val,
             abs_tol,
             rel_tol,
             "add",
         );
-        assert_scalar_almost_equal::<T>(
+        assert_scalar_almost_equal::<Scalar>(
             NumberLike::to_f32(a - b),
             a_val - b_val,
             abs_tol,
             rel_tol,
             "sub",
         );
-        assert_scalar_almost_equal::<T>(
+        assert_scalar_almost_equal::<Scalar>(
             NumberLike::to_f32(a * b),
             a_val * b_val,
             abs_tol,
             rel_tol,
             "mul",
         );
-        assert_scalar_almost_equal::<T>(
+        assert_scalar_almost_equal::<Scalar>(
             NumberLike::to_f32(a / b),
             a_val / b_val,
             abs_tol,
             rel_tol,
             "div",
         );
-        assert_scalar_almost_equal::<T>(NumberLike::to_f32(-a), -a_val, abs_tol, rel_tol, "neg");
-        assert_eq!(NumberLike::to_f32(T::zero()), 0.0);
-        assert_scalar_almost_equal::<T>(NumberLike::to_f32(T::one()), 1.0, abs_tol, rel_tol, "ONE");
-        assert_scalar_almost_equal::<T>(
-            NumberLike::to_f32(T::from_f32(-1.0)),
+        assert_scalar_almost_equal::<Scalar>(
+            NumberLike::to_f32(-a),
+            -a_val,
+            abs_tol,
+            rel_tol,
+            "neg",
+        );
+        assert_eq!(NumberLike::to_f32(Scalar::zero()), 0.0);
+        assert_scalar_almost_equal::<Scalar>(
+            NumberLike::to_f32(Scalar::one()),
+            1.0,
+            abs_tol,
+            rel_tol,
+            "ONE",
+        );
+        assert_scalar_almost_equal::<Scalar>(
+            NumberLike::to_f32(Scalar::from_f32(-1.0)),
             -1.0,
             abs_tol,
             rel_tol,
@@ -2624,7 +3464,7 @@ mod tests {
         );
         assert!(a > b);
         assert!(a == a);
-        assert_scalar_almost_equal::<T>(
+        assert_scalar_almost_equal::<Scalar>(
             NumberLike::to_f32(NumberLike::abs(-a)),
             a_val,
             abs_tol,
@@ -2633,55 +3473,55 @@ mod tests {
         );
         assert!(NumberLike::is_finite(a));
         assert!(!NumberLike::is_nan(a));
-        if T::has_infinity() {
+        if Scalar::has_infinity() {
             assert!(!NumberLike::is_infinite(a));
         }
     }
 
-    fn check_roundtrip<T: FloatLike>(values: &[f32], abs_tol: f32, rel_tol: f32) {
+    fn check_roundtrip<Scalar: FloatLike>(values: &[f32], abs_tol: f32, rel_tol: f32) {
         for &v in values {
-            assert_scalar_roundtrip::<T>(v, abs_tol, rel_tol);
+            assert_scalar_roundtrip::<Scalar>(v, abs_tol, rel_tol);
         }
     }
 
-    fn check_edge_cases<T: FloatLike>() {
-        assert_eq!(NumberLike::to_f32(T::from_f32(0.0)), 0.0);
-        assert_eq!(NumberLike::to_f32(T::from_f32(-0.0)), 0.0);
-        if T::has_infinity() {
-            assert!(NumberLike::to_f32(T::from_f32(f32::INFINITY)).is_infinite());
-            assert!(NumberLike::to_f32(T::from_f32(f32::NEG_INFINITY)).is_infinite());
+    fn check_edge_cases<Scalar: FloatLike>() {
+        assert_eq!(NumberLike::to_f32(Scalar::from_f32(0.0)), 0.0);
+        assert_eq!(NumberLike::to_f32(Scalar::from_f32(-0.0)), 0.0);
+        if Scalar::has_infinity() {
+            assert!(NumberLike::to_f32(Scalar::from_f32(f32::INFINITY)).is_infinite());
+            assert!(NumberLike::to_f32(Scalar::from_f32(f32::NEG_INFINITY)).is_infinite());
         } else {
-            assert!(!NumberLike::to_f32(T::from_f32(f32::INFINITY)).is_infinite());
+            assert!(!NumberLike::to_f32(Scalar::from_f32(f32::INFINITY)).is_infinite());
         }
-        if T::has_nan() {
-            assert!(NumberLike::to_f32(T::from_f32(f32::NAN)).is_nan());
+        if Scalar::has_nan() {
+            assert!(NumberLike::to_f32(Scalar::from_f32(f32::NAN)).is_nan());
         } else {
-            assert!(!NumberLike::to_f32(T::from_f32(f32::NAN)).is_nan());
+            assert!(!NumberLike::to_f32(Scalar::from_f32(f32::NAN)).is_nan());
         }
-        let big = T::max_value() * 10.0;
-        let overflow = T::from_f32(big);
-        if T::has_infinity() {
+        let big = Scalar::max_value() * 10.0;
+        let overflow = Scalar::from_f32(big);
+        if Scalar::has_infinity() {
             assert!(
                 NumberLike::to_f32(overflow).is_infinite()
-                    || NumberLike::to_f32(overflow) >= T::max_value()
+                    || NumberLike::to_f32(overflow) >= Scalar::max_value()
             );
         } else {
             let v = NumberLike::to_f32(overflow);
             assert!(!v.is_infinite() && !v.is_nan());
-            assert!(v <= T::max_value());
-            let neg = NumberLike::to_f32(T::from_f32(-big));
+            assert!(v <= Scalar::max_value());
+            let neg = NumberLike::to_f32(Scalar::from_f32(-big));
             assert!(!neg.is_infinite() && !neg.is_nan());
-            assert!(neg >= -T::max_value());
+            assert!(neg >= -Scalar::max_value());
         }
     }
 
-    fn check_subnormals<T: FloatLike>(values: &[f32], upper_bound: f32) {
+    fn check_subnormals<Scalar: FloatLike>(values: &[f32], upper_bound: f32) {
         for &val in values {
-            let roundtrip = NumberLike::to_f32(T::from_f32(val));
+            let roundtrip = NumberLike::to_f32(Scalar::from_f32(val));
             assert!(
                 roundtrip >= 0.0 && roundtrip < upper_bound,
                 "{} subnormal test failed for {}: got {}",
-                core::any::type_name::<T>(),
+                core::any::type_name::<Scalar>(),
                 val,
                 roundtrip
             );

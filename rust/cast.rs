@@ -77,64 +77,104 @@ pub trait CastDtype: private::Sealed + StorageElement {
 }
 
 impl CastDtype for f64 {
-    fn dtype_code() -> u32 { dtype::F64 }
+    fn dtype_code() -> u32 {
+        dtype::F64
+    }
 }
 impl CastDtype for f32 {
-    fn dtype_code() -> u32 { dtype::F32 }
+    fn dtype_code() -> u32 {
+        dtype::F32
+    }
 }
 impl CastDtype for f16 {
-    fn dtype_code() -> u32 { dtype::F16 }
+    fn dtype_code() -> u32 {
+        dtype::F16
+    }
 }
 impl CastDtype for bf16 {
-    fn dtype_code() -> u32 { dtype::BF16 }
+    fn dtype_code() -> u32 {
+        dtype::BF16
+    }
 }
 impl CastDtype for e4m3 {
-    fn dtype_code() -> u32 { dtype::E4M3 }
+    fn dtype_code() -> u32 {
+        dtype::E4M3
+    }
 }
 impl CastDtype for e5m2 {
-    fn dtype_code() -> u32 { dtype::E5M2 }
+    fn dtype_code() -> u32 {
+        dtype::E5M2
+    }
 }
 impl CastDtype for e2m3 {
-    fn dtype_code() -> u32 { dtype::E2M3 }
+    fn dtype_code() -> u32 {
+        dtype::E2M3
+    }
 }
 impl CastDtype for e3m2 {
-    fn dtype_code() -> u32 { dtype::E3M2 }
+    fn dtype_code() -> u32 {
+        dtype::E3M2
+    }
 }
 impl CastDtype for f64c {
-    fn dtype_code() -> u32 { dtype::F64C }
+    fn dtype_code() -> u32 {
+        dtype::F64C
+    }
 }
 impl CastDtype for f32c {
-    fn dtype_code() -> u32 { dtype::F32C }
+    fn dtype_code() -> u32 {
+        dtype::F32C
+    }
 }
 impl CastDtype for f16c {
-    fn dtype_code() -> u32 { dtype::F16C }
+    fn dtype_code() -> u32 {
+        dtype::F16C
+    }
 }
 impl CastDtype for bf16c {
-    fn dtype_code() -> u32 { dtype::BF16C }
+    fn dtype_code() -> u32 {
+        dtype::BF16C
+    }
 }
 impl CastDtype for i8 {
-    fn dtype_code() -> u32 { dtype::I8 }
+    fn dtype_code() -> u32 {
+        dtype::I8
+    }
 }
 impl CastDtype for i16 {
-    fn dtype_code() -> u32 { dtype::I16 }
+    fn dtype_code() -> u32 {
+        dtype::I16
+    }
 }
 impl CastDtype for i32 {
-    fn dtype_code() -> u32 { dtype::I32 }
+    fn dtype_code() -> u32 {
+        dtype::I32
+    }
 }
 impl CastDtype for i64 {
-    fn dtype_code() -> u32 { dtype::I64 }
+    fn dtype_code() -> u32 {
+        dtype::I64
+    }
 }
 impl CastDtype for u8 {
-    fn dtype_code() -> u32 { dtype::U8 }
+    fn dtype_code() -> u32 {
+        dtype::U8
+    }
 }
 impl CastDtype for u16 {
-    fn dtype_code() -> u32 { dtype::U16 }
+    fn dtype_code() -> u32 {
+        dtype::U16
+    }
 }
 impl CastDtype for u32 {
-    fn dtype_code() -> u32 { dtype::U32 }
+    fn dtype_code() -> u32 {
+        dtype::U32
+    }
 }
 impl CastDtype for u64 {
-    fn dtype_code() -> u32 { dtype::U64 }
+    fn dtype_code() -> u32 {
+        dtype::U64
+    }
 }
 
 /// Cast source slice elements to destination slice.

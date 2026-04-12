@@ -25,6 +25,10 @@ version = "7.4.5"
 name = "numkong"
 path = "rust/numkong.rs"
 
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
 [build-dependencies]
 cc = "1.2.36"
 

@@ -2,7 +2,9 @@ use std::collections::HashMap;
 use std::env;
 use std::path::Path;
 
-fn main() { build_numkong().expect("Failed to build NumKong"); }
+fn main() {
+    build_numkong().expect("Failed to build NumKong");
+}
 
 /// Try to compile a single probe .c file with the given flags.
 /// Uses `flag()` (hard error) instead of `flag_if_supported()` to avoid

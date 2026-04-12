@@ -345,20 +345,20 @@ pub trait ReduceMoments: StorageElement {
     }
 }
 
-unsafe fn reduce_moments_via_ffi<T, Sum: Default, SumSq: Default>(
-    data: *const T,
+unsafe fn reduce_moments_via_ffi<Scalar, Sum: Default, SumSq: Default>(
+    data: *const Scalar,
     count: usize,
     stride_bytes: usize,
-    ffi: unsafe extern "C" fn(*const T, usize, usize, *mut Sum, *mut SumSq),
+    ffi: unsafe extern "C" fn(*const Scalar, usize, usize, *mut Sum, *mut SumSq),
 ) -> (Sum, SumSq)
 where
-    T: StorageElement,
+    Scalar: StorageElement,
 {
     let mut sum: Sum = Default::default();
     let mut sumsq: SumSq = Default::default();
     ffi(
         data,
-        count * T::dimensions_per_value(),
+        count * Scalar::dimensions_per_value(),
         stride_bytes,
         &mut sum,
         &mut sumsq,
@@ -644,33 +644,41 @@ pub trait ReduceMinMax: StorageElement {
     }
 }
 
-unsafe fn reduce_minmax_via_ffi<T, Out: Default>(
-    data: *const T,
+unsafe fn reduce_minmax_via_ffi<Scalar, Out: Default>(
+    data: *const Scalar,
     count: usize,
     stride_bytes: usize,
     none_on_sentinel: bool,
-    ffi: unsafe extern "C" fn(*const T, usize, usize, *mut Out, *mut usize, *mut Out, *mut usize),
+    ffi: unsafe extern "C" fn(
+        *const Scalar,
+        usize,
+        usize,
+        *mut Out,
+        *mut usize,
+        *mut Out,
+        *mut usize,
+    ),
 ) -> Option<(Out, usize, Out, usize)>
 where
-    T: StorageElement,
+    Scalar: StorageElement,
 {
-    let mut min_val: Out = Default::default();
-    let mut min_idx: usize = 0;
-    let mut max_val: Out = Default::default();
-    let mut max_idx: usize = 0;
+    let mut min_value: Out = Default::default();
+    let mut min_index: usize = 0;
+    let mut max_value: Out = Default::default();
+    let mut max_index: usize = 0;
     ffi(
         data,
-        count * T::dimensions_per_value(),
+        count * Scalar::dimensions_per_value(),
         stride_bytes,
-        &mut min_val,
-        &mut min_idx,
-        &mut max_val,
-        &mut max_idx,
+        &mut min_value,
+        &mut min_index,
+        &mut max_value,
+        &mut max_index,
     );
-    if none_on_sentinel && min_idx == usize::MAX {
+    if none_on_sentinel && min_index == usize::MAX {
         return None;
     }
-    Some((min_val, min_idx, max_val, max_idx))
+    Some((min_value, min_index, max_value, max_index))
 }
 
 impl ReduceMinMax for f64 {
@@ -1036,7 +1044,7 @@ impl ReduceMinMax for u1x8 {
 
 /// `Reductions` bundles reduction operations: ReduceMoments and ReduceMinMax.
 pub trait Reductions: ReduceMoments + ReduceMinMax {}
-impl<T: ReduceMoments + ReduceMinMax> Reductions for T {}
+impl<Scalar: ReduceMoments + ReduceMinMax> Reductions for Scalar {}
 
 #[cfg(test)]
 mod tests {
@@ -1047,31 +1055,31 @@ mod tests {
 
     // region: ReduceMoments
 
-    fn check_reduce_moments<T>(input_values: &[f32])
+    fn check_reduce_moments<Scalar>(input_values: &[f32])
     where
-        T: FloatLike + TestableType + ReduceMoments,
-        T::SumOutput: FloatLike,
-        T::SumSqOutput: FloatLike,
+        Scalar: FloatLike + TestableType + ReduceMoments,
+        Scalar::SumOutput: FloatLike,
+        Scalar::SumSqOutput: FloatLike,
     {
-        let data: Vec<T> = input_values.iter().map(|&v| T::from_f32(v)).collect();
-        let stride_bytes = core::mem::size_of::<T>();
-        let (actual_sum, actual_sumsq) = T::reduce_moments(&data, stride_bytes);
+        let data: Vec<Scalar> = input_values.iter().map(|&v| Scalar::from_f32(v)).collect();
+        let stride_bytes = core::mem::size_of::<Scalar>();
+        let (actual_sum, actual_sumsq) = Scalar::reduce_moments(&data, stride_bytes);
         let expected_sum: f64 = input_values.iter().map(|&v| v as f64).sum();
         let expected_sumsq: f64 = input_values.iter().map(|&v| (v as f64) * (v as f64)).sum();
-        let n = input_values.len() as f64;
+        let sample_count = input_values.len() as f64;
         assert_close(
             actual_sum.to_f64(),
             expected_sum,
-            T::atol() * n,
-            T::rtol(),
-            &format!("reduce_moments<{}> sum", core::any::type_name::<T>()),
+            Scalar::atol() * sample_count,
+            Scalar::rtol(),
+            &format!("reduce_moments<{}> sum", core::any::type_name::<Scalar>()),
         );
         assert_close(
             actual_sumsq.to_f64(),
             expected_sumsq,
-            T::atol() * n,
-            T::rtol(),
-            &format!("reduce_moments<{}> sumsq", core::any::type_name::<T>()),
+            Scalar::atol() * sample_count,
+            Scalar::rtol(),
+            &format!("reduce_moments<{}> sumsq", core::any::type_name::<Scalar>()),
         );
     }
 
@@ -1105,51 +1113,51 @@ mod tests {
 
     // region: ReduceMinMax
 
-    fn check_reduce_minmax<T>(input_values: &[f32])
+    fn check_reduce_minmax<Scalar>(input_values: &[f32])
     where
-        T: FloatLike + TestableType + ReduceMinMax,
-        T::Output: FloatLike,
+        Scalar: FloatLike + TestableType + ReduceMinMax,
+        Scalar::Output: FloatLike,
     {
-        let data: Vec<T> = input_values.iter().map(|&v| T::from_f32(v)).collect();
-        let stride_bytes = core::mem::size_of::<T>();
-        let result = T::reduce_minmax(&data, stride_bytes);
+        let data: Vec<Scalar> = input_values.iter().map(|&v| Scalar::from_f32(v)).collect();
+        let stride_bytes = core::mem::size_of::<Scalar>();
+        let result = Scalar::reduce_minmax(&data, stride_bytes);
         assert!(result.is_some(), "Expected Some for non-NaN input");
-        let (actual_min, actual_min_idx, actual_max, actual_max_idx) = result.unwrap();
-        let (exp_min_idx, exp_min) = input_values
+        let (actual_min, actual_min_index, actual_max, actual_max_index) = result.unwrap();
+        let (expected_min_index, expected_min) = input_values
             .iter()
             .enumerate()
-            .min_by(|a, b| a.1.partial_cmp(b.1).unwrap())
+            .min_by(|left, right| left.1.partial_cmp(right.1).unwrap())
             .unwrap();
-        let (exp_max_idx, exp_max) = input_values
+        let (expected_max_index, expected_max) = input_values
             .iter()
             .enumerate()
-            .max_by(|a, b| a.1.partial_cmp(b.1).unwrap())
+            .max_by(|left, right| left.1.partial_cmp(right.1).unwrap())
             .unwrap();
         assert_close(
             actual_min.to_f64(),
-            *exp_min as f64,
-            T::atol(),
+            *expected_min as f64,
+            Scalar::atol(),
             0.0,
-            &format!("reduce_minmax<{}> min", core::any::type_name::<T>()),
+            &format!("reduce_minmax<{}> min", core::any::type_name::<Scalar>()),
         );
         assert_eq!(
-            actual_min_idx,
-            exp_min_idx,
+            actual_min_index,
+            expected_min_index,
             "reduce_minmax<{}> min_index",
-            core::any::type_name::<T>()
+            core::any::type_name::<Scalar>()
         );
         assert_close(
             actual_max.to_f64(),
-            *exp_max as f64,
-            T::atol(),
+            *expected_max as f64,
+            Scalar::atol(),
             0.0,
-            &format!("reduce_minmax<{}> max", core::any::type_name::<T>()),
+            &format!("reduce_minmax<{}> max", core::any::type_name::<Scalar>()),
         );
         assert_eq!(
-            actual_max_idx,
-            exp_max_idx,
+            actual_max_index,
+            expected_max_index,
             "reduce_minmax<{}> max_index",
-            core::any::type_name::<T>()
+            core::any::type_name::<Scalar>()
         );
     }
 
@@ -1221,20 +1229,20 @@ mod tests {
         let data = vec![f64::NAN, 3.0, f64::NAN, 1.0, f64::NAN, 5.0];
         let result = f64::reduce_minmax(&data, core::mem::size_of::<f64>());
         assert!(result.is_some());
-        let (min_val, min_idx, max_val, max_idx) = result.unwrap();
-        assert_close(min_val, 1.0, 1e-10, 0.0, "mixed min");
-        assert_eq!(min_idx, 3);
-        assert_close(max_val, 5.0, 1e-10, 0.0, "mixed max");
-        assert_eq!(max_idx, 5);
+        let (min_value, min_index, max_value, max_index) = result.unwrap();
+        assert_close(min_value, 1.0, 1e-10, 0.0, "mixed min");
+        assert_eq!(min_index, 3);
+        assert_close(max_value, 5.0, 1e-10, 0.0, "mixed max");
+        assert_eq!(max_index, 5);
 
         let data_f32: Vec<f32> = vec![f32::NAN, 3.0, f32::NAN, 1.0, f32::NAN, 5.0];
         let result_f32 = f32::reduce_minmax(&data_f32, core::mem::size_of::<f32>());
         assert!(result_f32.is_some());
-        let (min_val, min_idx, max_val, max_idx) = result_f32.unwrap();
-        assert_close(min_val as f64, 1.0, 1e-5, 0.0, "mixed f32 min");
-        assert_eq!(min_idx, 3);
-        assert_close(max_val as f64, 5.0, 1e-5, 0.0, "mixed f32 max");
-        assert_eq!(max_idx, 5);
+        let (min_value, min_index, max_value, max_index) = result_f32.unwrap();
+        assert_close(min_value as f64, 1.0, 1e-5, 0.0, "mixed f32 min");
+        assert_eq!(min_index, 3);
+        assert_close(max_value as f64, 5.0, 1e-5, 0.0, "mixed f32 max");
+        assert_eq!(max_index, 5);
     }
 
     // endregion
