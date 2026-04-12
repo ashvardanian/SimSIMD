@@ -272,6 +272,21 @@ def darwin_settings() -> tuple[list[str], list[str], list[tuple[str, str]]]:
         "-w",  # Hush warnings
     ]
     link_args: list[str] = ["-lomp"]
+    # Apple Clang ships no `omp.h` / `libomp`; point at the Homebrew-installed
+    # libomp so `#include <omp.h>` resolves and the linker finds `-lomp`.
+    # `delocate` bundles `libomp.dylib` into the wheel; at import time we set
+    # `KMP_DUPLICATE_LIB_OK=TRUE` (see `python/numkong/__init__.py`) so the
+    # bundled runtime coexists with any libomp that NumPy/SciPy already loaded.
+    try:
+        libomp_prefix = subprocess.run(
+            ["brew", "--prefix", "libomp"],
+            capture_output=True, text=True, timeout=10, check=True,
+        ).stdout.strip()
+    except (subprocess.SubprocessError, FileNotFoundError):
+        libomp_prefix = ""
+    if libomp_prefix and Path(libomp_prefix).exists():
+        compile_args.append(f"-I{libomp_prefix}/include")
+        link_args.append(f"-L{libomp_prefix}/lib")
     macros: list[tuple[str, str]] = [
         ("NK_DYNAMIC_DISPATCH", "1"),
         ("NK_USE_OPENMP", "1"),
@@ -313,7 +328,10 @@ def windows_settings() -> tuple[list[str], list[str], list[tuple[str, str]]]:
     compile_args = [
         "/std:c11",
         "/O2",
-        "/openmp",
+        # `/openmp:llvm` enables OpenMP 3.1+ on MSVC 2019 16.9+ so `size_t`
+        # (unsigned) parallel-for counters compile — the legacy `/openmp` is
+        # frozen at OpenMP 2.0 and rejects them with C3015.
+        "/openmp:llvm",
         # Dealing with MinGW linking errors
         # https://cibuildwheel.readthedocs.io/en/stable/faq/#windows-importerror-dll-load-failed-the-specific-module-could-not-be-found
         "/d2FH4-",
@@ -379,24 +397,11 @@ else:
     compile_args, link_args, macros = [], [], []
 
 
-def _is_editable_install() -> bool:
-    if "develop" in sys.argv or ("install" in sys.argv and "-e" in sys.argv):
-        return True
-    return any(Path(p, f"{__lib_name__}.egg-link").exists() for p in sys.path)
-
-
-SETUP_KWARGS = (
-    {
-        "packages": ["numkong"],
-        "package_dir": {"numkong": "python/numkong"},
-        "package_data": {"numkong": ["__init__.pyi", "py.typed"]},
-    }
-    if not _is_editable_install()
-    else {}
-)
-
-if _is_editable_install():
-    print("[NumKong] Editable install detected - skipping bundled type stubs.")
+SETUP_KWARGS = {
+    "packages": ["numkong"],
+    "package_dir": {"numkong": "python/numkong"},
+    "package_data": {"numkong": ["__init__.pyi", "py.typed"]},
+}
 
 
 # Use glob to find all dispatch files
@@ -417,7 +422,10 @@ dispatch_sources = sorted(glob.glob("c/dispatch_*.c"))
 
 ext_modules = [
     Extension(
-        "numkong",
+        # Lives under the `numkong` package so `numkong/__init__.py` runs first
+        # — it sets `KMP_DUPLICATE_LIB_OK=TRUE` before the dynamic linker
+        # initializes the bundled libomp.
+        "numkong._numkong",
         sources=base_sources + dispatch_sources,
         include_dirs=["include", "python"],
         language="c",
