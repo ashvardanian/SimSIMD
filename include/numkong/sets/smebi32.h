@@ -41,9 +41,9 @@
 #include "numkong/types.h"
 #include "numkong/set/serial.h"
 #include "numkong/sets/serial.h"
-#include "numkong/reduce/sve.h" // `nk_svaddv_f64_`
-#include "numkong/dots/sme.h"   // `nk_sme_zero_za32_*`
-#include "numkong/reduce.h"     // `nk_reduce_moments_u1`
+#include "numkong/reduce/sve.h"  // `nk_svaddv_f64_`
+#include "numkong/reduce/neon.h" // `nk_reduce_moments_u1_neon`
+#include "numkong/dots/sme.h"    // `nk_sme_zero_za32_*`
 
 #if defined(__cplusplus)
 extern "C" {
@@ -188,11 +188,9 @@ NK_PUBLIC void nk_dots_pack_u1_smebi32(nk_u1x8_t const *b, nk_size_t row_count, 
     // Compute per-row population counts
     for (nk_size_t row = 0; row < row_count; row++) {
         nk_u1x8_t const *src_row = (nk_u1x8_t const *)((char const *)b + row * b_stride_in_bytes);
-        {
-            nk_u64_t nk_local_sum_, nk_local_sumsq_;
-            nk_reduce_moments_u1(src_row, depth_bytes * 8, sizeof(nk_u1x8_t), &nk_local_sum_, &nk_local_sumsq_);
-            norms_ptr[row] = (nk_u32_t)nk_local_sum_;
-        }
+        nk_u64_t nk_local_sum_, nk_local_sumsq_;
+        nk_reduce_moments_u1_neon(src_row, depth_bytes * 8, sizeof(nk_u1x8_t), &nk_local_sum_, &nk_local_sumsq_);
+        norms_ptr[row] = (nk_u32_t)nk_local_sum_;
     }
 }
 

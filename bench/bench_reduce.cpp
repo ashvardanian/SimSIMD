@@ -125,6 +125,7 @@ void bench_reduce() {
     run_reduce_moments<e5m2_k>("reduce_moments_e5m2_neon", nk_reduce_moments_e5m2_neon);
     run_reduce_moments<e2m3_k>("reduce_moments_e2m3_neon", nk_reduce_moments_e2m3_neon);
     run_reduce_moments<e3m2_k>("reduce_moments_e3m2_neon", nk_reduce_moments_e3m2_neon);
+    run_reduce_moments<u1_k>("reduce_moments_u1_neon", nk_reduce_moments_u1_neon);
     run_reduce_minmax<f64_k>("reduce_minmax_f64_neon", nk_reduce_minmax_f64_neon);
     run_reduce_minmax<f32_k>("reduce_minmax_f32_neon", nk_reduce_minmax_f32_neon);
     run_reduce_minmax<i8_k>("reduce_minmax_i8_neon", nk_reduce_minmax_i8_neon);

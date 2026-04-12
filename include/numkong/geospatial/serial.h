@@ -11,7 +11,7 @@
 
 #include "numkong/types.h"
 #include "numkong/spatial/serial.h"      // `nk_f64_sqrt_serial`, `nk_f32_sqrt_serial`
-#include "numkong/trigonometry/serial.h" // `nk_f64_sin`, `nk_f64_cos`, `nk_f64_atan2`, etc.
+#include "numkong/trigonometry/serial.h" // `nk_f64_sin`, `nk_f64_cos`, `nk_f64_atan2`
 
 #if defined(__cplusplus)
 extern "C" {

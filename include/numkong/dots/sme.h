@@ -63,7 +63,7 @@
 
 #include "numkong/types.h"
 #include "numkong/cast/serial.h" // `nk_e4m3_to_f16_serial`, `nk_e5m2_to_f16_serial`
-#include "numkong/dots/serial.h" // `nk_dots_reduce_sumsq_f16_`, `nk_dots_reduce_sumsq_i8_`, etc.
+#include "numkong/dots/serial.h" // `nk_dots_reduce_sumsq_f16_`, `nk_dots_reduce_sumsq_i8_`
 
 #if defined(__cplusplus)
 extern "C" {

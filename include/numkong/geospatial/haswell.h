@@ -24,7 +24,7 @@
 #if NK_TARGET_HASWELL
 
 #include "numkong/types.h"
-#include "numkong/trigonometry/haswell.h" // `nk_sin_f64x4_haswell_`, `nk_cos_f64x4_haswell_`, `nk_atan2_f64x4_haswell_`, etc.
+#include "numkong/trigonometry/haswell.h" // `nk_sin_f64x4_haswell_`, `nk_cos_f64x4_haswell_`, `nk_atan2_f64x4_haswell_`
 
 #if defined(__cplusplus)
 extern "C" {
