@@ -467,10 +467,11 @@ static PyObject *api_packed_common( //
         if (threads == 0) threads = (nk_size_t)omp_get_max_threads();
         omp_set_num_threads((int)threads);
 #endif
-        // Signed loop counter for MSVC `/openmp:llvm` compatibility.
-        nk_ssize_t const tile_count = (nk_ssize_t)nk_size_divide_round_up_(slice_height, NK_PARALLEL_PACKED_TILE);
+        // `int` loop counter for MSVC compatibility: `/openmp:llvm` still
+        // rejects 64-bit (`long long` / `size_t`) iterators with C3015.
+        int const tile_count = (int)nk_size_divide_round_up_(slice_height, NK_PARALLEL_PACKED_TILE);
 #pragma omp parallel for schedule(dynamic, 1) if (threads > 1)
-        for (nk_ssize_t tile_idx = 0; tile_idx < tile_count; tile_idx++) {
+        for (int tile_idx = 0; tile_idx < tile_count; tile_idx++) {
             nk_size_t row = (nk_size_t)tile_idx * NK_PARALLEL_PACKED_TILE;
             nk_size_t chunk = (row + NK_PARALLEL_PACKED_TILE <= slice_height) ? NK_PARALLEL_PACKED_TILE
                                                                               : (slice_height - row);
@@ -602,10 +603,10 @@ static PyObject *api_symmetric_common( //
         if (threads == 0) threads = (nk_size_t)omp_get_max_threads();
         omp_set_num_threads((int)threads);
 #endif
-        // Signed loop counter for MSVC `/openmp:llvm` compatibility.
-        nk_ssize_t const tile_count = (nk_ssize_t)nk_size_divide_round_up_(row_count_val, NK_PARALLEL_SYMMETRIC_TILE);
+        // `int` loop counter: see note at the packed variant above.
+        int const tile_count = (int)nk_size_divide_round_up_(row_count_val, NK_PARALLEL_SYMMETRIC_TILE);
 #pragma omp parallel for schedule(dynamic, 1) if (threads > 1)
-        for (nk_ssize_t tile_idx = 0; tile_idx < tile_count; tile_idx++) {
+        for (int tile_idx = 0; tile_idx < tile_count; tile_idx++) {
             nk_size_t tile_start = row_start + (nk_size_t)tile_idx * NK_PARALLEL_SYMMETRIC_TILE;
             nk_size_t tile_rows = (tile_start + NK_PARALLEL_SYMMETRIC_TILE <= row_end) ? NK_PARALLEL_SYMMETRIC_TILE
                                                                                        : (row_end - tile_start);

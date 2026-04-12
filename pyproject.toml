@@ -161,6 +161,7 @@ before-all = [
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_OSX_DEPLOYMENT_TARGET="${TARGET}" \
         -DCMAKE_INSTALL_PREFIX="${PREFIX}" \
+        -DCMAKE_INSTALL_NAME_DIR="${PREFIX}/lib" \
         -DLIBOMP_INSTALL_ALIASES=OFF \
         -DOPENMP_ENABLE_LIBOMPTARGET=OFF
     cmake --build build --parallel

@@ -548,10 +548,12 @@ static napi_value api_packed_common(napi_env env, napi_callback_info info, nk_ke
     omp_set_num_threads((int)threads);
 #endif
 
-    // Signed loop counter: MSVC `/openmp:llvm` rejects 64-bit unsigned iterators.
-    nk_ssize_t const tile_count = (nk_ssize_t)nk_size_divide_round_up_(height, NK_PARALLEL_PACKED_TILE);
+    // `int` loop counter: MSVC's OpenMP canonical loop form (both `/openmp`
+    // and `/openmp:llvm`) rejects 64-bit iterators with C3015; `int` is the
+    // universally-accepted type across compilers.
+    int const tile_count = (int)nk_size_divide_round_up_(height, NK_PARALLEL_PACKED_TILE);
 #pragma omp parallel for schedule(dynamic, 1) if (threads > 1)
-    for (nk_ssize_t tile_idx = 0; tile_idx < tile_count; tile_idx++) {
+    for (int tile_idx = 0; tile_idx < tile_count; tile_idx++) {
         nk_size_t row = (nk_size_t)tile_idx * NK_PARALLEL_PACKED_TILE;
         nk_size_t chunk = (row + NK_PARALLEL_PACKED_TILE <= height) ? NK_PARALLEL_PACKED_TILE : (height - row);
         kernel((char const *)a_data + row * a_stride, packed_data, (char *)result_data + row * result_stride, chunk,
@@ -631,10 +633,10 @@ static napi_value api_symmetric_common(napi_env env, napi_callback_info info, nk
     omp_set_num_threads((int)threads);
 #endif
 
-    // Signed loop counter: MSVC `/openmp:llvm` rejects 64-bit unsigned iterators.
-    nk_ssize_t const tile_count = (nk_ssize_t)nk_size_divide_round_up_(row_count, NK_PARALLEL_SYMMETRIC_TILE);
+    // `int` loop counter: see note at `api_packed_common` above.
+    int const tile_count = (int)nk_size_divide_round_up_(row_count, NK_PARALLEL_SYMMETRIC_TILE);
 #pragma omp parallel for schedule(dynamic, 1) if (threads > 1)
-    for (nk_ssize_t tile_idx = 0; tile_idx < tile_count; tile_idx++) {
+    for (int tile_idx = 0; tile_idx < tile_count; tile_idx++) {
         nk_size_t tile_start = (nk_size_t)row_start + (nk_size_t)tile_idx * NK_PARALLEL_SYMMETRIC_TILE;
         nk_size_t tile_rows = (tile_start + NK_PARALLEL_SYMMETRIC_TILE <= (nk_size_t)row_start + row_count)
                                   ? NK_PARALLEL_SYMMETRIC_TILE
