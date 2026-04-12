@@ -6,7 +6,7 @@
  *
  *  Contains:
  *
- *  - Root Mean Square Deviation (RMSD) for rigid body superposition
+ *  - Root Mean Square Deviation (RMSD) of raw point differences
  *  - Kabsch algorithm for optimal rigid body alignment (rotation only)
  *  - Umeyama algorithm for similarity transform (rotation + uniform scaling)
  *
@@ -48,7 +48,7 @@
  *
  *  @section algorithm_overview Algorithm Overview
  *
- *  - RMSD: Simple root mean square deviation without alignment. R = identity, scale = 1.0
+ *  - RMSD: Raw √(Σ‖aᵢ − bᵢ‖² / n) without centering or alignment. R = identity, scale = 1.0, centroids zeroed
  *  - Kabsch: Finds optimal rotation R minimizing ‖R × (a - ā) - (b - b̄)‖. scale = 1.0
  *  - Umeyama: Finds optimal rotation R and scale c minimizing ‖c × R × (a - ā) - (b - b̄)‖
  *

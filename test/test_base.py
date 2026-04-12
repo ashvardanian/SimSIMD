@@ -34,7 +34,9 @@ _nk_seed_base: int | None = int(s) if (s := os.environ.get("NK_SEED")) is not No
 _nk_in_qemu: bool = "NK_IN_QEMU" in os.environ
 
 _nk_possible_dimensions = (
-    [
+    [1, 4, 16, 33, 64]
+    if _nk_in_qemu
+    else [
         # start with simplest cases
         4,
         8,
@@ -60,8 +62,6 @@ _nk_possible_dimensions = (
         65,
         97,
     ]
-    if _nk_in_qemu
-    else [1, 4, 16, 33, 64]
 )
 
 

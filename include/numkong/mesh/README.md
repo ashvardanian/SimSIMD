@@ -1,37 +1,23 @@
 # Point Cloud Alignment in NumKong
 
-NumKong implements RMSD, Kabsch, and Umeyama algorithms for rigid-body superposition of 3D point clouds.
-RMSD measures alignment quality, Kabsch finds the optimal rotation minimizing RMSD, and Umeyama extends Kabsch with uniform scaling.
-Used in structural biology (protein alignment), robotics (point cloud registration), and computer graphics (mesh registration).
+NumKong implements three algorithms for 3D point cloud comparison and alignment, used in structural biology (protein alignment), robotics (point cloud registration), and computer graphics (mesh registration).
 
-Centroid:
+RMSD measures raw point-pair deviation without centering or alignment:
 
 $$
-\bar{a} = \frac{1}{n}\sum a_i
+\text{RMSD} = \sqrt{\frac{1}{n}\sum \|a_i - b_i\|^2}
 $$
 
-Cross-covariance matrix:
+Kabsch finds the optimal rotation $R$ that minimizes RMSD after centering both clouds at their centroids $\bar{a}$, $\bar{b}$, recovering $R$ from the SVD of the cross-covariance matrix $H$:
 
 $$
-H = \sum (a_i - \bar{a})(b_i - \bar{b})^T
+H = \sum (a_i - \bar{a})(b_i - \bar{b})^T = U \Sigma V^T, \quad R = V U^T
 $$
 
-SVD-based rotation:
+Umeyama extends Kabsch with a uniform scale factor $s$ derived from the singular values and source variance $\sigma_a^2$:
 
 $$
-H = U \Sigma V^T, \quad R = V U^T
-$$
-
-Umeyama scale factor:
-
-$$
-s = \frac{\text{tr}(\Sigma)}{n \cdot \sigma_a^2}
-$$
-
-RMSD after alignment:
-
-$$
-\text{RMSD} = \sqrt{\frac{1}{n}\sum \|s \cdot R(a_i - \bar{a}) - (b_i - \bar{b})\|^2}
+s = \frac{\text{tr}(\Sigma)}{n \cdot \sigma_a^2}, \quad \text{RMSD} = \sqrt{\frac{1}{n}\sum \|s \cdot R(a_i - \bar{a}) - (b_i - \bar{b})\|^2}
 $$
 
 Reformulating as Python pseudocode:
@@ -189,25 +175,25 @@ Measured with Wasmtime v42 (Cranelift backend).
 | Kernel                      |                      256 |                     1024 |                     4096 |
 | :-------------------------- | -----------------------: | -----------------------: | -----------------------: |
 | __f64__                     | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_rmsd_f64_serial`        |        120 mp/s, 1.4 ulp |        118 mp/s, 2.6 ulp |        121 mp/s, 5.3 ulp |
+| `nk_rmsd_f64_serial`        |        279 mp/s, 0.5 ulp |        267 mp/s, 0.5 ulp |        279 mp/s, 0.5 ulp |
 | `nk_kabsch_f64_serial`      |       40.4 mp/s, 1.4 ulp |       47.3 mp/s, 2.6 ulp |       50.2 mp/s, 5.4 ulp |
 | `nk_umeyama_f64_serial`     |       34.5 mp/s, 1.0 ulp |       39.2 mp/s, 1.9 ulp |       41.6 mp/s, 3.7 ulp |
-| `nk_rmsd_f64_neon`          |      1,418 mp/s, 0.4 ulp |      1,338 mp/s, 0.7 ulp |      1,419 mp/s, 1.3 ulp |
+| `nk_rmsd_f64_neon`          |      1,776 mp/s, 0.4 ulp |      1,536 mp/s, 0.7 ulp |      2,037 mp/s, 1.3 ulp |
 | `nk_kabsch_f64_neon`        |        119 mp/s, 0.8 ulp |        222 mp/s, 1.3 ulp |        304 mp/s, 2.2 ulp |
 | `nk_umeyama_f64_neon`       |        115 mp/s, 0.4 ulp |        220 mp/s, 0.8 ulp |        296 mp/s, 1.6 ulp |
 | __f32__                     | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_rmsd_f32_serial`        |        122 mp/s, 1.4 ulp |        123 mp/s, 2.6 ulp |        125 mp/s, 5.2 ulp |
+| `nk_rmsd_f32_serial`        |        264 mp/s, 0.5 ulp |        264 mp/s, 0.5 ulp |        261 mp/s, 0.5 ulp |
 | `nk_kabsch_f32_serial`      |       39.4 mp/s, 1.4 ulp |       46.0 mp/s, 2.7 ulp |       49.9 mp/s, 5.0 ulp |
 | `nk_umeyama_f32_serial`     |       33.6 mp/s, 0.9 ulp |       38.8 mp/s, 1.8 ulp |       41.4 mp/s, 3.5 ulp |
-| `nk_rmsd_f32_neon`          |      1,337 mp/s, 0.3 ulp |      1,377 mp/s, 0.4 ulp |      1,261 mp/s, 0.8 ulp |
+| `nk_rmsd_f32_neon`          |      1,912 mp/s, 1.5 ulp |      2,239 mp/s, 1.3 ulp |      1,966 mp/s, 4.8 ulp |
 | `nk_kabsch_f32_neon`        |        135 mp/s, 0.7 ulp |        288 mp/s, 0.9 ulp |        385 mp/s, 1.4 ulp |
 | `nk_umeyama_f32_neon`       |        130 mp/s, 0.3 ulp |        272 mp/s, 0.4 ulp |        367 mp/s, 0.8 ulp |
 | __bf16__                    | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_rmsd_bf16_neonbfdot`    |      2,342 mp/s, 0.5 ulp |      2,378 mp/s, 6.0 ulp |     2,416 mp/s, 10.0 ulp |
+| `nk_rmsd_bf16_neonbfdot`    |      3,728 mp/s, 0.4 ulp |      3,756 mp/s, 6.0 ulp |     3,769 mp/s, 10.0 ulp |
 | `nk_kabsch_bf16_neonbfdot`  |        180 mp/s, 0.7 ulp |        448 mp/s, 0.9 ulp |        726 mp/s, 1.3 ulp |
 | `nk_umeyama_bf16_neonbfdot` |        176 mp/s, 0.2 ulp |        433 mp/s, 0.4 ulp |        705 mp/s, 0.8 ulp |
 | __f16__                     | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ | ░░░░░░░░░░░░░░░░░░░░░░░░ |
-| `nk_rmsd_f16_neonhalf`      |      2,315 mp/s, 0.4 ulp |      2,372 mp/s, 1.7 ulp |      2,423 mp/s, 4.6 ulp |
+| `nk_rmsd_f16_neonhalf`      |      2,998 mp/s, 0.4 ulp |      3,215 mp/s, 1.7 ulp |      3,216 mp/s, 4.6 ulp |
 | `nk_kabsch_f16_neonhalf`    |        178 mp/s, 0.9 ulp |        443 mp/s, 1.3 ulp |        711 mp/s, 2.4 ulp |
 | `nk_umeyama_f16_neonhalf`   |        175 mp/s, 0.4 ulp |        408 mp/s, 0.8 ulp |        620 mp/s, 1.5 ulp |
 

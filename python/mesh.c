@@ -137,9 +137,9 @@ char const doc_umeyama[] =                                                      
     "    >>> float(result.scale)  # Will differ from 1.0 if point clouds have different scales\n";
 
 char const doc_rmsd[] =                                                                                          //
-    "Compute RMSD between two point clouds without alignment optimization.\n\n"                                  //
-    "Computes root mean square deviation after centering both clouds.\n"                                         //
-    "Returns identity rotation and scale=1.0.\n\n"                                                               //
+    "Compute raw RMSD between two point clouds without centering or alignment.\n\n"                              //
+    "Computes √(Σ‖aᵢ − bᵢ‖² / n) directly on raw point differences.\n"                                           //
+    "Returns identity rotation, scale=1.0, and zeroed centroids.\n\n"                                            //
     "Supports both single-pair and batched inputs:\n"                                                            //
     "    - Single pair: (N, 3) -> rotation (3,3), scale (), rmsd (), centroids (3,)\n"                           //
     "    - Batched: (B, N, 3) -> rotation (B,3,3), scale (B,), rmsd (B,), centroids (B,3)\n\n"                   //
