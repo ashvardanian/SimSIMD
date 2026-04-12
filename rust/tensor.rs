@@ -552,6 +552,68 @@ impl<Scalar: StorageElement, Alloc: Allocator, const MAX_RANK: usize>
         })
     }
 
+    /// Creates a Tensor from per-dimension `f32` values using a custom allocator.
+    ///
+    /// Each `f32` is converted through [`FloatConvertible::DimScalar::from_f32`] before
+    /// storage, so this works for full-byte types (`f16`, `bf16`, `i8`, …) and
+    /// sub-byte types (`i4x2`, `u4x2`, `u1x8`) alike. The length of `scalars`
+    /// must equal the product of `shape`.
+    pub fn try_from_scalars_in(
+        scalars: &[f32],
+        shape: &[usize],
+        alloc: Alloc,
+    ) -> Result<Self, TensorError>
+    where
+        Scalar: FloatConvertible,
+        Alloc: Clone,
+    {
+        let total: usize = shape.iter().product();
+        if scalars.len() != total {
+            return Err(TensorError::ShapeMismatch {
+                axis: 0,
+                expected: total,
+                got: scalars.len(),
+            });
+        }
+        // Pack through a Vector so sub-byte types round-trip via `try_set`.
+        let flat = Vector::<Scalar, Alloc>::try_from_scalars_in(scalars, alloc.clone())?;
+        let mut tensor = Self::try_zeros_in(shape, alloc)?;
+        unsafe {
+            core::ptr::copy_nonoverlapping(flat.as_ptr(), tensor.as_mut_ptr(), flat.size_values());
+        }
+        Ok(tensor)
+    }
+
+    /// Creates a Tensor from per-dimension `DimScalar` values using a custom allocator.
+    ///
+    /// Each element of `dim_values` represents one logical dimension; for sub-byte
+    /// types the values are packed into their storage representation. The length
+    /// of `dim_values` must equal the product of `shape`.
+    pub fn try_from_dims_in(
+        dim_values: &[<Scalar as FloatConvertible>::DimScalar],
+        shape: &[usize],
+        alloc: Alloc,
+    ) -> Result<Self, TensorError>
+    where
+        Scalar: FloatConvertible,
+        Alloc: Clone,
+    {
+        let total: usize = shape.iter().product();
+        if dim_values.len() != total {
+            return Err(TensorError::ShapeMismatch {
+                axis: 0,
+                expected: total,
+                got: dim_values.len(),
+            });
+        }
+        let flat = Vector::<Scalar, Alloc>::try_from_dims_in(dim_values, alloc.clone())?;
+        let mut tensor = Self::try_zeros_in(shape, alloc)?;
+        unsafe {
+            core::ptr::copy_nonoverlapping(flat.as_ptr(), tensor.as_mut_ptr(), flat.size_values());
+        }
+        Ok(tensor)
+    }
+
     /// Compute byte strides from a logical shape.
     ///
     /// For sub-byte types (`dims_per_value > 1`), the innermost dimension is
@@ -587,13 +649,7 @@ impl<Scalar: StorageElement, Alloc: Allocator, const MAX_RANK: usize>
 
     /// Number of storage values (for sub-byte types, less than numel).
     pub fn storage_len(&self) -> usize {
-        let dims_per_value = Scalar::dimensions_per_value();
-        let n = self.numel();
-        if dims_per_value == 1 {
-            n
-        } else {
-            n / dims_per_value
-        }
+        self.numel().div_ceil(Scalar::dimensions_per_value())
     }
 
     /// Convert a 1D contiguous tensor into a [`Vector`], transferring ownership without copying.
@@ -611,12 +667,7 @@ impl<Scalar: StorageElement, Alloc: Allocator, const MAX_RANK: usize>
             return Err(TensorError::NonContiguousRows);
         }
         let dims = self.shape[0];
-        let dims_per_value = Scalar::dimensions_per_value();
-        let values = if dims_per_value == 1 {
-            dims
-        } else {
-            (dims + dims_per_value - 1) / dims_per_value
-        };
+        let values = dims.div_ceil(Scalar::dimensions_per_value());
         let data = self.data;
         let alloc = unsafe { core::ptr::read(&self.alloc) };
         core::mem::forget(self);
@@ -804,6 +855,31 @@ impl<Scalar: StorageElement + Clone, const MAX_RANK: usize> Tensor<Scalar, Globa
     /// Convenience constructor that panics on error.
     pub fn from_slice(data: &[Scalar], shape: &[usize]) -> Self {
         Self::try_from_slice(data, shape).expect("Tensor::from_slice failed")
+    }
+
+    /// Creates a Tensor from per-dimension `f32` values using the global allocator.
+    ///
+    /// Each `f32` is converted through [`FloatConvertible::DimScalar::from_f32`] before
+    /// storage. The length of `scalars` must equal the product of `shape`.
+    pub fn try_from_scalars(scalars: &[f32], shape: &[usize]) -> Result<Self, TensorError>
+    where
+        Scalar: FloatConvertible,
+    {
+        Self::try_from_scalars_in(scalars, shape, Global)
+    }
+
+    /// Creates a Tensor from per-dimension `DimScalar` values using the global allocator.
+    ///
+    /// Each element of `dim_values` represents one logical dimension. The length
+    /// of `dim_values` must equal the product of `shape`.
+    pub fn try_from_dims(
+        dim_values: &[<Scalar as FloatConvertible>::DimScalar],
+        shape: &[usize],
+    ) -> Result<Self, TensorError>
+    where
+        Scalar: FloatConvertible,
+    {
+        Self::try_from_dims_in(dim_values, shape, Global)
     }
 }
 
@@ -1983,13 +2059,7 @@ impl<'a, Scalar: Clone + StorageElement, const MAX_RANK: usize> TensorView<'a, S
 
     /// Number of storage values (for sub-byte types, less than numel).
     pub fn storage_len(&self) -> usize {
-        let dims_per_value = Scalar::dimensions_per_value();
-        let n = self.numel();
-        if dims_per_value == 1 {
-            n
-        } else {
-            n / dims_per_value
-        }
+        self.numel().div_ceil(Scalar::dimensions_per_value())
     }
 
     /// Convert to slice (only valid for contiguous views).
@@ -2352,13 +2422,7 @@ impl<'a, Scalar, const MAX_RANK: usize> TensorSpan<'a, Scalar, MAX_RANK> {
 impl<'a, Scalar: StorageElement, const MAX_RANK: usize> TensorSpan<'a, Scalar, MAX_RANK> {
     /// Number of storage values (for sub-byte types, less than numel).
     pub fn storage_len(&self) -> usize {
-        let dims_per_value = Scalar::dimensions_per_value();
-        let n = self.numel();
-        if dims_per_value == 1 {
-            n
-        } else {
-            n / dims_per_value
-        }
+        self.numel().div_ceil(Scalar::dimensions_per_value())
     }
 
     /// Convert to slice (only valid for contiguous views).
@@ -7470,6 +7534,31 @@ mod tests {
         // Mutable slice with tuple
         let mut t = Tensor::<f32>::try_from_slice(&data, &[3, 4]).unwrap();
         let _s = t.slice_mut((.., 0_usize)).unwrap();
+    }
+
+    #[test]
+    fn tensor_try_from_scalars_and_dims() {
+        // Full-byte type: f32
+        let scalars: Vec<f32> = (0..6).map(|i| i as f32 + 0.5).collect();
+        let tensor = Tensor::<f32>::try_from_scalars(&scalars, &[2, 3]).unwrap();
+        assert_eq!(tensor.shape(), &[2, 3]);
+        assert_eq!(tensor.as_slice(), scalars.as_slice());
+
+        // Length mismatch is reported as a shape error, not a panic.
+        let bad = Tensor::<f32>::try_from_scalars(&scalars, &[2, 2]);
+        assert!(matches!(bad, Err(TensorError::ShapeMismatch { .. })));
+
+        // try_from_dims on a full-byte type: DimScalar = Scalar for f32.
+        let dims: Vec<f32> = scalars.clone();
+        let tensor = Tensor::<f32>::try_from_dims(&dims, &[3, 2]).unwrap();
+        assert_eq!(tensor.shape(), &[3, 2]);
+        assert_eq!(tensor.as_slice(), dims.as_slice());
+
+        // Sub-byte round-trip: i4x2 packs 2 dims/byte.
+        let i4_dims: Vec<i8> = vec![1, -2, 3, -4, 5, -6, 7, 0];
+        let tensor = Tensor::<crate::types::i4x2>::try_from_dims(&i4_dims, &[2, 4]).unwrap();
+        assert_eq!(tensor.shape(), &[2, 4]);
+        assert_eq!(tensor.storage_len(), 4);
     }
 }
 

@@ -946,9 +946,31 @@ extern "C" {
 /// avoid precision loss — `f32 × f32 → f64`, `f16 × f16 → f32`,
 /// `i8 × i8 → i32`, `u8 × u8 → u32`, and so on (see each impl's
 /// [`Dots::Accumulator`]).
-pub trait Dots: Sized + Clone + StorageElement {
+mod private {
+    /// Sealed supertrait for the batch-operation trait family.
+    ///
+    /// Implementations of [`Dots`] / [`Angulars`] / [`Euclideans`] / [`Hammings`] /
+    /// [`Jaccards`] call into NumKong's C kernels via unsafe FFI. External
+    /// implementations are not supported — the sealed bound makes that explicit.
+    pub trait Sealed {}
+    impl Sealed for f32 {}
+    impl Sealed for f64 {}
+    impl Sealed for super::f16 {}
+    impl Sealed for super::bf16 {}
+    impl Sealed for super::e4m3 {}
+    impl Sealed for super::e5m2 {}
+    impl Sealed for super::e2m3 {}
+    impl Sealed for super::e3m2 {}
+    impl Sealed for i8 {}
+    impl Sealed for u8 {}
+    impl Sealed for super::u4x2 {}
+    impl Sealed for super::i4x2 {}
+    impl Sealed for super::u1x8 {}
+}
+
+pub trait Dots: StorageElement + private::Sealed {
     /// Accumulator type for the multiplication.
-    type Accumulator: Clone + Default + StorageElement;
+    type Accumulator: StorageElement;
 
     /// Returns the size in bytes needed for the packed B matrix buffer.
     fn dots_packed_size(width: usize, depth: usize) -> usize;
@@ -1893,7 +1915,7 @@ impl Hammings for u1x8 {
 /// because the ratio is inherently fractional.
 pub trait Jaccards: Dots {
     /// Result type for Jaccard distances.
-    type JaccardResult: Clone + Default + StorageElement;
+    type JaccardResult: StorageElement;
 
     /// Computes Jaccard distances between values matrix rows and packed query rows.
     ///
@@ -1998,7 +2020,7 @@ impl Jaccards for u1x8 {
 /// for repeated-query retrieval.
 pub trait Angulars: Dots {
     /// Result type for angular distances.
-    type SpatialResult: Clone + Default + StorageElement;
+    type SpatialResult: StorageElement;
 
     /// Computes angular distances between A rows and packed B columns.
     ///
@@ -2050,7 +2072,7 @@ pub trait Angulars: Dots {
 /// matrix once when queries are repeated against the same corpus.
 pub trait Euclideans: Dots {
     /// Result type for euclidean distances.
-    type SpatialResult: Clone + Default + StorageElement;
+    type SpatialResult: StorageElement;
 
     /// Computes euclidean distances between A rows and packed B columns.
     ///
@@ -2936,7 +2958,7 @@ impl<Scalar: Dots, Alloc: Allocator, const MAX_RANK: usize> Tensor<Scalar, Alloc
 impl<Scalar: Dots + Clone + Send + Sync, Alloc: Allocator + Clone, const MAX_RANK: usize>
     Tensor<Scalar, Alloc, MAX_RANK>
 where
-    Scalar::Accumulator: Clone + Default + Send + Sync,
+    Scalar::Accumulator: Send + Sync,
 {
     /// Parallel dot-product multiply into pre-allocated output.
     ///
@@ -2991,7 +3013,7 @@ where
 
         // Get actual thread count from pool
         let num_threads = pool.threads().max(1);
-        let rows_per_thread = (height + num_threads - 1) / num_threads;
+        let rows_per_thread = height.div_ceil(num_threads);
 
         // Distribute rows across threads using fork_union
         // Safety: Each thread writes to disjoint rows of C, so no data races.
@@ -3066,7 +3088,7 @@ where
 #[inline]
 fn compute_thread_rows(thread_index: usize, num_threads: usize, n: usize) -> (usize, usize) {
     let total_work = n * (n + 1) / 2;
-    let work_per_thread = (total_work + num_threads - 1) / num_threads;
+    let work_per_thread = total_work.div_ceil(num_threads);
 
     let work_start = thread_index * work_per_thread;
     let work_end = ((thread_index + 1) * work_per_thread).min(total_work);
@@ -3102,7 +3124,7 @@ fn compute_thread_rows(thread_index: usize, num_threads: usize, n: usize) -> (us
 impl<Scalar: Dots + Clone + Send + Sync, Alloc: Allocator + Clone, const MAX_RANK: usize>
     Tensor<Scalar, Alloc, MAX_RANK>
 where
-    Scalar::Accumulator: Clone + Default + Send + Sync,
+    Scalar::Accumulator: Send + Sync,
 {
     /// Parallel computation of symmetric Gram matrix C = A × Aᵀ.
     ///
@@ -3373,7 +3395,7 @@ impl<Scalar: Euclideans, Alloc: Allocator, const MAX_RANK: usize> Tensor<Scalar,
 impl<Scalar: Angulars + Clone + Send + Sync, Alloc: Allocator + Clone, const MAX_RANK: usize>
     Tensor<Scalar, Alloc, MAX_RANK>
 where
-    Scalar::SpatialResult: Clone + Default + Send + Sync,
+    Scalar::SpatialResult: Send + Sync,
 {
     /// Parallel angular distances into pre-allocated output.
     ///
@@ -3401,7 +3423,7 @@ where
         let a_stride = self.stride_bytes(0) as usize;
         let c_stride = c.stride_bytes(0) as usize;
         let num_threads = pool.threads().max(1);
-        let rows_per_thread = (height + num_threads - 1) / num_threads;
+        let rows_per_thread = height.div_ceil(num_threads);
 
         pool.for_threads(move |thread_index, _colocation_index| {
             crate::capabilities::configure_thread();
@@ -3524,7 +3546,7 @@ where
 impl<Scalar: Euclideans + Clone + Send + Sync, Alloc: Allocator + Clone, const MAX_RANK: usize>
     Tensor<Scalar, Alloc, MAX_RANK>
 where
-    Scalar::SpatialResult: Clone + Default + Send + Sync,
+    Scalar::SpatialResult: Send + Sync,
 {
     /// Parallel euclidean distances into pre-allocated output.
     ///
@@ -3552,7 +3574,7 @@ where
         let a_stride = self.stride_bytes(0) as usize;
         let c_stride = c.stride_bytes(0) as usize;
         let num_threads = pool.threads().max(1);
-        let rows_per_thread = (height + num_threads - 1) / num_threads;
+        let rows_per_thread = height.div_ceil(num_threads);
 
         pool.for_threads(move |thread_index, _colocation_index| {
             crate::capabilities::configure_thread();
@@ -3881,7 +3903,7 @@ impl<Scalar: Hammings + Clone + Send + Sync, Alloc: Allocator + Clone, const MAX
         let a_stride = self.stride_bytes(0) as usize;
         let c_stride = c.stride_bytes(0) as usize;
         let num_threads = pool.threads().max(1);
-        let rows_per_thread = (height + num_threads - 1) / num_threads;
+        let rows_per_thread = height.div_ceil(num_threads);
 
         pool.for_threads(move |thread_index, _colocation_index| {
             crate::capabilities::configure_thread();
@@ -3997,7 +4019,7 @@ impl<Scalar: Hammings + Clone + Send + Sync, Alloc: Allocator + Clone, const MAX
 impl<Scalar: Jaccards + Clone + Send + Sync, Alloc: Allocator + Clone, const MAX_RANK: usize>
     Tensor<Scalar, Alloc, MAX_RANK>
 where
-    Scalar::JaccardResult: Clone + Default + Send + Sync,
+    Scalar::JaccardResult: Send + Sync,
 {
     /// Parallel Jaccard distances into pre-allocated output.
     ///
@@ -4025,7 +4047,7 @@ where
         let a_stride = self.stride_bytes(0) as usize;
         let c_stride = c.stride_bytes(0) as usize;
         let num_threads = pool.threads().max(1);
-        let rows_per_thread = (height + num_threads - 1) / num_threads;
+        let rows_per_thread = height.div_ceil(num_threads);
 
         pool.for_threads(move |thread_index, _colocation_index| {
             crate::capabilities::configure_thread();
@@ -4150,7 +4172,7 @@ where
 
 impl<'a, Scalar: Dots, const MAX_RANK: usize> TensorView<'a, Scalar, MAX_RANK>
 where
-    Scalar::Accumulator: Clone + Default + 'static,
+    Scalar::Accumulator: 'static,
 {
     /// Computes the symmetric dot-product matrix C = A × Aᵀ.
     ///
@@ -4392,7 +4414,7 @@ impl<'a, Scalar: Jaccards, const MAX_RANK: usize> TensorView<'a, Scalar, MAX_RAN
 /// view and want to avoid the extra trait import.
 pub trait SymmetricDots<Scalar: Dots, const MAX_RANK: usize>: TensorRef<Scalar, MAX_RANK>
 where
-    Scalar::Accumulator: Clone + Default + 'static,
+    Scalar::Accumulator: 'static,
 {
     fn try_dots_symmetric(
         &self,
@@ -4416,7 +4438,7 @@ where
 impl<Scalar: Dots, const R: usize, OutputTensor: TensorRef<Scalar, R>> SymmetricDots<Scalar, R>
     for OutputTensor
 where
-    Scalar::Accumulator: Clone + Default + 'static,
+    Scalar::Accumulator: 'static,
 {
 }
 
@@ -4591,12 +4613,12 @@ mod tests {
     /// Round `depth` up to the nearest multiple of `Scalar::dimensions_per_value()`.
     fn align_depth<Scalar: StorageElement>(depth: usize) -> usize {
         let dims_per_value = Scalar::dimensions_per_value();
-        (depth + dims_per_value - 1) / dims_per_value * dims_per_value
+        depth.div_ceil(dims_per_value) * dims_per_value
     }
 
     fn check_dots_packed<Scalar: TestableType + Dots>()
     where
-        Scalar::Accumulator: Clone + Default + Copy + FloatLike + PartialEq + core::fmt::Debug,
+        Scalar::Accumulator: FloatLike + PartialEq + core::fmt::Debug,
     {
         init_thread();
         for &(height, width, depth) in DIMS {
@@ -4648,7 +4670,7 @@ mod tests {
 
     fn check_dots_packed_transposed<Scalar: TestableType + Dots>()
     where
-        Scalar::Accumulator: Clone + Default + Copy + FloatLike,
+        Scalar::Accumulator: FloatLike,
     {
         init_thread();
         for &(height, width, depth) in DIMS {
@@ -4676,7 +4698,7 @@ mod tests {
 
     fn check_angulars_packed<Scalar: TestableType + Angulars>()
     where
-        Scalar::SpatialResult: Clone + Default + Copy + FloatLike + PartialEq + core::fmt::Debug,
+        Scalar::SpatialResult: FloatLike + PartialEq + core::fmt::Debug,
     {
         init_thread();
         let tol = Scalar::atol();
@@ -4727,7 +4749,7 @@ mod tests {
 
     fn check_euclideans_packed<Scalar: TestableType + Euclideans>()
     where
-        Scalar::SpatialResult: Clone + Default + Copy + FloatLike + PartialEq + core::fmt::Debug,
+        Scalar::SpatialResult: FloatLike + PartialEq + core::fmt::Debug,
     {
         init_thread();
         let tol = Scalar::atol();
@@ -4779,7 +4801,7 @@ mod tests {
     #[cfg(feature = "parallel")]
     fn check_dots_packed_parallel<Scalar: TestableType + Dots + Send + Sync>()
     where
-        Scalar::Accumulator: Clone + Default + Copy + PartialEq + core::fmt::Debug + Send + Sync,
+        Scalar::Accumulator: PartialEq + core::fmt::Debug + Send + Sync,
     {
         init_thread();
         let mut pool = fork_union::ThreadPool::try_spawn(4).unwrap();
@@ -4800,7 +4822,7 @@ mod tests {
     #[cfg(feature = "parallel")]
     fn check_angulars_packed_parallel<Scalar: TestableType + Angulars + Send + Sync>()
     where
-        Scalar::SpatialResult: Clone + Default + Copy + PartialEq + core::fmt::Debug + Send + Sync,
+        Scalar::SpatialResult: PartialEq + core::fmt::Debug + Send + Sync,
     {
         init_thread();
         let mut pool = fork_union::ThreadPool::try_spawn(4).unwrap();
@@ -4821,7 +4843,7 @@ mod tests {
     #[cfg(feature = "parallel")]
     fn check_euclideans_packed_parallel<Scalar: TestableType + Euclideans + Send + Sync>()
     where
-        Scalar::SpatialResult: Clone + Default + Copy + PartialEq + core::fmt::Debug + Send + Sync,
+        Scalar::SpatialResult: PartialEq + core::fmt::Debug + Send + Sync,
     {
         init_thread();
         let mut pool = fork_union::ThreadPool::try_spawn(4).unwrap();

@@ -342,12 +342,11 @@ impl<Scalar: StorageElement, Alloc: Allocator> Drop for Vector<Scalar, Alloc> {
 
 /// Convert dimension count to value count for `Scalar`.
 ///
-/// For sub-byte types where `dimensions_per_value() > 1`, this performs ceiling
-/// division: `(dims + dims_per_value - 1) / dims_per_value`.
+/// For sub-byte types where `dimensions_per_value() > 1`, this is a ceiling
+/// division via [`usize::div_ceil`].
 #[inline]
 fn dims_to_values<Scalar: StorageElement>(dims: usize) -> usize {
-    let dims_per_value = Scalar::dimensions_per_value();
-    (dims + dims_per_value - 1) / dims_per_value
+    dims.div_ceil(Scalar::dimensions_per_value())
 }
 
 impl<Scalar: StorageElement, Alloc: Allocator> Vector<Scalar, Alloc> {
@@ -1179,8 +1178,7 @@ impl<'a, Scalar: StorageElement> VectorSpan<'a, Scalar> {
     /// Iterates over storage values (not logical dimensions) to avoid buffer
     /// overwrite for sub-byte types.
     pub fn fill(&mut self, value: Scalar) {
-        let dims_per_value = Scalar::dimensions_per_value();
-        let values = (self.dims + dims_per_value - 1) / dims_per_value;
+        let values = self.dims.div_ceil(Scalar::dimensions_per_value());
         for i in 0..values {
             // SAFETY: i < values; stride * i stays within the allocation
             let ptr = unsafe {
