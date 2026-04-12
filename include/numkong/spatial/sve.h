@@ -36,6 +36,7 @@
 #if NK_TARGET_SVE
 
 #include "numkong/types.h"
+#include "numkong/reduce/sve.h"   // `nk_svaddv_f64_`
 #include "numkong/spatial/neon.h" // `nk_f64_sqrt_neon`
 #include "numkong/dot/sve.h"      // `nk_dot_stable_sum_f64_sve_`
 
@@ -113,8 +114,7 @@ NK_PUBLIC void nk_sqeuclidean_f32_sve(nk_f32_t const *a, nk_f32_t const *b, nk_s
         svfloat64_t diff_odd_f64x = svsub_f64_x(pred_odd_b64x, a_odd_f64x, b_odd_f64x);
         dist_sq_f64x = svmla_f64_m(pred_odd_b64x, dist_sq_f64x, diff_odd_f64x, diff_odd_f64x);
     }
-    nk_f64_t dist_sq_f64 = svaddv_f64(svptrue_b64(), dist_sq_f64x);
-    NK_UNPOISON(&dist_sq_f64, sizeof(dist_sq_f64));
+    nk_f64_t dist_sq_f64 = nk_svaddv_f64_(svptrue_b64(), dist_sq_f64x);
     *result = dist_sq_f64;
 }
 
@@ -150,12 +150,9 @@ NK_PUBLIC void nk_angular_f32_sve(nk_f32_t const *a, nk_f32_t const *b, nk_size_
         b2_f64x = svmla_f64_m(pred_odd_b64x, b2_f64x, b_odd_f64x, b_odd_f64x);
     }
 
-    nk_f64_t ab_f64 = svaddv_f64(svptrue_b64(), ab_f64x);
-    nk_f64_t a2_f64 = svaddv_f64(svptrue_b64(), a2_f64x);
-    nk_f64_t b2_f64 = svaddv_f64(svptrue_b64(), b2_f64x);
-    NK_UNPOISON(&ab_f64, sizeof(ab_f64));
-    NK_UNPOISON(&a2_f64, sizeof(a2_f64));
-    NK_UNPOISON(&b2_f64, sizeof(b2_f64));
+    nk_f64_t ab_f64 = nk_svaddv_f64_(svptrue_b64(), ab_f64x);
+    nk_f64_t a2_f64 = nk_svaddv_f64_(svptrue_b64(), a2_f64x);
+    nk_f64_t b2_f64 = nk_svaddv_f64_(svptrue_b64(), b2_f64x);
     *result = nk_angular_normalize_f64_neon_(ab_f64, a2_f64, b2_f64);
 }
 
@@ -229,10 +226,8 @@ NK_PUBLIC void nk_angular_f64_sve(nk_f64_t const *a, nk_f64_t const *b, nk_size_
     } while (i < n);
 
     nk_f64_t ab_f64 = nk_dot_stable_sum_f64_sve_(predicate_all_b64x, ab_sum_f64x, ab_compensation_f64x);
-    nk_f64_t a2_f64 = svaddv_f64(predicate_all_b64x, a2_f64x);
-    nk_f64_t b2_f64 = svaddv_f64(predicate_all_b64x, b2_f64x);
-    NK_UNPOISON(&a2_f64, sizeof(a2_f64));
-    NK_UNPOISON(&b2_f64, sizeof(b2_f64));
+    nk_f64_t a2_f64 = nk_svaddv_f64_(predicate_all_b64x, a2_f64x);
+    nk_f64_t b2_f64 = nk_svaddv_f64_(predicate_all_b64x, b2_f64x);
     *result = nk_angular_normalize_f64_neon_(ab_f64, a2_f64, b2_f64);
 }
 

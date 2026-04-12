@@ -4,6 +4,22 @@
 //!
 //! - [`SparseIntersect`]: Sorted-set intersection of index arrays
 //! - [`SparseDot`]: Weighted dot product over sparse index-value pairs
+//!
+//! # Sorted-Index Assumption
+//!
+//! Every sparse routine in this module assumes that the index arrays are **strictly
+//! ascending** (sorted with no duplicates) — for example `[1, 3, 5, 7]`. The
+//! underlying SIMD kernels use galloping / merge-style advancement that is only
+//! correct on sorted input; feeding unsorted indices silently produces wrong results
+//! (typically an undercounted intersection).
+//!
+//! For [`SparseDot`], the paired `weights` slice must mirror the index layout: entry
+//! `weights[i]` is the weight at `indices[i]`. The dot product sums
+//! `a_weights[i] × b_weights[j]` over all pairs `i, j` where
+//! `a_indices[i] == b_indices[j]` — i.e., the intersection's co-indexed weights.
+//!
+//! Callers with unsorted sparse vectors should sort (e.g., via `slice::sort_unstable`)
+//! and deduplicate before calling these kernels.
 
 use crate::types::bf16;
 
@@ -263,43 +279,43 @@ mod tests {
     #[test]
     fn sparse_intersection() {
         // u16 — intersection size
-        let a: Vec<u16> = vec![1, 3, 5, 7, 9];
-        let b: Vec<u16> = vec![2, 3, 5, 8, 9];
-        assert_eq!(u16::sparse_intersection_size(&a, &b), 3);
+        let left: Vec<u16> = vec![1, 3, 5, 7, 9];
+        let right: Vec<u16> = vec![2, 3, 5, 8, 9];
+        assert_eq!(u16::sparse_intersection_size(&left, &right), 3);
 
         // u16 — intersect into buffer
         let mut result: Vec<u16> = vec![0; 5];
-        let count = u16::sparse_intersect_into(&a, &b, &mut result).unwrap();
+        let count = u16::sparse_intersect_into(&left, &right, &mut result).unwrap();
         assert_eq!(count, 3);
         assert_eq!(&result[..count], &[3, 5, 9]);
 
         // u32 — intersect into buffer
-        let a: Vec<u32> = vec![10, 20, 30, 40];
-        let b: Vec<u32> = vec![15, 20, 30, 45];
+        let left: Vec<u32> = vec![10, 20, 30, 40];
+        let right: Vec<u32> = vec![15, 20, 30, 45];
         let mut result: Vec<u32> = vec![0; 4];
-        let count = u32::sparse_intersect_into(&a, &b, &mut result).unwrap();
+        let count = u32::sparse_intersect_into(&left, &right, &mut result).unwrap();
         assert_eq!(count, 2);
         assert_eq!(&result[..count], &[20, 30]);
 
         // u64 — intersection size
-        let a: Vec<u64> = vec![100, 200, 300];
-        let b: Vec<u64> = vec![200, 300, 400];
-        assert_eq!(u64::sparse_intersection_size(&a, &b), 2);
+        let left: Vec<u64> = vec![100, 200, 300];
+        let right: Vec<u64> = vec![200, 300, 400];
+        assert_eq!(u64::sparse_intersection_size(&left, &right), 2);
     }
 
     #[test]
     fn sparse_intersect_into_buffer_too_small() {
-        let a: Vec<u16> = vec![1, 2, 3, 4, 5];
-        let b: Vec<u16> = vec![3, 4, 5, 6, 7];
+        let left: Vec<u16> = vec![1, 2, 3, 4, 5];
+        let right: Vec<u16> = vec![3, 4, 5, 6, 7];
         let mut result: Vec<u16> = vec![0; 2];
-        assert!(u16::sparse_intersect_into(&a, &b, &mut result).is_none());
+        assert!(u16::sparse_intersect_into(&left, &right, &mut result).is_none());
     }
 
     // endregion
 
     // region: Intersection Tests
 
-    fn reference_intersect<T: Ord>(a: &[T], b: &[T]) -> usize {
+    fn reference_intersect<Scalar: Ord>(a: &[Scalar], b: &[Scalar]) -> usize {
         let mut a_iter = a.iter();
         let mut b_iter = b.iter();
         let mut a_current = a_iter.next();
@@ -319,48 +335,54 @@ mod tests {
         count
     }
 
-    fn generate_intersection_test_arrays<T>() -> Vec<Vec<T>>
+    fn generate_intersection_test_arrays<Scalar>() -> Vec<Vec<Scalar>>
     where
-        T: core::convert::TryFrom<u32> + Copy,
-        <T as core::convert::TryFrom<u32>>::Error: core::fmt::Debug,
+        Scalar: core::convert::TryFrom<u32> + Copy,
+        <Scalar as core::convert::TryFrom<u32>>::Error: core::fmt::Debug,
     {
         vec![
             vec![],
-            vec![T::try_from(42).unwrap()],
+            vec![Scalar::try_from(42).unwrap()],
             vec![
-                T::try_from(1).unwrap(),
-                T::try_from(5).unwrap(),
-                T::try_from(10).unwrap(),
+                Scalar::try_from(1).unwrap(),
+                Scalar::try_from(5).unwrap(),
+                Scalar::try_from(10).unwrap(),
             ],
             vec![
-                T::try_from(2).unwrap(),
-                T::try_from(4).unwrap(),
-                T::try_from(6).unwrap(),
-                T::try_from(8).unwrap(),
-                T::try_from(10).unwrap(),
-                T::try_from(12).unwrap(),
-                T::try_from(14).unwrap(),
+                Scalar::try_from(2).unwrap(),
+                Scalar::try_from(4).unwrap(),
+                Scalar::try_from(6).unwrap(),
+                Scalar::try_from(8).unwrap(),
+                Scalar::try_from(10).unwrap(),
+                Scalar::try_from(12).unwrap(),
+                Scalar::try_from(14).unwrap(),
             ],
-            (0..14).map(|x| T::try_from(x * 10).unwrap()).collect(),
-            (5..20).map(|x| T::try_from(x * 10).unwrap()).collect(),
-            (0..40).map(|x| T::try_from(x * 2).unwrap()).collect(),
-            (10..50).map(|x| T::try_from(x * 2).unwrap()).collect(),
-            (0..45).map(|x| T::try_from(x * 3).unwrap()).collect(),
-            (0..100).map(|x| T::try_from(x * 2).unwrap()).collect(),
-            (50..150).map(|x| T::try_from(x * 2).unwrap()).collect(),
-            (0..100).map(|x| T::try_from(x * 5).unwrap()).collect(),
+            (0..14).map(|x| Scalar::try_from(x * 10).unwrap()).collect(),
+            (5..20).map(|x| Scalar::try_from(x * 10).unwrap()).collect(),
+            (0..40).map(|x| Scalar::try_from(x * 2).unwrap()).collect(),
+            (10..50).map(|x| Scalar::try_from(x * 2).unwrap()).collect(),
+            (0..45).map(|x| Scalar::try_from(x * 3).unwrap()).collect(),
+            (0..100).map(|x| Scalar::try_from(x * 2).unwrap()).collect(),
+            (50..150)
+                .map(|x| Scalar::try_from(x * 2).unwrap())
+                .collect(),
+            (0..100).map(|x| Scalar::try_from(x * 5).unwrap()).collect(),
             (0..150)
                 .filter(|x| x % 7 == 0)
-                .map(|x| T::try_from(x).unwrap())
+                .map(|x| Scalar::try_from(x).unwrap())
                 .collect(),
-            (0..500).map(|x| T::try_from(x * 3).unwrap()).collect(),
-            (100..600).map(|x| T::try_from(x * 3).unwrap()).collect(),
-            (0..600).map(|x| T::try_from(x * 7).unwrap()).collect(),
-            (0..50).map(|x| T::try_from(x * 2).unwrap()).collect(),
-            (1000..1050).map(|x| T::try_from(x * 2).unwrap()).collect(),
-            (0..16).map(|x| T::try_from(x).unwrap()).collect(),
-            (0..32).map(|x| T::try_from(x).unwrap()).collect(),
-            (0..64).map(|x| T::try_from(x).unwrap()).collect(),
+            (0..500).map(|x| Scalar::try_from(x * 3).unwrap()).collect(),
+            (100..600)
+                .map(|x| Scalar::try_from(x * 3).unwrap())
+                .collect(),
+            (0..600).map(|x| Scalar::try_from(x * 7).unwrap()).collect(),
+            (0..50).map(|x| Scalar::try_from(x * 2).unwrap()).collect(),
+            (1000..1050)
+                .map(|x| Scalar::try_from(x * 2).unwrap())
+                .collect(),
+            (0..16).map(|x| Scalar::try_from(x).unwrap()).collect(),
+            (0..32).map(|x| Scalar::try_from(x).unwrap()).collect(),
+            (0..64).map(|x| Scalar::try_from(x).unwrap()).collect(),
         ]
     }
 

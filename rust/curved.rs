@@ -49,13 +49,13 @@ impl Bilinear for f64 {
     type Output = f64;
 
     fn bilinear(a: &[Self], b: &[Self], c: &[Self]) -> Option<Self::Output> {
-        let n = a.len();
-        if n == 0 || b.len() != n || c.len() != n * n {
+        let point_count = a.len();
+        if point_count == 0 || b.len() != point_count || c.len() != point_count * point_count {
             return None;
         }
         let mut result: f64 = 0.0;
         unsafe {
-            nk_bilinear_f64(a.as_ptr(), b.as_ptr(), c.as_ptr(), n, &mut result);
+            nk_bilinear_f64(a.as_ptr(), b.as_ptr(), c.as_ptr(), point_count, &mut result);
         }
         Some(result)
     }
@@ -65,13 +65,13 @@ impl Bilinear for f32 {
     type Output = f64;
 
     fn bilinear(a: &[Self], b: &[Self], c: &[Self]) -> Option<Self::Output> {
-        let n = a.len();
-        if n == 0 || b.len() != n || c.len() != n * n {
+        let point_count = a.len();
+        if point_count == 0 || b.len() != point_count || c.len() != point_count * point_count {
             return None;
         }
         let mut result: f64 = 0.0;
         unsafe {
-            nk_bilinear_f32(a.as_ptr(), b.as_ptr(), c.as_ptr(), n, &mut result);
+            nk_bilinear_f32(a.as_ptr(), b.as_ptr(), c.as_ptr(), point_count, &mut result);
         }
         Some(result)
     }
@@ -81,8 +81,8 @@ impl Bilinear for f16 {
     type Output = f32;
 
     fn bilinear(a: &[Self], b: &[Self], c: &[Self]) -> Option<Self::Output> {
-        let n = a.len();
-        if n == 0 || b.len() != n || c.len() != n * n {
+        let point_count = a.len();
+        if point_count == 0 || b.len() != point_count || c.len() != point_count * point_count {
             return None;
         }
         let mut result: f32 = 0.0;
@@ -91,7 +91,7 @@ impl Bilinear for f16 {
                 a.as_ptr() as *const u16,
                 b.as_ptr() as *const u16,
                 c.as_ptr() as *const u16,
-                n,
+                point_count,
                 &mut result,
             );
         }
@@ -103,8 +103,8 @@ impl Bilinear for bf16 {
     type Output = f32;
 
     fn bilinear(a: &[Self], b: &[Self], c: &[Self]) -> Option<Self::Output> {
-        let n = a.len();
-        if n == 0 || b.len() != n || c.len() != n * n {
+        let point_count = a.len();
+        if point_count == 0 || b.len() != point_count || c.len() != point_count * point_count {
             return None;
         }
         let mut result: f32 = 0.0;
@@ -113,7 +113,7 @@ impl Bilinear for bf16 {
                 a.as_ptr() as *const u16,
                 b.as_ptr() as *const u16,
                 c.as_ptr() as *const u16,
-                n,
+                point_count,
                 &mut result,
             );
         }
@@ -125,8 +125,8 @@ impl Bilinear for f64c {
     type Output = f64c;
 
     fn bilinear(a: &[Self], b: &[Self], c: &[Self]) -> Option<Self::Output> {
-        let n = a.len();
-        if n == 0 || b.len() != n || c.len() != n * n {
+        let point_count = a.len();
+        if point_count == 0 || b.len() != point_count || c.len() != point_count * point_count {
             return None;
         }
         let mut result = [0.0f64; 2];
@@ -135,7 +135,7 @@ impl Bilinear for f64c {
                 a.as_ptr() as *const f64,
                 b.as_ptr() as *const f64,
                 c.as_ptr() as *const f64,
-                n,
+                point_count,
                 result.as_mut_ptr(),
             );
         }
@@ -150,8 +150,8 @@ impl Bilinear for f32c {
     type Output = f64c;
 
     fn bilinear(a: &[Self], b: &[Self], c: &[Self]) -> Option<Self::Output> {
-        let n = a.len();
-        if n == 0 || b.len() != n || c.len() != n * n {
+        let point_count = a.len();
+        if point_count == 0 || b.len() != point_count || c.len() != point_count * point_count {
             return None;
         }
         let mut result = [0.0f64; 2];
@@ -160,7 +160,7 @@ impl Bilinear for f32c {
                 a.as_ptr() as *const f32,
                 b.as_ptr() as *const f32,
                 c.as_ptr() as *const f32,
-                n,
+                point_count,
                 result.as_mut_ptr(),
             );
         }
@@ -175,8 +175,8 @@ impl Bilinear for f16c {
     type Output = f32c;
 
     fn bilinear(a: &[Self], b: &[Self], c: &[Self]) -> Option<Self::Output> {
-        let n = a.len();
-        if n == 0 || b.len() != n || c.len() != n * n {
+        let point_count = a.len();
+        if point_count == 0 || b.len() != point_count || c.len() != point_count * point_count {
             return None;
         }
         let mut result = [0.0f32; 2];
@@ -185,7 +185,7 @@ impl Bilinear for f16c {
                 a.as_ptr() as *const u16,
                 b.as_ptr() as *const u16,
                 c.as_ptr() as *const u16,
-                n,
+                point_count,
                 result.as_mut_ptr(),
             );
         }
@@ -200,8 +200,8 @@ impl Bilinear for bf16c {
     type Output = f32c;
 
     fn bilinear(a: &[Self], b: &[Self], c: &[Self]) -> Option<Self::Output> {
-        let n = a.len();
-        if n == 0 || b.len() != n || c.len() != n * n {
+        let point_count = a.len();
+        if point_count == 0 || b.len() != point_count || c.len() != point_count * point_count {
             return None;
         }
         let mut result = [0.0f32; 2];
@@ -210,7 +210,7 @@ impl Bilinear for bf16c {
                 a.as_ptr() as *const u16,
                 b.as_ptr() as *const u16,
                 c.as_ptr() as *const u16,
-                n,
+                point_count,
                 result.as_mut_ptr(),
             );
         }
@@ -245,13 +245,13 @@ impl Mahalanobis for f64 {
     type Output = f64;
 
     fn mahalanobis(a: &[Self], b: &[Self], c: &[Self]) -> Option<Self::Output> {
-        let n = a.len();
-        if n == 0 || b.len() != n || c.len() != n * n {
+        let point_count = a.len();
+        if point_count == 0 || b.len() != point_count || c.len() != point_count * point_count {
             return None;
         }
         let mut result: f64 = 0.0;
         unsafe {
-            nk_mahalanobis_f64(a.as_ptr(), b.as_ptr(), c.as_ptr(), n, &mut result);
+            nk_mahalanobis_f64(a.as_ptr(), b.as_ptr(), c.as_ptr(), point_count, &mut result);
         }
         Some(result)
     }
@@ -261,13 +261,13 @@ impl Mahalanobis for f32 {
     type Output = f64;
 
     fn mahalanobis(a: &[Self], b: &[Self], c: &[Self]) -> Option<Self::Output> {
-        let n = a.len();
-        if n == 0 || b.len() != n || c.len() != n * n {
+        let point_count = a.len();
+        if point_count == 0 || b.len() != point_count || c.len() != point_count * point_count {
             return None;
         }
         let mut result: f64 = 0.0;
         unsafe {
-            nk_mahalanobis_f32(a.as_ptr(), b.as_ptr(), c.as_ptr(), n, &mut result);
+            nk_mahalanobis_f32(a.as_ptr(), b.as_ptr(), c.as_ptr(), point_count, &mut result);
         }
         Some(result)
     }
@@ -277,8 +277,8 @@ impl Mahalanobis for f16 {
     type Output = f32;
 
     fn mahalanobis(a: &[Self], b: &[Self], c: &[Self]) -> Option<Self::Output> {
-        let n = a.len();
-        if n == 0 || b.len() != n || c.len() != n * n {
+        let point_count = a.len();
+        if point_count == 0 || b.len() != point_count || c.len() != point_count * point_count {
             return None;
         }
         let mut result: f32 = 0.0;
@@ -287,7 +287,7 @@ impl Mahalanobis for f16 {
                 a.as_ptr() as *const u16,
                 b.as_ptr() as *const u16,
                 c.as_ptr() as *const u16,
-                n,
+                point_count,
                 &mut result,
             );
         }
@@ -299,8 +299,8 @@ impl Mahalanobis for bf16 {
     type Output = f32;
 
     fn mahalanobis(a: &[Self], b: &[Self], c: &[Self]) -> Option<Self::Output> {
-        let n = a.len();
-        if n == 0 || b.len() != n || c.len() != n * n {
+        let point_count = a.len();
+        if point_count == 0 || b.len() != point_count || c.len() != point_count * point_count {
             return None;
         }
         let mut result: f32 = 0.0;
@@ -309,7 +309,7 @@ impl Mahalanobis for bf16 {
                 a.as_ptr() as *const u16,
                 b.as_ptr() as *const u16,
                 c.as_ptr() as *const u16,
-                n,
+                point_count,
                 &mut result,
             );
         }
@@ -321,30 +321,30 @@ impl Mahalanobis for bf16 {
 mod tests {
     use super::*;
     use crate::types::{assert_close, bf16, f16, FloatLike, NumberLike, TestableType};
-    /// Build an identity matrix of size n*n.
-    pub(crate) fn make_identity<T: FloatLike>(n: usize) -> Vec<T> {
-        let mut v = vec![T::zero(); n * n];
-        for i in 0..n {
-            v[i * n + i] = T::one();
+    /// Build an identity matrix of size point_count × point_count.
+    pub(crate) fn make_identity<Scalar: FloatLike>(point_count: usize) -> Vec<Scalar> {
+        let mut v = vec![Scalar::zero(); point_count * point_count];
+        for i in 0..point_count {
+            v[i * point_count + i] = Scalar::one();
         }
         v
     }
 
-    fn check_bilinear<T>(first_values: &[f32], second_values: &[f32], expected: f64)
+    fn check_bilinear<Scalar>(first_values: &[f32], second_values: &[f32], expected: f64)
     where
-        T: FloatLike + TestableType + Bilinear,
-        T::Output: FloatLike,
+        Scalar: FloatLike + TestableType + Bilinear,
+        Scalar::Output: FloatLike,
     {
-        let first: Vec<T> = first_values.iter().map(|&v| T::from_f32(v)).collect();
-        let second: Vec<T> = second_values.iter().map(|&v| T::from_f32(v)).collect();
-        let identity = make_identity::<T>(first.len());
-        let result = T::bilinear(&first, &second, &identity).unwrap();
+        let first: Vec<Scalar> = first_values.iter().map(|&v| Scalar::from_f32(v)).collect();
+        let second: Vec<Scalar> = second_values.iter().map(|&v| Scalar::from_f32(v)).collect();
+        let identity = make_identity::<Scalar>(first.len());
+        let result = Scalar::bilinear(&first, &second, &identity).unwrap();
         assert_close(
             result.to_f64(),
             expected,
-            T::atol(),
-            T::rtol(),
-            &format!("bilinear<{}>", core::any::type_name::<T>()),
+            Scalar::atol(),
+            Scalar::rtol(),
+            &format!("bilinear<{}>", core::any::type_name::<Scalar>()),
         );
     }
 
@@ -359,21 +359,21 @@ mod tests {
         check_bilinear::<bf16>(first_values, second_values, 32.0);
     }
 
-    fn check_mahalanobis<T>(first_values: &[f32], second_values: &[f32], expected: f64)
+    fn check_mahalanobis<Scalar>(first_values: &[f32], second_values: &[f32], expected: f64)
     where
-        T: FloatLike + TestableType + Mahalanobis,
-        T::Output: FloatLike,
+        Scalar: FloatLike + TestableType + Mahalanobis,
+        Scalar::Output: FloatLike,
     {
-        let first: Vec<T> = first_values.iter().map(|&v| T::from_f32(v)).collect();
-        let second: Vec<T> = second_values.iter().map(|&v| T::from_f32(v)).collect();
-        let identity = make_identity::<T>(first.len());
-        let result = T::mahalanobis(&first, &second, &identity).unwrap();
+        let first: Vec<Scalar> = first_values.iter().map(|&v| Scalar::from_f32(v)).collect();
+        let second: Vec<Scalar> = second_values.iter().map(|&v| Scalar::from_f32(v)).collect();
+        let identity = make_identity::<Scalar>(first.len());
+        let result = Scalar::mahalanobis(&first, &second, &identity).unwrap();
         assert_close(
             result.to_f64(),
             expected,
-            T::atol(),
-            T::rtol(),
-            &format!("mahalanobis<{}>", core::any::type_name::<T>()),
+            Scalar::atol(),
+            Scalar::rtol(),
+            &format!("mahalanobis<{}>", core::any::type_name::<Scalar>()),
         );
     }
 

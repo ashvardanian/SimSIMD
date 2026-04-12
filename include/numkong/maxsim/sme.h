@@ -46,7 +46,8 @@
 #if NK_TARGET_ARM64_
 #if NK_TARGET_SME
 
-#include "numkong/dots/sme.h" // nk_dots_sme_packed_header_t, nk_dots_pack_{f16,bf16}_sme, nk_dots_packed_size_{f16,bf16}_sme
+#include "numkong/dots/sme.h"   // `nk_dots_sme_packed_header_t`
+#include "numkong/reduce/sve.h" // `nk_svaddv_f64_`
 
 #if defined(__cplusplus)
 extern "C" {
@@ -90,10 +91,9 @@ NK_STATIC_ASSERT(sizeof(nk_maxsim_sme_packed_header_t) == 64, nk_maxsim_sme_pack
  *
  *  1-tile remainder: uses ZA0 only, with predicated loads for partial tiles.
  */
-__arm_locally_streaming __arm_new("za") static void nk_maxsim_packed_f16_streaming_( //
-    void const *query_packed, void const *document_packed,                           //
-    nk_size_t query_count, nk_size_t document_count,                                 //
-    nk_size_t depth, nk_f32_t *result) {
+__arm_new("za") static void nk_maxsim_packed_f16_streaming_( //
+    void const *query_packed, void const *document_packed, nk_size_t query_count, nk_size_t document_count,
+    nk_size_t depth, nk_f32_t *result) NK_STREAMING_ {
 
     nk_maxsim_sme_packed_header_t const *query_header = (nk_maxsim_sme_packed_header_t const *)query_packed;
     nk_maxsim_sme_packed_header_t const *document_header = (nk_maxsim_sme_packed_header_t const *)document_packed;
@@ -258,19 +258,19 @@ __arm_locally_streaming __arm_new("za") static void nk_maxsim_packed_f16_streami
             document_inverse_norms_f32x);
         svfloat32_t angular_distance_f32x = svmax_f32_x(
             row_predicate_b32x, svsub_f32_x(row_predicate_b32x, svdup_f32(1.0f), cosine_f32x), svdup_f32(0.0f));
-        total_angular_distance += svaddv_f32(row_predicate_b32x, angular_distance_f32x);
-        NK_UNPOISON(&total_angular_distance, sizeof(total_angular_distance));
+        total_angular_distance += nk_svaddv_f32_(row_predicate_b32x, angular_distance_f32x);
     }
 
     *result = total_angular_distance;
 }
 
-NK_PUBLIC void nk_maxsim_packed_f16_sme(                              //
-    void const *query_packed, void const *document_packed,            //
-    nk_size_t query_count, nk_size_t document_count, nk_size_t depth, //
-    nk_f32_t *result) {                                               //
+NK_PUBLIC void nk_maxsim_packed_f16_sme( //
+    void const *query_packed, void const *document_packed, nk_size_t query_count, nk_size_t document_count,
+    nk_size_t depth, nk_f32_t *result) {
 
+    nk_sme_start_streaming_();
     nk_maxsim_packed_f16_streaming_(query_packed, document_packed, query_count, document_count, depth, result);
+    nk_sme_stop_streaming_();
 }
 
 /**
@@ -282,10 +282,9 @@ NK_PUBLIC void nk_maxsim_packed_f16_sme(                              //
  *
  *  1-tile remainder: uses ZA0 only, with predicated loads for partial tiles.
  */
-__arm_locally_streaming __arm_new("za") static void nk_maxsim_packed_bf16_streaming_( //
-    void const *query_packed, void const *document_packed,                            //
-    nk_size_t query_count, nk_size_t document_count,                                  //
-    nk_size_t depth, nk_f32_t *result) {
+__arm_new("za") static void nk_maxsim_packed_bf16_streaming_( //
+    void const *query_packed, void const *document_packed, nk_size_t query_count, nk_size_t document_count,
+    nk_size_t depth, nk_f32_t *result) NK_STREAMING_ {
 
     nk_maxsim_sme_packed_header_t const *query_header = (nk_maxsim_sme_packed_header_t const *)query_packed;
     nk_maxsim_sme_packed_header_t const *document_header = (nk_maxsim_sme_packed_header_t const *)document_packed;
@@ -455,19 +454,19 @@ __arm_locally_streaming __arm_new("za") static void nk_maxsim_packed_bf16_stream
             document_inverse_norms_f32x);
         svfloat32_t angular_distance_f32x = svmax_f32_x(
             row_predicate_b32x, svsub_f32_x(row_predicate_b32x, svdup_f32(1.0f), cosine_f32x), svdup_f32(0.0f));
-        total_angular_distance += svaddv_f32(row_predicate_b32x, angular_distance_f32x);
-        NK_UNPOISON(&total_angular_distance, sizeof(total_angular_distance));
+        total_angular_distance += nk_svaddv_f32_(row_predicate_b32x, angular_distance_f32x);
     }
 
     *result = total_angular_distance;
 }
 
-NK_PUBLIC void nk_maxsim_packed_bf16_sme(                             //
-    void const *query_packed, void const *document_packed,            //
-    nk_size_t query_count, nk_size_t document_count, nk_size_t depth, //
-    nk_f32_t *result) {                                               //
+NK_PUBLIC void nk_maxsim_packed_bf16_sme( //
+    void const *query_packed, void const *document_packed, nk_size_t query_count, nk_size_t document_count,
+    nk_size_t depth, nk_f32_t *result) {
 
+    nk_sme_start_streaming_();
     nk_maxsim_packed_bf16_streaming_(query_packed, document_packed, query_count, document_count, depth, result);
+    nk_sme_stop_streaming_();
 }
 
 NK_PUBLIC nk_size_t nk_maxsim_packed_size_bf16_sme(nk_size_t columns, nk_size_t depth) { //
@@ -651,11 +650,7 @@ NK_PUBLIC nk_f64_t nk_maxsim_reduce_dot_f32_ssve_(                         //
         svfloat64_t b_odd_f64x = svcvtlt_f64_f32_x(predicate_odd_b64x, b_f32x);
         accumulator_odd_f64x = svmla_f64_m(predicate_odd_b64x, accumulator_odd_f64x, a_odd_f64x, b_odd_f64x);
     }
-    nk_f64_t sum_even = svaddv_f64(svptrue_b64(), accumulator_even_f64x);
-    nk_f64_t sum_odd = svaddv_f64(svptrue_b64(), accumulator_odd_f64x);
-    NK_UNPOISON(&sum_even, sizeof(sum_even));
-    NK_UNPOISON(&sum_odd, sizeof(sum_odd));
-    return sum_even + sum_odd;
+    return nk_svaddv_f64_(svptrue_b64(), accumulator_even_f64x) + nk_svaddv_f64_(svptrue_b64(), accumulator_odd_f64x);
 }
 
 /**
@@ -693,7 +688,7 @@ NK_PUBLIC nk_f64_t nk_maxsim_angular_from_dots_ssve_(                           
         svfloat64_t angular_distance_f64x = svsub_f64_x(predicate_b64x, svdup_f64(1.0), cosine_f64x);
         angular_distance_f64x = svmax_f64_x(predicate_b64x, angular_distance_f64x, svdup_f64(0.0));
 
-        total_angular_distance_f64 += svaddv_f64(predicate_b64x, angular_distance_f64x);
+        total_angular_distance_f64 += nk_svaddv_f64_(predicate_b64x, angular_distance_f64x);
     }
     return total_angular_distance_f64;
 }
@@ -707,10 +702,9 @@ NK_PUBLIC nk_f64_t nk_maxsim_angular_from_dots_ssve_(                           
  *  Refinement: tile-wide interleaved f64 dot products for the winning (query, document) pairs.
  *  Angular distance: 1 - dot / sqrt(||q||^2 * ||d||^2), accumulated with f64.
  */
-__arm_locally_streaming __arm_new("za") static void nk_maxsim_packed_f32_streaming_( //
-    void const *query_packed, void const *document_packed,                           //
-    nk_size_t query_count, nk_size_t document_count, nk_size_t depth,                //
-    nk_f64_t *result) {
+__arm_new("za") static void nk_maxsim_packed_f32_streaming_( //
+    void const *query_packed, void const *document_packed, nk_size_t query_count, nk_size_t document_count,
+    nk_size_t depth, nk_f64_t *result) NK_STREAMING_ {
 
     nk_maxsim_sme_packed_header_t const *query_header = (nk_maxsim_sme_packed_header_t const *)query_packed;
     nk_maxsim_sme_packed_header_t const *document_header = (nk_maxsim_sme_packed_header_t const *)document_packed;
@@ -943,10 +937,10 @@ __arm_locally_streaming __arm_new("za") static void nk_maxsim_packed_f32_streami
 
             // Reduce SVE accumulators to scalars and compute angular distances
             nk_f64_t dot_products_f64[4];
-            dot_products_f64[0] = svaddv_f64(svptrue_b64(), accumulator_0_f64x);
-            dot_products_f64[1] = svaddv_f64(svptrue_b64(), accumulator_1_f64x);
-            dot_products_f64[2] = svaddv_f64(svptrue_b64(), accumulator_2_f64x);
-            dot_products_f64[3] = svaddv_f64(svptrue_b64(), accumulator_3_f64x);
+            dot_products_f64[0] = nk_svaddv_f64_(svptrue_b64(), accumulator_0_f64x);
+            dot_products_f64[1] = nk_svaddv_f64_(svptrue_b64(), accumulator_1_f64x);
+            dot_products_f64[2] = nk_svaddv_f64_(svptrue_b64(), accumulator_2_f64x);
+            dot_products_f64[3] = nk_svaddv_f64_(svptrue_b64(), accumulator_3_f64x);
             nk_f64_t batch_query_norms_f64[4], batch_document_norms_f64[4];
             for (nk_size_t i = 0; i < 4; i++) {
                 batch_query_norms_f64[i] = (nk_f64_t)query_norms[row_start + row_batch_start + i];
@@ -975,12 +969,13 @@ __arm_locally_streaming __arm_new("za") static void nk_maxsim_packed_f32_streami
     *result = total_angular_distance_f64;
 }
 
-NK_PUBLIC void nk_maxsim_packed_f32_sme(                              //
-    void const *query_packed, void const *document_packed,            //
-    nk_size_t query_count, nk_size_t document_count, nk_size_t depth, //
-    nk_f64_t *result) {                                               //
+NK_PUBLIC void nk_maxsim_packed_f32_sme( //
+    void const *query_packed, void const *document_packed, nk_size_t query_count, nk_size_t document_count,
+    nk_size_t depth, nk_f64_t *result) {
 
+    nk_sme_start_streaming_();
     nk_maxsim_packed_f32_streaming_(query_packed, document_packed, query_count, document_count, depth, result);
+    nk_sme_stop_streaming_();
 }
 
 #if defined(__clang__)

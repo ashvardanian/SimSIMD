@@ -8,6 +8,40 @@
 //! - [`EachBlend`]: Weighted blend of two vectors
 //! - [`EachFMA`]: Fused multiply-add (a * alpha + b * beta)
 //! - [`Trigonometry`]: Blanket trait combining `EachSin + EachCos + EachATan`
+//!
+//! # In-Place vs Allocating Semantics
+//!
+//! Every operation in this module is **allocation-free**: the caller provides both
+//! the input slices and a pre-sized output buffer. The kernels never grow a `Vec`
+//! internally, never return a new allocation, and never call into the allocator —
+//! perfect for warm inner loops and `no_std` contexts.
+//!
+//! Because the output buffer is always a separate `&mut [Self]`, a caller who
+//! wants in-place update must explicitly alias the output to one of the inputs
+//! (for example by passing the same slot for both):
+//!
+//! ```ignore
+//! // Functionally equivalent to `x *= 2.0`.
+//! f32::each_scale(&x.clone(), 2.0, 0.0, &mut x).unwrap();
+//! ```
+//!
+//! # Stride Support
+//!
+//! Inputs are read contiguously in memory. For strided access, `slice::chunks_by`,
+//! `step_by`, or a caller-side reshape is the right tool — this module keeps the
+//! fast-path API simple and lets the SIMD kernels assume packed layout. See the
+//! strided variants in [`reduce`](crate::reduce) when non-unit stride is needed.
+//!
+//! # Example
+//!
+//! ```
+//! use numkong::EachScale;
+//! let input = [1.0_f32, 2.0, 3.0, 4.0];
+//! let mut output = [0.0_f32; 4];
+//! // Compute output[i] = 2.0 * input[i] + 0.5
+//! f32::each_scale(&input, 2.0, 0.5, &mut output).unwrap();
+//! assert_eq!(output, [2.5, 4.5, 6.5, 8.5]);
+//! ```
 
 use crate::types::{bf16, bf16c, e2m3, e3m2, e4m3, e5m2, f16, f16c, f32c, f64c, StorageElement};
 
@@ -484,22 +518,31 @@ extern "C" {
 
 // Complex fallback helpers
 
-fn complex_each_sum_fallback<T>(a: &[T], b: &[T], result: &mut [T]) -> Option<()>
+fn complex_each_sum_fallback<Scalar>(
+    a: &[Scalar],
+    b: &[Scalar],
+    result: &mut [Scalar],
+) -> Option<()>
 where
-    T: Copy + core::ops::Add<Output = T>,
+    Scalar: Copy + core::ops::Add<Output = Scalar>,
 {
     if a.len() != b.len() || a.len() != result.len() {
         return None;
     }
-    for ((lhs, rhs), out) in a.iter().zip(b.iter()).zip(result.iter_mut()) {
-        *out = *lhs + *rhs;
+    for ((left, right), out) in a.iter().zip(b.iter()).zip(result.iter_mut()) {
+        *out = *left + *right;
     }
     Some(())
 }
 
-fn complex_each_scale_fallback<T>(a: &[T], alpha: T, beta: T, result: &mut [T]) -> Option<()>
+fn complex_each_scale_fallback<Scalar>(
+    a: &[Scalar],
+    alpha: Scalar,
+    beta: Scalar,
+    result: &mut [Scalar],
+) -> Option<()>
 where
-    T: Copy + core::ops::Add<Output = T> + core::ops::Mul<Output = T>,
+    Scalar: Copy + core::ops::Add<Output = Scalar> + core::ops::Mul<Output = Scalar>,
 {
     if a.len() != result.len() {
         return None;
@@ -510,41 +553,42 @@ where
     Some(())
 }
 
-fn complex_each_blend_fallback<T>(
-    a: &[T],
-    b: &[T],
-    alpha: T,
-    beta: T,
-    result: &mut [T],
+fn complex_each_blend_fallback<Scalar>(
+    a: &[Scalar],
+    b: &[Scalar],
+    alpha: Scalar,
+    beta: Scalar,
+    result: &mut [Scalar],
 ) -> Option<()>
 where
-    T: Copy + core::ops::Add<Output = T> + core::ops::Mul<Output = T>,
+    Scalar: Copy + core::ops::Add<Output = Scalar> + core::ops::Mul<Output = Scalar>,
 {
     if a.len() != b.len() || a.len() != result.len() {
         return None;
     }
-    for ((lhs, rhs), out) in a.iter().zip(b.iter()).zip(result.iter_mut()) {
-        *out = alpha * *lhs + beta * *rhs;
+    for ((left, right), out) in a.iter().zip(b.iter()).zip(result.iter_mut()) {
+        *out = alpha * *left + beta * *right;
     }
     Some(())
 }
 
-fn complex_each_fma_fallback<T>(
-    a: &[T],
-    b: &[T],
-    c: &[T],
-    alpha: T,
-    beta: T,
-    result: &mut [T],
+fn complex_each_fma_fallback<Scalar>(
+    a: &[Scalar],
+    b: &[Scalar],
+    c: &[Scalar],
+    alpha: Scalar,
+    beta: Scalar,
+    result: &mut [Scalar],
 ) -> Option<()>
 where
-    T: Copy + core::ops::Add<Output = T> + core::ops::Mul<Output = T>,
+    Scalar: Copy + core::ops::Add<Output = Scalar> + core::ops::Mul<Output = Scalar>,
 {
     if a.len() != b.len() || a.len() != c.len() || a.len() != result.len() {
         return None;
     }
-    for (((lhs, rhs), third), out) in a.iter().zip(b.iter()).zip(c.iter()).zip(result.iter_mut()) {
-        *out = alpha * *lhs * *rhs + beta * *third;
+    for (((left, right), third), out) in a.iter().zip(b.iter()).zip(c.iter()).zip(result.iter_mut())
+    {
+        *out = alpha * *left * *right + beta * *third;
     }
     Some(())
 }
@@ -696,6 +740,22 @@ impl EachATan for f16 {
 /// `i16`, `u16`, `i32`, `u32`, `i64`, `u64`, `e4m3`, `e5m2`, `e2m3`, `e3m2`.
 pub trait EachScale: Sized + StorageElement {
     type Scalar;
+
+    /// Writes `result[i] = alpha * a[i] + beta` into the pre-sized output slice.
+    ///
+    /// All three slices (`a`, `result`) must have identical length — the kernel
+    /// does not allocate. Returns `None` on length mismatch.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use numkong::EachScale;
+    /// let input = [1.0_f32, 2.0, 3.0];
+    /// let mut output = [0.0_f32; 3];
+    /// // Rescale to [-1, 1]: alpha = 2/(max-min) = 1.0, beta = -1 - 1*min = -2.0
+    /// f32::each_scale(&input, 1.0, -2.0, &mut output).unwrap();
+    /// assert_eq!(output, [-1.0, 0.0, 1.0]);
+    /// ```
     fn each_scale(
         a: &[Self],
         alpha: Self::Scalar,
@@ -2341,7 +2401,7 @@ impl EachFMA for bf16c {
 
 /// `Trigonometry` bundles trigonometric functions: EachSin, EachCos, and EachATan.
 pub trait Trigonometry: EachSin + EachCos + EachATan {}
-impl<T: EachSin + EachCos + EachATan> Trigonometry for T {}
+impl<Scalar: EachSin + EachCos + EachATan> Trigonometry for Scalar {}
 
 #[cfg(test)]
 mod tests {
@@ -2350,139 +2410,145 @@ mod tests {
         assert_close, bf16, e2m3, e3m2, e4m3, e5m2, f16, FloatLike, NumberLike, TestableType,
     };
     /// Test a binary elementwise op: convert inputs, apply `op`, compare element-wise.
-    pub(crate) fn check_each_binary<T, F>(
+    pub(crate) fn check_each_binary<Scalar, F>(
         a_vals: &[f32],
         b_vals: &[f32],
         op: F,
         expected_fn: fn(f64, f64) -> f64,
         label: &str,
     ) where
-        T: FloatLike + TestableType,
-        F: FnOnce(&[T], &[T], &mut [T]) -> Option<()>,
+        Scalar: FloatLike + TestableType,
+        F: FnOnce(&[Scalar], &[Scalar], &mut [Scalar]) -> Option<()>,
     {
-        let a: Vec<T> = a_vals.iter().map(|&v| T::from_f32(v)).collect();
-        let b: Vec<T> = b_vals.iter().map(|&v| T::from_f32(v)).collect();
-        let mut result = vec![T::zero(); a.len()];
+        let a: Vec<Scalar> = a_vals.iter().map(|&v| Scalar::from_f32(v)).collect();
+        let b: Vec<Scalar> = b_vals.iter().map(|&v| Scalar::from_f32(v)).collect();
+        let mut result = vec![Scalar::zero(); a.len()];
         op(&a, &b, &mut result).unwrap();
         for (i, &r) in result.iter().enumerate() {
             let expected = expected_fn(a_vals[i] as f64, b_vals[i] as f64);
             assert_close(
                 r.to_f64(),
                 expected,
-                T::atol(),
-                T::rtol(),
-                &format!("{}<{}>[{i}]", label, core::any::type_name::<T>()),
+                Scalar::atol(),
+                Scalar::rtol(),
+                &format!("{}<{}>[{i}]", label, core::any::type_name::<Scalar>()),
             );
         }
     }
 
     /// Test a unary elementwise op over generated values.
-    pub(crate) fn check_each_unary<T, F>(
+    pub(crate) fn check_each_unary<Scalar, F>(
         count: usize,
         gen_fn: fn(usize, usize) -> f64,
         op: F,
         ref_fn: fn(f64) -> f64,
         label: &str,
     ) where
-        T: FloatLike + TestableType,
-        F: FnOnce(&[T], &mut [T]) -> Option<()>,
+        Scalar: FloatLike + TestableType,
+        F: FnOnce(&[Scalar], &mut [Scalar]) -> Option<()>,
     {
         let values: Vec<f64> = (0..count).map(|i| gen_fn(i, count)).collect();
-        let a: Vec<T> = values.iter().map(|&v| T::from_f32(v as f32)).collect();
-        let mut result = vec![T::zero(); count];
+        let a: Vec<Scalar> = values.iter().map(|&v| Scalar::from_f32(v as f32)).collect();
+        let mut result = vec![Scalar::zero(); count];
         op(&a, &mut result).unwrap();
         for (i, r) in result.iter().enumerate() {
             let expected = ref_fn(values[i]);
             assert_close(
                 r.to_f64(),
                 expected,
-                T::atol() * 10000.0,
-                T::rtol() * 10000.0,
-                &format!("{}<{}>[{}]", label, core::any::type_name::<T>(), i),
+                Scalar::atol() * 10000.0,
+                Scalar::rtol() * 10000.0,
+                &format!("{}<{}>[{}]", label, core::any::type_name::<Scalar>(), i),
             );
         }
     }
 
     // region: Elementwise Operations
 
-    fn check_each_scale<T>(values: &[f32], alpha: f32, beta: f32)
+    fn check_each_scale<Scalar>(values: &[f32], alpha: f32, beta: f32)
     where
-        T: FloatLike + TestableType + EachScale,
-        <T as EachScale>::Scalar: FloatLike,
+        Scalar: FloatLike + TestableType + EachScale,
+        <Scalar as EachScale>::Scalar: FloatLike,
     {
-        let a: Vec<T> = values.iter().map(|&v| T::from_f32(v)).collect();
-        let mut result = vec![T::zero(); a.len()];
-        let alpha_s = <<T as EachScale>::Scalar>::from_f32(alpha);
-        let beta_s = <<T as EachScale>::Scalar>::from_f32(beta);
-        T::each_scale(&a, alpha_s, beta_s, &mut result).unwrap();
+        let a: Vec<Scalar> = values.iter().map(|&v| Scalar::from_f32(v)).collect();
+        let mut result = vec![Scalar::zero(); a.len()];
+        let alpha_s = <<Scalar as EachScale>::Scalar>::from_f32(alpha);
+        let beta_s = <<Scalar as EachScale>::Scalar>::from_f32(beta);
+        Scalar::each_scale(&a, alpha_s, beta_s, &mut result).unwrap();
         for (i, r) in result.iter().enumerate() {
             let expected = alpha as f64 * values[i] as f64 + beta as f64;
             assert_close(
                 r.to_f64(),
                 expected,
-                T::atol(),
-                T::rtol(),
-                &format!("each_scale<{}>[{i}]", core::any::type_name::<T>()),
+                Scalar::atol(),
+                Scalar::rtol(),
+                &format!("each_scale<{}>[{i}]", core::any::type_name::<Scalar>()),
             );
         }
     }
 
-    fn check_each_sum<T>(values_a: &[f32], values_b: &[f32])
+    fn check_each_sum<Scalar>(values_a: &[f32], values_b: &[f32])
     where
-        T: FloatLike + TestableType + EachSum,
+        Scalar: FloatLike + TestableType + EachSum,
     {
-        check_each_binary::<T, _>(values_a, values_b, T::each_sum, |a, b| a + b, "each_sum");
+        check_each_binary::<Scalar, _>(
+            values_a,
+            values_b,
+            Scalar::each_sum,
+            |a, b| a + b,
+            "each_sum",
+        );
     }
 
-    fn check_each_blend<T>(values_a: &[f32], values_b: &[f32], alpha: f32, beta: f32)
+    fn check_each_blend<Scalar>(values_a: &[f32], values_b: &[f32], alpha: f32, beta: f32)
     where
-        T: FloatLike + TestableType + EachBlend,
-        <T as EachBlend>::Scalar: FloatLike,
+        Scalar: FloatLike + TestableType + EachBlend,
+        <Scalar as EachBlend>::Scalar: FloatLike,
     {
-        let a: Vec<T> = values_a.iter().map(|&v| T::from_f32(v)).collect();
-        let b: Vec<T> = values_b.iter().map(|&v| T::from_f32(v)).collect();
-        let mut result = vec![T::zero(); a.len()];
-        let alpha_s = <<T as EachBlend>::Scalar>::from_f32(alpha);
-        let beta_s = <<T as EachBlend>::Scalar>::from_f32(beta);
-        T::each_blend(&a, &b, alpha_s, beta_s, &mut result).unwrap();
+        let a: Vec<Scalar> = values_a.iter().map(|&v| Scalar::from_f32(v)).collect();
+        let b: Vec<Scalar> = values_b.iter().map(|&v| Scalar::from_f32(v)).collect();
+        let mut result = vec![Scalar::zero(); a.len()];
+        let alpha_s = <<Scalar as EachBlend>::Scalar>::from_f32(alpha);
+        let beta_s = <<Scalar as EachBlend>::Scalar>::from_f32(beta);
+        Scalar::each_blend(&a, &b, alpha_s, beta_s, &mut result).unwrap();
         for (i, r) in result.iter().enumerate() {
             let expected = alpha as f64 * values_a[i] as f64 + beta as f64 * values_b[i] as f64;
             assert_close(
                 r.to_f64(),
                 expected,
-                T::atol(),
-                T::rtol(),
-                &format!("each_blend<{}>[{i}]", core::any::type_name::<T>()),
+                Scalar::atol(),
+                Scalar::rtol(),
+                &format!("each_blend<{}>[{i}]", core::any::type_name::<Scalar>()),
             );
         }
     }
 
-    fn check_each_fma<T>(
+    fn check_each_fma<Scalar>(
         values_a: &[f32],
         values_b: &[f32],
         values_c: &[f32],
         alpha: f32,
         beta: f32,
     ) where
-        T: FloatLike + TestableType + EachFMA,
-        <T as EachFMA>::Scalar: FloatLike,
+        Scalar: FloatLike + TestableType + EachFMA,
+        <Scalar as EachFMA>::Scalar: FloatLike,
     {
-        let a: Vec<T> = values_a.iter().map(|&v| T::from_f32(v)).collect();
-        let b: Vec<T> = values_b.iter().map(|&v| T::from_f32(v)).collect();
-        let c: Vec<T> = values_c.iter().map(|&v| T::from_f32(v)).collect();
-        let mut result = vec![T::zero(); a.len()];
-        let alpha_s = <<T as EachFMA>::Scalar>::from_f32(alpha);
-        let beta_s = <<T as EachFMA>::Scalar>::from_f32(beta);
-        T::each_fma(&a, &b, &c, alpha_s, beta_s, &mut result).unwrap();
+        let a: Vec<Scalar> = values_a.iter().map(|&v| Scalar::from_f32(v)).collect();
+        let b: Vec<Scalar> = values_b.iter().map(|&v| Scalar::from_f32(v)).collect();
+        let c: Vec<Scalar> = values_c.iter().map(|&v| Scalar::from_f32(v)).collect();
+        let mut result = vec![Scalar::zero(); a.len()];
+        let alpha_s = <<Scalar as EachFMA>::Scalar>::from_f32(alpha);
+        let beta_s = <<Scalar as EachFMA>::Scalar>::from_f32(beta);
+        Scalar::each_fma(&a, &b, &c, alpha_s, beta_s, &mut result).unwrap();
         for (i, r) in result.iter().enumerate() {
             let expected = alpha as f64 * values_a[i] as f64 * values_b[i] as f64
                 + beta as f64 * values_c[i] as f64;
             assert_close(
                 r.to_f64(),
                 expected,
-                T::atol(),
-                T::rtol(),
-                &format!("each_fma<{}>[{i}]", core::any::type_name::<T>()),
+                Scalar::atol(),
+                Scalar::rtol(),
+                &format!("each_fma<{}>[{i}]", core::any::type_name::<Scalar>()),
             );
         }
     }
@@ -2589,42 +2655,42 @@ mod tests {
 
     // region: Trigonometry
 
-    fn check_each_sin<T>(count: usize)
+    fn check_each_sin<Scalar>(count: usize)
     where
-        T: FloatLike + TestableType + EachSin,
+        Scalar: FloatLike + TestableType + EachSin,
     {
         use core::f64::consts::PI;
-        check_each_unary::<T, _>(
+        check_each_unary::<Scalar, _>(
             count,
             |i, n| (i as f64) * 2.0 * PI / (n as f64),
-            T::sin,
+            Scalar::sin,
             f64::sin,
             "sin",
         );
     }
 
-    fn check_each_cos<T>(count: usize)
+    fn check_each_cos<Scalar>(count: usize)
     where
-        T: FloatLike + TestableType + EachCos,
+        Scalar: FloatLike + TestableType + EachCos,
     {
         use core::f64::consts::PI;
-        check_each_unary::<T, _>(
+        check_each_unary::<Scalar, _>(
             count,
             |i, n| (i as f64) * 2.0 * PI / (n as f64),
-            T::cos,
+            Scalar::cos,
             f64::cos,
             "cos",
         );
     }
 
-    fn check_each_atan<T>(count: usize)
+    fn check_each_atan<Scalar>(count: usize)
     where
-        T: FloatLike + TestableType + EachATan,
+        Scalar: FloatLike + TestableType + EachATan,
     {
-        check_each_unary::<T, _>(
+        check_each_unary::<Scalar, _>(
             count,
             |i, n| -5.0 + 10.0 * (i as f64) / (n as f64),
-            T::atan,
+            Scalar::atan,
             f64::atan,
             "atan",
         );

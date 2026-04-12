@@ -39,9 +39,9 @@ extern "C" {
  *  BMOPA gives matching = popcount(XNOR(a,b)).
  *  dot(a,b) = popcount(a AND b) = (pop_a + pop_b - depth_bits + matching) / 2
  */
-__arm_locally_streaming __arm_new("za") static void nk_dots_packed_u1_smebi32_streaming_(
+__arm_new("za") static void nk_dots_packed_u1_smebi32_streaming_( //
     nk_u1x8_t const *a, void const *b_packed, nk_u32_t *c, nk_size_t row_count_a, nk_size_t row_count_b,
-    nk_size_t depth_bits, nk_size_t a_stride_in_bytes, nk_size_t c_stride_in_bytes) {
+    nk_size_t depth_bits, nk_size_t a_stride_in_bytes, nk_size_t c_stride_in_bytes) NK_STREAMING_ {
 
     nk_sets_smebi32_packed_header_t const *header = (nk_sets_smebi32_packed_header_t const *)b_packed;
     nk_size_t const row_tile_count_b = header->row_tile_count;
@@ -204,20 +204,22 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_u1_smebi32_st
     }
 }
 
-NK_PUBLIC void nk_dots_packed_u1_smebi32(nk_u1x8_t const *a, void const *b_packed, nk_u32_t *c, nk_size_t row_count_a,
-                                         nk_size_t row_count_b, nk_size_t depth_bits, nk_size_t a_stride_in_bytes,
-                                         nk_size_t c_stride_in_bytes) {
+NK_PUBLIC void nk_dots_packed_u1_smebi32( //
+    nk_u1x8_t const *a, void const *b_packed, nk_u32_t *c, nk_size_t row_count_a, nk_size_t row_count_b,
+    nk_size_t depth_bits, nk_size_t a_stride_in_bytes, nk_size_t c_stride_in_bytes) {
+    nk_sme_start_streaming_();
     nk_dots_packed_u1_smebi32_streaming_(a, b_packed, c, row_count_a, row_count_b, depth_bits, a_stride_in_bytes,
                                          c_stride_in_bytes);
+    nk_sme_stop_streaming_();
 }
 
 /**
  *  Symmetric u1 dot-product using ZA0 time-sharing + 3-tile fast path.
  *  Same ZA transpose pattern as hammings_symmetric, but with dot extraction.
  */
-__arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_u1_smebi32_streaming_(
+__arm_new("za") static void nk_dots_symmetric_u1_smebi32_streaming_( //
     nk_u1x8_t const *vectors, nk_size_t vectors_count, nk_size_t depth_bits, nk_size_t stride_in_bytes,
-    nk_u32_t *result, nk_size_t result_stride_in_bytes, nk_size_t row_start, nk_size_t row_count) {
+    nk_u32_t *result, nk_size_t result_stride_in_bytes, nk_size_t row_start, nk_size_t row_count) NK_STREAMING_ {
 
     nk_size_t const tile_dim = svcntw();        // 16 for 512-bit SVL
     nk_size_t const depth_tile_size = svcntw(); // 16 u32 per depth tile
@@ -451,12 +453,13 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_u1_smebi32
     }
 }
 
-NK_PUBLIC void nk_dots_symmetric_u1_smebi32(nk_u1x8_t const *vectors, nk_size_t vectors_count, nk_size_t depth_bits,
-                                            nk_size_t stride_in_bytes, nk_u32_t *result,
-                                            nk_size_t result_stride_in_bytes, nk_size_t row_start,
-                                            nk_size_t row_count) {
+NK_PUBLIC void nk_dots_symmetric_u1_smebi32( //
+    nk_u1x8_t const *vectors, nk_size_t vectors_count, nk_size_t depth_bits, nk_size_t stride_in_bytes,
+    nk_u32_t *result, nk_size_t result_stride_in_bytes, nk_size_t row_start, nk_size_t row_count) {
+    nk_sme_start_streaming_();
     nk_dots_symmetric_u1_smebi32_streaming_(vectors, vectors_count, depth_bits, stride_in_bytes, result,
                                             result_stride_in_bytes, row_start, row_count);
+    nk_sme_stop_streaming_();
 }
 
 #if defined(__clang__)

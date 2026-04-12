@@ -33,6 +33,7 @@
 #if NK_TARGET_SVEHALF
 
 #include "numkong/types.h"      // `nk_f16_t`
+#include "numkong/reduce/sve.h" // `nk_svaddv_f64_`
 #include "numkong/dot/serial.h" // `nk_u1x8_popcount_`
 
 #if defined(__cplusplus)
@@ -67,8 +68,7 @@ NK_PUBLIC void nk_dot_f16_svehalf(nk_f16_t const *a_scalars, nk_f16_t const *b_s
 
         idx_scalars += svcnth();
     } while (idx_scalars < count_scalars);
-    *result = svaddv_f32(svptrue_b32(), ab_f32x);
-    NK_UNPOISON(result, sizeof(*result));
+    *result = nk_svaddv_f32_(svptrue_b32(), ab_f32x);
 }
 
 NK_PUBLIC void nk_dot_f16c_svehalf(nk_f16c_t const *a_pairs, nk_f16c_t const *b_pairs, nk_size_t count_pairs,
@@ -108,10 +108,8 @@ NK_PUBLIC void nk_dot_f16c_svehalf(nk_f16c_t const *a_pairs, nk_f16c_t const *b_
 
         idx_scalars += svcnth();
     } while (idx_scalars < count_pairs);
-    results->real = svaddv_f32(svptrue_b32(), ab_real_f32x);
-    results->imag = svaddv_f32(svptrue_b32(), ab_imag_f32x);
-    NK_UNPOISON(&results->real, sizeof(results->real));
-    NK_UNPOISON(&results->imag, sizeof(results->imag));
+    results->real = nk_svaddv_f32_(svptrue_b32(), ab_real_f32x);
+    results->imag = nk_svaddv_f32_(svptrue_b32(), ab_imag_f32x);
 }
 
 NK_PUBLIC void nk_vdot_f16c_svehalf(nk_f16c_t const *a_pairs, nk_f16c_t const *b_pairs, nk_size_t count_pairs,
@@ -151,10 +149,8 @@ NK_PUBLIC void nk_vdot_f16c_svehalf(nk_f16c_t const *a_pairs, nk_f16c_t const *b
 
         idx_scalars += svcnth();
     } while (idx_scalars < count_pairs);
-    results->real = svaddv_f32(svptrue_b32(), ab_real_f32x);
-    results->imag = svaddv_f32(svptrue_b32(), ab_imag_f32x);
-    NK_UNPOISON(&results->real, sizeof(results->real));
-    NK_UNPOISON(&results->imag, sizeof(results->imag));
+    results->real = nk_svaddv_f32_(svptrue_b32(), ab_real_f32x);
+    results->imag = nk_svaddv_f32_(svptrue_b32(), ab_imag_f32x);
 }
 
 #if defined(__clang__)

@@ -193,11 +193,11 @@ else ()
 endif ()
 
 if (MSVC)
-    set(CMAKE_CXX_FLAGS_RELEASE "/O2 /DNDEBUG")
-    set(CMAKE_C_FLAGS_RELEASE "/O2 /DNDEBUG")
+    set(CMAKE_CXX_FLAGS_RELEASE "/O2 /Gw /DNDEBUG")
+    set(CMAKE_C_FLAGS_RELEASE "/O2 /Gw /DNDEBUG")
 else ()
-    set(CMAKE_CXX_FLAGS_RELEASE "-O3")
-    set(CMAKE_C_FLAGS_RELEASE "-O3")
+    set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
+    set(CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG")
 endif ()
 
 # Compiler-specific flags
@@ -619,7 +619,15 @@ if (NK_BUILD_SHARED)
         # Hide all symbols by default; only NK_DYNAMIC-annotated API functions are exported.
         # Strip unwind tables from this pure-C library (saves ~78 KB).
         if (NOT MSVC)
-            target_compile_options(nk_shared PRIVATE -fvisibility=hidden -fno-asynchronous-unwind-tables)
+            target_compile_options(nk_shared PRIVATE
+                -fvisibility=hidden
+                -fno-asynchronous-unwind-tables
+                -fno-builtin-memset
+                -fno-builtin-memcpy
+                -fno-builtin-memmove)
+            if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
+                target_compile_options(nk_shared PRIVATE -fno-tree-loop-distribute-patterns)
+            endif ()
         endif ()
 
         # MSVC ARM64 cross-compilation: <intrin.h> pulls in <winnt.h> which

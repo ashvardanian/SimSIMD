@@ -499,16 +499,42 @@ def test_cdist_shapes(m, n, k):
     assert_allclose(result_sqeuc, expected_sqeuc, atol=NK_ATOL, rtol=NK_RTOL)
 
 
-def test_cdist_edge_cases(nk_seed):
-    """Verify cdist edge cases: scalar return, error handling, and removed API.
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.parametrize("m", [31, 64, 129])
+def test_cdist_threads(m):
+    """Verify OpenMP-parallel cdist matches the serial path across tile boundaries.
 
-    Covers three categories:
+    Exercises both the symmetric batch path (A vs A) and the packed batch path
+    (A vs B). Packed tile is 64, symmetric tile is 32, so ``m`` values are
+    chosen to straddle one and two tiles.
+    """
+    k = 32
+    a_matrix = np.random.randn(m, k).astype(np.float32)
+    b_matrix = np.random.randn(m, k).astype(np.float32)
+
+    # Symmetric batch path
+    serial_symmetric = nk.cdist(a_matrix, a_matrix, "sqeuclidean", threads=1)
+    parallel_symmetric = nk.cdist(a_matrix, a_matrix, "sqeuclidean", threads=4)
+    assert_allclose(parallel_symmetric, serial_symmetric, atol=NK_ATOL, rtol=NK_RTOL)
+
+    # Packed batch path
+    serial_packed = nk.cdist(a_matrix, b_matrix, "euclidean", threads=1)
+    parallel_packed = nk.cdist(a_matrix, b_matrix, "euclidean", threads=4)
+    assert_allclose(parallel_packed, serial_packed, atol=NK_ATOL, rtol=NK_RTOL)
+
+
+def test_cdist_edge_cases(nk_seed):
+    """Verify cdist edge cases: scalar return, error handling, and kwarg validation.
+
+    Covers four categories:
 
     1. **Scalar return** — passing two 1D vectors ``(D,)`` must return a scalar
        float, not a ``(1, 1)`` matrix.
-    2. **Rejected kwargs** — ``threads=`` was removed; verify ``TypeError`` is
-       raised with "unexpected keyword" so callers get a clear error.
-    3. **Input validation** — mismatched dimensions and empty matrices must
+    2. **Accepted kwargs** — ``threads=`` controls OpenMP parallelism and must
+       produce results identical to the single-threaded path.
+    3. **Rejected kwargs** — unknown keywords must raise ``TypeError`` with
+       "unexpected keyword" so callers get a clear error.
+    4. **Input validation** — mismatched dimensions and empty matrices must
        raise ``ValueError``.
 
     Not parameterised — uses fixed 16-element vectors on float32.
@@ -521,9 +547,16 @@ def test_cdist_edge_cases(nk_seed):
     result = nk.cdist(a_vec, b_vec, "euclidean")
     assert isinstance(result, (int, float)), f"Expected scalar for 1D inputs, got {type(result)}"
 
-    # threads= is rejected (removed parameter)
+    # threads= is accepted and must match the single-threaded result
+    a_matrix = nk.ones((4, ndim), dtype="float32")
+    b_matrix = nk.ones((4, ndim), dtype="float32")
+    result_serial = nk.cdist(a_matrix, b_matrix, "euclidean", threads=1)
+    result_parallel = nk.cdist(a_matrix, b_matrix, "euclidean", threads=2)
+    assert_allclose(result_serial, result_parallel, atol=NK_ATOL, rtol=NK_RTOL)
+
+    # Unknown kwargs are rejected
     with pytest.raises(TypeError, match="unexpected keyword"):
-        nk.cdist(nk.ones((2, 3), dtype="float32"), nk.ones((2, 3), dtype="float32"), threads=2)
+        nk.cdist(a_matrix, b_matrix, not_a_real_kwarg=2)
 
     # Mismatched dimensions → ValueError
     with pytest.raises(ValueError):

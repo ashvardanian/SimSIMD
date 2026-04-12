@@ -1,21 +1,39 @@
-//! MaxSim (ColBERT late-interaction) scoring with pre-packed matrices.
+//! MaxSim (ColBERT-style late-interaction) scoring with pre-packed matrices.
 //!
-//! [`MaxSimPackedMatrix`] stores vectors in a quantized format optimized for
-//! fast coarse screening followed by full-precision refinement.
+//! MaxSim is the late-interaction similarity introduced by ColBERT: given a
+//! query matrix `Q` (one row per query token) and a document matrix `D` (one
+//! row per document token), the score is the sum over query rows of the max
+//! inner product with any document row. It retains token-level granularity —
+//! unlike single-vector retrieval — while remaining cheap enough to run over
+//! large candidate sets.
+//!
+//! [`MaxSimPackedMatrix`] stores those matrices in a quantized format
+//! optimized for fast coarse screening followed by full-precision refinement:
+//! an i8 pre-pass filters obvious non-matches before the original
+//! `f32` / `f16` / `bf16` values resolve the top candidates.
+//!
+//! # Typical flow
+//!
+//! 1. Pack both the query set and the document set with
+//!    [`MaxSimPackedMatrix::try_pack`] (or [`TensorView::try_maxsim_pack`]).
+//! 2. Call [`MaxSimPackedMatrix::try_score`] on the pair; the score type is
+//!    `f64` for `f32` inputs and `f32` for `f16` / `bf16` inputs.
 //!
 //! # Example
 //!
+//! The doctest below is marked `ignore` because doctests compile as separate
+//! crates and would need to re-link the `libnumkong` C library that provides
+//! the `nk_maxsim_*` FFI symbols used here. The in-crate tests at the bottom
+//! of this file exercise the same code path.
+//!
 //! ```rust,ignore
-//! // Requires linking against libnumkong C library
 //! use numkong::{MaxSimPackedMatrix, Tensor};
 //!
-//! let queries = Tensor::<f32>::try_new(&[32, 128], 1.0).unwrap();
-//! let documents = Tensor::<f32>::try_new(&[1024, 128], 1.0).unwrap();
+//! let queries = Tensor::<f32>::try_full(&[32, 128], 1.0).unwrap();
+//! let documents = Tensor::<f32>::try_full(&[1024, 128], 1.0).unwrap();
 //!
-//! let queries_view = queries.view();
-//! let docs_view = documents.view();
-//! let queries_packed = MaxSimPackedMatrix::try_pack(&queries_view).unwrap();
-//! let docs_packed = MaxSimPackedMatrix::try_pack(&docs_view).unwrap();
+//! let queries_packed = MaxSimPackedMatrix::try_pack(&queries.view()).unwrap();
+//! let docs_packed = MaxSimPackedMatrix::try_pack(&documents.view()).unwrap();
 //! let score = queries_packed.score(&docs_packed);
 //! ```
 
@@ -223,20 +241,26 @@ impl MaxSim for bf16 {
 /// Both query and document vectors must be packed before scoring.
 /// The buffer uses i8 quantization for fast coarse screening,
 /// with full-precision originals retained for refinement.
-pub struct MaxSimPackedMatrix<T: MaxSim, A: Allocator = Global> {
+pub struct MaxSimPackedMatrix<Scalar: MaxSim, Alloc: Allocator = Global> {
     data: NonNull<u8>,
     size: usize,
     vector_count: usize,
     depth: usize,
-    alloc: A,
-    _marker: PhantomData<T>,
+    alloc: Alloc,
+    _marker: PhantomData<Scalar>,
 }
 
 // Safety: MaxSimPackedMatrix owns its data and is just bytes
-unsafe impl<T: MaxSim + Send, A: Allocator + Send> Send for MaxSimPackedMatrix<T, A> {}
-unsafe impl<T: MaxSim + Sync, A: Allocator + Sync> Sync for MaxSimPackedMatrix<T, A> {}
+unsafe impl<Scalar: MaxSim + Send, Alloc: Allocator + Send> Send
+    for MaxSimPackedMatrix<Scalar, Alloc>
+{
+}
+unsafe impl<Scalar: MaxSim + Sync, Alloc: Allocator + Sync> Sync
+    for MaxSimPackedMatrix<Scalar, Alloc>
+{
+}
 
-impl<T: MaxSim, A: Allocator> Drop for MaxSimPackedMatrix<T, A> {
+impl<Scalar: MaxSim, Alloc: Allocator> Drop for MaxSimPackedMatrix<Scalar, Alloc> {
     fn drop(&mut self) {
         if self.size > 0 {
             unsafe {
@@ -248,7 +272,7 @@ impl<T: MaxSim, A: Allocator> Drop for MaxSimPackedMatrix<T, A> {
     }
 }
 
-impl<T: MaxSim, A: Allocator + Clone> MaxSimPackedMatrix<T, A> {
+impl<Scalar: MaxSim, Alloc: Allocator + Clone> MaxSimPackedMatrix<Scalar, Alloc> {
     /// Try to clone this packed matrix, returning an error on allocation failure.
     pub fn try_clone(&self) -> Result<Self, TensorError> {
         if self.size == 0 {
@@ -282,24 +306,24 @@ impl<T: MaxSim, A: Allocator + Clone> MaxSimPackedMatrix<T, A> {
     }
 }
 
-impl<T: MaxSim, A: Allocator + Clone> Clone for MaxSimPackedMatrix<T, A> {
+impl<Scalar: MaxSim, Alloc: Allocator + Clone> Clone for MaxSimPackedMatrix<Scalar, Alloc> {
     fn clone(&self) -> Self {
         self.try_clone()
             .expect("MaxSimPackedMatrix clone allocation failed")
     }
 }
 
-impl<T: MaxSim, A: Allocator> MaxSimPackedMatrix<T, A> {
+impl<Scalar: MaxSim, Alloc: Allocator> MaxSimPackedMatrix<Scalar, Alloc> {
     /// Pack vectors from a 2D tensor view using a custom allocator.
     ///
     /// Returns `Err` if the view is not 2D, the depth axis is not contiguous,
     /// the row stride is negative, or allocation fails.
     pub fn try_pack_in<const MAX_RANK: usize>(
-        vectors: &TensorView<'_, T, MAX_RANK>,
-        alloc: A,
+        vectors: &TensorView<'_, Scalar, MAX_RANK>,
+        alloc: Alloc,
     ) -> Result<Self, TensorError> {
         let (vector_count, depth, row_stride_bytes) = validate_maxsim_view(vectors)?;
-        let size = T::maxsim_packed_size(vector_count, depth);
+        let size = Scalar::maxsim_packed_size(vector_count, depth);
 
         let data = if size == 0 {
             NonNull::dangling()
@@ -317,7 +341,7 @@ impl<T: MaxSim, A: Allocator> MaxSimPackedMatrix<T, A> {
 
         if size > 0 {
             unsafe {
-                T::maxsim_pack(
+                Scalar::maxsim_pack(
                     vectors.as_ptr(),
                     vector_count,
                     depth,
@@ -340,19 +364,19 @@ impl<T: MaxSim, A: Allocator> MaxSimPackedMatrix<T, A> {
     /// Compute MaxSim score against another packed matrix.
     ///
     /// Returns `Err` if depths don't match.
-    pub fn try_score<OA: Allocator>(
+    pub fn try_score<OtherAlloc: Allocator>(
         &self,
-        other: &MaxSimPackedMatrix<T, OA>,
-    ) -> Result<T::Score, TensorError> {
+        other: &MaxSimPackedMatrix<Scalar, OtherAlloc>,
+    ) -> Result<Scalar::Score, TensorError> {
         if self.depth != other.depth {
             return Err(TensorError::DimensionMismatch {
                 expected: self.depth,
                 got: other.depth,
             });
         }
-        let mut score = T::Score::default();
+        let mut score = Scalar::Score::default();
         unsafe {
-            T::maxsim_packed(
+            Scalar::maxsim_packed(
                 self.as_ptr(),
                 other.as_ptr(),
                 self.vector_count,
@@ -365,16 +389,23 @@ impl<T: MaxSim, A: Allocator> MaxSimPackedMatrix<T, A> {
     }
 
     /// Convenience that panics on error.
-    pub fn score<OA: Allocator>(&self, other: &MaxSimPackedMatrix<T, OA>) -> T::Score {
+    pub fn score<OtherAlloc: Allocator>(
+        &self,
+        other: &MaxSimPackedMatrix<Scalar, OtherAlloc>,
+    ) -> Scalar::Score {
         self.try_score(other)
             .expect("MaxSimPackedMatrix::score failed")
     }
 
     /// Returns a reference to the allocator.
-    pub fn allocator(&self) -> &A { &self.alloc }
+    pub fn allocator(&self) -> &Alloc {
+        &self.alloc
+    }
 
     /// Returns dimensions (vector_count, depth) of the original vector set.
-    pub fn dims(&self) -> (usize, usize) { (self.vector_count, self.depth) }
+    pub fn dims(&self) -> (usize, usize) {
+        (self.vector_count, self.depth)
+    }
 
     /// Returns the packed data buffer.
     pub fn as_bytes(&self) -> &[u8] {
@@ -382,28 +413,30 @@ impl<T: MaxSim, A: Allocator> MaxSimPackedMatrix<T, A> {
     }
 
     /// Returns a pointer to the packed data.
-    pub fn as_ptr(&self) -> *const u8 { self.data.as_ptr() }
+    pub fn as_ptr(&self) -> *const u8 {
+        self.data.as_ptr()
+    }
 }
 
 // Convenience methods using Global allocator
-impl<T: MaxSim> MaxSimPackedMatrix<T, Global> {
+impl<Scalar: MaxSim> MaxSimPackedMatrix<Scalar, Global> {
     /// Pack vectors from a 2D tensor view using the global allocator.
     pub fn try_pack<const MAX_RANK: usize>(
-        vectors: &TensorView<'_, T, MAX_RANK>,
+        vectors: &TensorView<'_, Scalar, MAX_RANK>,
     ) -> Result<Self, TensorError> {
         Self::try_pack_in(vectors, Global)
     }
 
     /// Convenience constructor that panics on error.
-    pub fn pack<const MAX_RANK: usize>(vectors: &TensorView<'_, T, MAX_RANK>) -> Self {
+    pub fn pack<const MAX_RANK: usize>(vectors: &TensorView<'_, Scalar, MAX_RANK>) -> Self {
         Self::try_pack(vectors).expect("MaxSimPackedMatrix::pack failed")
     }
 }
 
 // endregion: MaxSimPackedMatrix
 
-fn validate_maxsim_view<T, const MAX_RANK: usize>(
-    vectors: &TensorView<'_, T, MAX_RANK>,
+fn validate_maxsim_view<Scalar, const MAX_RANK: usize>(
+    vectors: &TensorView<'_, Scalar, MAX_RANK>,
 ) -> Result<(usize, usize, usize), TensorError> {
     if vectors.ndim() != 2 {
         return Err(TensorError::DimensionMismatch {
@@ -434,17 +467,17 @@ fn validate_maxsim_view<T, const MAX_RANK: usize>(
 
 // region: TensorView convenience
 
-impl<'a, T: MaxSim, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK> {
+impl<'a, Scalar: MaxSim, const MAX_RANK: usize> TensorView<'a, Scalar, MAX_RANK> {
     /// Pack this 2D tensor view for MaxSim scoring using the provided allocator.
-    pub fn try_maxsim_pack_in<A: Allocator>(
+    pub fn try_maxsim_pack_in<Alloc: Allocator>(
         &self,
-        alloc: A,
-    ) -> Result<MaxSimPackedMatrix<T, A>, TensorError> {
+        alloc: Alloc,
+    ) -> Result<MaxSimPackedMatrix<Scalar, Alloc>, TensorError> {
         MaxSimPackedMatrix::try_pack_in(self, alloc)
     }
 
     /// Pack this 2D tensor view for MaxSim scoring using the global allocator.
-    pub fn try_maxsim_pack(&self) -> Result<MaxSimPackedMatrix<T, Global>, TensorError> {
+    pub fn try_maxsim_pack(&self) -> Result<MaxSimPackedMatrix<Scalar, Global>, TensorError> {
         self.try_maxsim_pack_in(Global)
     }
 }

@@ -4,6 +4,28 @@
 //!
 //! - [`MeshAlignmentResult`]: Centroids, rotation matrix, scale, and RMSD
 //! - [`MeshAlignment`]: Computes optimal rigid-body alignment of 3D point sets
+//!
+//! # Algorithms
+//!
+//! All three entry points align point cloud A onto point cloud B by minimising
+//! residual squared distance, returning a [`MeshAlignmentResult`] that bundles the
+//! transformation (rotation matrix, scale, and the two centroids) together with
+//! the RMSD of the aligned pairs:
+//!
+//! - **RMSD** only reports the root-mean-square deviation between correspondent
+//!   points without solving for a transform — useful when the clouds are already
+//!   aligned.
+//! - **Kabsch** solves the classic orthogonal Procrustes problem: assume both
+//!   clouds have matching centroids, find the 3×3 rotation matrix `R` that
+//!   minimises `Σᵢ ‖R·aᵢ − bᵢ‖²`. Scale is always reported as `1.0` (rigid body
+//!   only). Uses an SVD of the cross-covariance matrix under the hood.
+//! - **Umeyama** extends Kabsch with a uniform scale factor — the same SVD core,
+//!   but the result also reports an optimal `s > 0` so rescaled copies of the
+//!   same cloud align cleanly.
+//!
+//! Inputs are `[[Scalar; 3]]` slices (length ≥ 3 and matching on both sides);
+//! mismatched or too-small inputs return `None`. The struct-returning API makes
+//! downstream `transform_point` / `transform_points` calls trivial.
 
 use crate::types::{bf16, f16};
 
@@ -158,13 +180,22 @@ impl<TMetric> MeshAlignmentResult<f64, TMetric> {
             point[1] - self.a_centroid[1],
             point[2] - self.a_centroid[2],
         ];
-        let r = &self.rotation_matrix;
+        let rotation_matrix = &self.rotation_matrix;
         [
-            self.scale * (r[0] * centered[0] + r[1] * centered[1] + r[2] * centered[2])
+            self.scale
+                * (rotation_matrix[0] * centered[0]
+                    + rotation_matrix[1] * centered[1]
+                    + rotation_matrix[2] * centered[2])
                 + self.b_centroid[0],
-            self.scale * (r[3] * centered[0] + r[4] * centered[1] + r[5] * centered[2])
+            self.scale
+                * (rotation_matrix[3] * centered[0]
+                    + rotation_matrix[4] * centered[1]
+                    + rotation_matrix[5] * centered[2])
                 + self.b_centroid[1],
-            self.scale * (r[6] * centered[0] + r[7] * centered[1] + r[8] * centered[2])
+            self.scale
+                * (rotation_matrix[6] * centered[0]
+                    + rotation_matrix[7] * centered[1]
+                    + rotation_matrix[8] * centered[2])
                 + self.b_centroid[2],
         ]
     }
@@ -183,13 +214,22 @@ impl<TMetric> MeshAlignmentResult<f32, TMetric> {
             point[1] - self.a_centroid[1],
             point[2] - self.a_centroid[2],
         ];
-        let r = &self.rotation_matrix;
+        let rotation_matrix = &self.rotation_matrix;
         [
-            self.scale * (r[0] * centered[0] + r[1] * centered[1] + r[2] * centered[2])
+            self.scale
+                * (rotation_matrix[0] * centered[0]
+                    + rotation_matrix[1] * centered[1]
+                    + rotation_matrix[2] * centered[2])
                 + self.b_centroid[0],
-            self.scale * (r[3] * centered[0] + r[4] * centered[1] + r[5] * centered[2])
+            self.scale
+                * (rotation_matrix[3] * centered[0]
+                    + rotation_matrix[4] * centered[1]
+                    + rotation_matrix[5] * centered[2])
                 + self.b_centroid[1],
-            self.scale * (r[6] * centered[0] + r[7] * centered[1] + r[8] * centered[2])
+            self.scale
+                * (rotation_matrix[6] * centered[0]
+                    + rotation_matrix[7] * centered[1]
+                    + rotation_matrix[8] * centered[2])
                 + self.b_centroid[2],
         ]
     }
@@ -205,14 +245,44 @@ pub trait MeshAlignment: Sized {
     type Transform: Default + Copy;
     type Metric: Default + Copy;
 
+    /// Root-mean-square deviation between two point-for-point correspondent
+    /// clouds, without solving for a transform. Returns `None` if the lengths
+    /// differ or are below the 3-point minimum.
     fn rmsd(
         a: &[[Self; 3]],
         b: &[[Self; 3]],
     ) -> Option<MeshAlignmentResult<Self::Transform, Self::Metric>>;
+
+    /// Kabsch rigid-body alignment: recovers the best-fit 3×3 rotation matrix
+    /// (no scaling) that aligns `a` onto `b`, plus the residual RMSD. The
+    /// returned struct's `scale` is always `1.0` by construction.
+    ///
+    /// Returns `None` if `a.len() != b.len()` or if either cloud has fewer than
+    /// three points (degenerate SVD).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use numkong::MeshAlignment;
+    /// let reference: &[[f64; 3]] = &[
+    ///     [0.0, 0.0, 0.0],
+    ///     [1.0, 0.0, 0.0],
+    ///     [0.0, 1.0, 0.0],
+    ///     [0.0, 0.0, 1.0],
+    /// ];
+    /// // Aligning a cloud to itself yields identity rotation and zero RMSD.
+    /// let fit = f64::kabsch(reference, reference).unwrap();
+    /// assert!((fit.scale - 1.0).abs() < 1e-9);
+    /// assert!(fit.rmsd.abs() < 1e-9);
+    /// ```
     fn kabsch(
         a: &[[Self; 3]],
         b: &[[Self; 3]],
     ) -> Option<MeshAlignmentResult<Self::Transform, Self::Metric>>;
+
+    /// Umeyama similarity alignment: like Kabsch but also recovers an optimal
+    /// uniform scale factor `s > 0`. Useful when the two clouds are related by
+    /// rotation **and** scaling.
     fn umeyama(
         a: &[[Self; 3]],
         b: &[[Self; 3]],
@@ -591,79 +661,85 @@ impl MeshAlignment for bf16 {
 mod tests {
     use super::*;
     use crate::types::{assert_close, FloatLike, NumberLike, TestableType};
-    /// Convert a point cloud from f32 to T.
-    pub(crate) fn convert_cloud<T: FloatLike>(cloud: &[[f32; 3]]) -> Vec<[T; 3]> {
+    /// Convert a point cloud from f32 to Scalar.
+    pub(crate) fn convert_cloud<Scalar: FloatLike>(cloud: &[[f32; 3]]) -> Vec<[Scalar; 3]> {
         cloud
             .iter()
-            .map(|p| [T::from_f32(p[0]), T::from_f32(p[1]), T::from_f32(p[2])])
+            .map(|p| {
+                [
+                    Scalar::from_f32(p[0]),
+                    Scalar::from_f32(p[1]),
+                    Scalar::from_f32(p[2]),
+                ]
+            })
             .collect()
     }
 
-    fn check_kabsch_identical<T>(cloud: &[[f32; 3]])
+    fn check_kabsch_identical<Scalar>(cloud: &[[f32; 3]])
     where
-        T: FloatLike + TestableType + MeshAlignment,
-        T::Transform: NumberLike,
-        T::Metric: FloatLike,
+        Scalar: FloatLike + TestableType + MeshAlignment,
+        Scalar::Transform: NumberLike,
+        Scalar::Metric: FloatLike,
     {
-        let cloud_t = convert_cloud::<T>(cloud);
-        let result = T::kabsch(&cloud_t, &cloud_t).unwrap();
-        let tol = T::atol() + T::rtol();
+        let cloud_t = convert_cloud::<Scalar>(cloud);
+        let result = Scalar::kabsch(&cloud_t, &cloud_t).unwrap();
+        let tol = Scalar::atol() + Scalar::rtol();
         assert_close(
             NumberLike::to_f64(result.scale),
             1.0,
             tol,
             0.0,
-            &format!("kabsch<{}> scale", core::any::type_name::<T>()),
+            &format!("kabsch<{}> scale", core::any::type_name::<Scalar>()),
         );
         assert_close(
             NumberLike::to_f64(result.rmsd),
             0.0,
             tol,
             0.0,
-            &format!("kabsch<{}> rmsd", core::any::type_name::<T>()),
+            &format!("kabsch<{}> rmsd", core::any::type_name::<Scalar>()),
         );
     }
 
-    fn check_umeyama_scaled<T>(cloud: &[[f32; 3]], scaled: &[[f32; 3]])
+    fn check_umeyama_scaled<Scalar>(cloud: &[[f32; 3]], scaled: &[[f32; 3]])
     where
-        T: FloatLike + TestableType + MeshAlignment,
-        T::Transform: NumberLike,
-        T::Metric: FloatLike,
+        Scalar: FloatLike + TestableType + MeshAlignment,
+        Scalar::Transform: NumberLike,
+        Scalar::Metric: FloatLike,
     {
-        let cloud_t = convert_cloud::<T>(cloud);
-        let scaled_t = convert_cloud::<T>(scaled);
-        let result = T::umeyama(&cloud_t, &scaled_t).unwrap();
+        let cloud_t = convert_cloud::<Scalar>(cloud);
+        let scaled_t = convert_cloud::<Scalar>(scaled);
+        let result = Scalar::umeyama(&cloud_t, &scaled_t).unwrap();
         let scale = NumberLike::to_f64(result.scale);
         assert!(
             scale > 1.0 && scale < 3.0,
             "umeyama<{}> scale: expected ~2.0, got {}",
-            core::any::type_name::<T>(),
+            core::any::type_name::<Scalar>(),
             scale
         );
     }
 
-    fn check_rmsd_identical<T>(cloud: &[[f32; 3]])
+    fn check_rmsd_identical<Scalar>(cloud: &[[f32; 3]])
     where
-        T: FloatLike + TestableType + MeshAlignment,
-        T::Transform: NumberLike,
-        T::Metric: FloatLike,
+        Scalar: FloatLike + TestableType + MeshAlignment,
+        Scalar::Transform: NumberLike,
+        Scalar::Metric: FloatLike,
     {
-        let cloud_t = convert_cloud::<T>(cloud);
-        let result = T::rmsd(&cloud_t, &cloud_t).unwrap();
-        let tol = T::atol() + T::rtol();
+        let cloud_t = convert_cloud::<Scalar>(cloud);
+        let result = Scalar::rmsd(&cloud_t, &cloud_t).unwrap();
+        let tol = Scalar::atol() + Scalar::rtol();
         assert_close(
             NumberLike::to_f64(result.scale),
             1.0,
             tol,
             0.0,
-            &format!("rmsd<{}> scale", core::any::type_name::<T>()),
+            &format!("rmsd<{}> scale", core::any::type_name::<Scalar>()),
         );
         assert_close(
             NumberLike::to_f64(result.rmsd),
             0.0,
             tol,
             0.0,
-            &format!("rmsd<{}> rmsd", core::any::type_name::<T>()),
+            &format!("rmsd<{}> rmsd", core::any::type_name::<Scalar>()),
         );
     }
 
@@ -737,9 +813,15 @@ mod tests {
         // RMSD must be finite and non-negative
         assert!(result.rmsd.is_finite() && result.rmsd >= 0.0);
         // Rotation determinant must be ±1 (orthogonal matrix)
-        let r = &result.rotation_matrix;
-        let det = r[0] * (r[4] * r[8] - r[5] * r[7]) - r[1] * (r[3] * r[8] - r[5] * r[6])
-            + r[2] * (r[3] * r[7] - r[4] * r[6]);
+        let rotation_matrix = &result.rotation_matrix;
+        let det = rotation_matrix[0]
+            * (rotation_matrix[4] * rotation_matrix[8] - rotation_matrix[5] * rotation_matrix[7])
+            - rotation_matrix[1]
+                * (rotation_matrix[3] * rotation_matrix[8]
+                    - rotation_matrix[5] * rotation_matrix[6])
+            + rotation_matrix[2]
+                * (rotation_matrix[3] * rotation_matrix[7]
+                    - rotation_matrix[4] * rotation_matrix[6]);
         assert!(
             (det.abs() - 1.0).abs() < 0.01,
             "Expected det(R) ~±1.0, got {}",

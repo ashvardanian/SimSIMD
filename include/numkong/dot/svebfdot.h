@@ -31,6 +31,7 @@
 #if NK_TARGET_SVEBFDOT
 
 #include "numkong/types.h"
+#include "numkong/reduce/sve.h" // `nk_svaddv_f64_`
 
 #if defined(__cplusplus)
 extern "C" {
@@ -56,8 +57,7 @@ NK_PUBLIC void nk_dot_bf16_svebfdot(nk_bf16_t const *a_scalars, nk_bf16_t const 
         sum_f32x = svbfdot_f32(sum_f32x, a_bf16x, b_bf16x);
         idx_scalars += svcnth();
     } while (idx_scalars < count_scalars);
-    *result = svaddv_f32(svptrue_b32(), sum_f32x);
-    NK_UNPOISON(result, sizeof(*result));
+    *result = nk_svaddv_f32_(svptrue_b32(), sum_f32x);
 }
 
 #if defined(__clang__)

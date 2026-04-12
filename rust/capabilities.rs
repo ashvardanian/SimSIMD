@@ -1,5 +1,10 @@
 //! Runtime CPU capability detection.
 //!
+//! Capability bits (`cap::*`) are probed at library load time by examining
+//! CPUID / `getauxval` / HWCAP records on the host CPU; [`available`] returns the
+//! resulting bitmask so downstream code can select the best kernel without
+//! recompiling.
+//!
 //! This module provides:
 //!
 //! - [`available`]: Query the bitmask of supported SIMD instruction sets
@@ -29,7 +34,9 @@ extern "C" {
 ///     println!("AVX-512 (Skylake) is available");
 /// }
 /// ```
-pub fn available() -> u64 { unsafe { nk_capabilities() } }
+pub fn available() -> u64 {
+    unsafe { nk_capabilities() }
+}
 
 /// Configures the current thread for optimal SIMD performance.
 /// On x86, this enables AMX tile state via `arch_prctl`. On other platforms this is a no-op.
@@ -40,7 +47,9 @@ pub fn configure_thread() -> bool {
 }
 
 /// Returns `true` if the library uses dynamic dispatch for function selection.
-pub fn uses_dynamic_dispatch() -> bool { unsafe { nk_uses_dynamic_dispatch() != 0 } }
+pub fn uses_dynamic_dispatch() -> bool {
+    unsafe { nk_uses_dynamic_dispatch() != 0 }
+}
 
 /// Capability bit masks in chronological order (by first commercial silicon).
 pub mod cap {
