@@ -1662,19 +1662,19 @@ NK_INTERNAL void nk_sme_stop_streaming_(void) { __asm__ __volatile__("smstop sm"
  */
 __attribute__((weak)) void __arm_tpidr2_save(void) {}
 __attribute__((weak)) void __arm_tpidr2_restore(void *blk) { nk_unused_(blk); }
-__attribute__((weak, target("sme"))) void *__arm_sc_memset(void *d, int c, __SIZE_TYPE__ n) __arm_streaming_compatible {
+__attribute__((weak, target("+sme"))) void *__arm_sc_memset(void *d, int c, __SIZE_TYPE__ n) __arm_streaming_compatible {
     unsigned char *p = (unsigned char *)d;
     for (__SIZE_TYPE__ i = 0; i < n; i++) p[i] = (unsigned char)c;
     return d;
 }
-__attribute__((weak, target("sme"))) void *__arm_sc_memcpy(void *d, void const *s,
+__attribute__((weak, target("+sme"))) void *__arm_sc_memcpy(void *d, void const *s,
                                                            __SIZE_TYPE__ n) __arm_streaming_compatible {
     unsigned char *dp = (unsigned char *)d;
     unsigned char const *sp = (unsigned char const *)s;
     for (__SIZE_TYPE__ i = 0; i < n; i++) dp[i] = sp[i];
     return d;
 }
-__attribute__((weak, target("sme"))) void *__arm_sc_memmove(void *d, void const *s,
+__attribute__((weak, target("+sme"))) void *__arm_sc_memmove(void *d, void const *s,
                                                             __SIZE_TYPE__ n) __arm_streaming_compatible {
     unsigned char *dp = (unsigned char *)d;
     unsigned char const *sp = (unsigned char const *)s;
