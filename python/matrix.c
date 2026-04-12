@@ -467,10 +467,11 @@ static PyObject *api_packed_common( //
         if (threads == 0) threads = (nk_size_t)omp_get_max_threads();
         omp_set_num_threads((int)threads);
 #endif
-        nk_size_t const tile_count = nk_size_divide_round_up_(slice_height, NK_PARALLEL_PACKED_TILE);
+        // Signed loop counter for MSVC `/openmp:llvm` compatibility.
+        nk_ssize_t const tile_count = (nk_ssize_t)nk_size_divide_round_up_(slice_height, NK_PARALLEL_PACKED_TILE);
 #pragma omp parallel for schedule(dynamic, 1) if (threads > 1)
-        for (nk_size_t tile_idx = 0; tile_idx < tile_count; tile_idx++) {
-            nk_size_t row = tile_idx * NK_PARALLEL_PACKED_TILE;
+        for (nk_ssize_t tile_idx = 0; tile_idx < tile_count; tile_idx++) {
+            nk_size_t row = (nk_size_t)tile_idx * NK_PARALLEL_PACKED_TILE;
             nk_size_t chunk = (row + NK_PARALLEL_PACKED_TILE <= slice_height) ? NK_PARALLEL_PACKED_TILE
                                                                               : (slice_height - row);
             kernel(a_ptr + row * input_row_stride, packed->start, out_ptr + row * output_row_stride, chunk, width,
@@ -601,10 +602,11 @@ static PyObject *api_symmetric_common( //
         if (threads == 0) threads = (nk_size_t)omp_get_max_threads();
         omp_set_num_threads((int)threads);
 #endif
-        nk_size_t const tile_count = nk_size_divide_round_up_(row_count_val, NK_PARALLEL_SYMMETRIC_TILE);
+        // Signed loop counter for MSVC `/openmp:llvm` compatibility.
+        nk_ssize_t const tile_count = (nk_ssize_t)nk_size_divide_round_up_(row_count_val, NK_PARALLEL_SYMMETRIC_TILE);
 #pragma omp parallel for schedule(dynamic, 1) if (threads > 1)
-        for (nk_size_t tile_idx = 0; tile_idx < tile_count; tile_idx++) {
-            nk_size_t tile_start = row_start + tile_idx * NK_PARALLEL_SYMMETRIC_TILE;
+        for (nk_ssize_t tile_idx = 0; tile_idx < tile_count; tile_idx++) {
+            nk_size_t tile_start = row_start + (nk_size_t)tile_idx * NK_PARALLEL_SYMMETRIC_TILE;
             nk_size_t tile_rows = (tile_start + NK_PARALLEL_SYMMETRIC_TILE <= row_end) ? NK_PARALLEL_SYMMETRIC_TILE
                                                                                        : (row_end - tile_start);
             kernel(vec_buf.buf, n_vectors, depth, stride, out_data, result_stride, tile_start, tile_rows);

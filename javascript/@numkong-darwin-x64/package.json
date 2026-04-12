@@ -20,6 +20,7 @@
   ],
   "main": "numkong.node",
   "files": [
-    "numkong.node"
+    "numkong.node",
+    "libomp.dylib"
   ]
 }
