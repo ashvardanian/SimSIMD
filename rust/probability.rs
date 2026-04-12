@@ -35,7 +35,9 @@ pub trait KullbackLeibler: Sized {
     fn kullbackleibler(a: &[Self], b: &[Self]) -> Option<Self::Output>;
 
     /// Alias for `kullbackleibler`.
-    fn kl(a: &[Self], b: &[Self]) -> Option<Self::Output> { Self::kullbackleibler(a, b) }
+    fn kl(a: &[Self], b: &[Self]) -> Option<Self::Output> {
+        Self::kullbackleibler(a, b)
+    }
 }
 
 impl KullbackLeibler for f64 {
@@ -116,7 +118,9 @@ pub trait JensenShannon: Sized {
     fn jensenshannon(a: &[Self], b: &[Self]) -> Option<Self::Output>;
 
     /// Alias for `jensenshannon`.
-    fn js(a: &[Self], b: &[Self]) -> Option<Self::Output> { Self::jensenshannon(a, b) }
+    fn js(a: &[Self], b: &[Self]) -> Option<Self::Output> {
+        Self::jensenshannon(a, b)
+    }
 }
 
 impl JensenShannon for f64 {
@@ -185,68 +189,84 @@ impl JensenShannon for bf16 {
 
 /// `ProbabilitySimilarity` bundles probability divergence metrics: KullbackLeibler and JensenShannon.
 pub trait ProbabilitySimilarity: KullbackLeibler + JensenShannon {}
-impl<T: KullbackLeibler + JensenShannon> ProbabilitySimilarity for T {}
+impl<Scalar: KullbackLeibler + JensenShannon> ProbabilitySimilarity for Scalar {}
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::types::{assert_close, bf16, f16, FloatLike, NumberLike, TestableType};
 
-    fn check_kld<T>(a: &[f32], b: &[f32], expected: f64)
+    fn check_kld<Scalar>(distribution_a: &[f32], distribution_b: &[f32], expected: f64)
     where
-        T: FloatLike + TestableType + KullbackLeibler,
-        T::Output: FloatLike,
+        Scalar: FloatLike + TestableType + KullbackLeibler,
+        Scalar::Output: FloatLike,
     {
-        let a_t: Vec<T> = a.iter().map(|&v| T::from_f32(v)).collect();
-        let b_t: Vec<T> = b.iter().map(|&v| T::from_f32(v)).collect();
-        let result = T::kullbackleibler(&a_t, &b_t).unwrap().to_f64();
+        let a_samples: Vec<Scalar> = distribution_a
+            .iter()
+            .map(|&v| Scalar::from_f32(v))
+            .collect();
+        let b_samples: Vec<Scalar> = distribution_b
+            .iter()
+            .map(|&v| Scalar::from_f32(v))
+            .collect();
+        let result = Scalar::kullbackleibler(&a_samples, &b_samples)
+            .unwrap()
+            .to_f64();
         // Divergences involve ln() so need wider tolerance than simple dot products
         assert_close(
             result,
             expected,
-            T::atol().max(1e-6),
-            T::rtol().max(1e-6),
-            &format!("kld<{}>", core::any::type_name::<T>()),
+            Scalar::atol().max(1e-6),
+            Scalar::rtol().max(1e-6),
+            &format!("kld<{}>", core::any::type_name::<Scalar>()),
         );
     }
 
-    fn check_jsd<T>(a: &[f32], b: &[f32], expected: f64)
+    fn check_jsd<Scalar>(distribution_a: &[f32], distribution_b: &[f32], expected: f64)
     where
-        T: FloatLike + TestableType + JensenShannon,
-        T::Output: FloatLike,
+        Scalar: FloatLike + TestableType + JensenShannon,
+        Scalar::Output: FloatLike,
     {
-        let a_t: Vec<T> = a.iter().map(|&v| T::from_f32(v)).collect();
-        let b_t: Vec<T> = b.iter().map(|&v| T::from_f32(v)).collect();
-        let result = T::jensenshannon(&a_t, &b_t).unwrap().to_f64();
+        let a_samples: Vec<Scalar> = distribution_a
+            .iter()
+            .map(|&v| Scalar::from_f32(v))
+            .collect();
+        let b_samples: Vec<Scalar> = distribution_b
+            .iter()
+            .map(|&v| Scalar::from_f32(v))
+            .collect();
+        let result = Scalar::jensenshannon(&a_samples, &b_samples)
+            .unwrap()
+            .to_f64();
         // Divergences involve ln() so need wider tolerance than simple dot products
         assert_close(
             result,
             expected,
-            T::atol().max(1e-6),
-            T::rtol().max(1e-6),
-            &format!("jsd<{}>", core::any::type_name::<T>()),
+            Scalar::atol().max(1e-6),
+            Scalar::rtol().max(1e-6),
+            &format!("jsd<{}>", core::any::type_name::<Scalar>()),
         );
     }
 
     #[test]
     fn divergences() {
-        let a = &[0.1_f32, 0.9, 0.0];
-        let b = &[0.2_f32, 0.8, 0.0];
+        let distribution_a = &[0.1_f32, 0.9, 0.0];
+        let distribution_b = &[0.2_f32, 0.8, 0.0];
 
         // KL(a||b) = 0.1*ln(0.1/0.2) + 0.9*ln(0.9/0.8)
         let kld_expected = 0.1_f64 * (0.1_f64 / 0.2).ln() + 0.9_f64 * (0.9_f64 / 0.8).ln();
-        check_kld::<f64>(a, b, kld_expected);
-        check_kld::<f32>(a, b, kld_expected);
-        check_kld::<f16>(a, b, kld_expected);
-        check_kld::<bf16>(a, b, kld_expected);
+        check_kld::<f64>(distribution_a, distribution_b, kld_expected);
+        check_kld::<f32>(distribution_a, distribution_b, kld_expected);
+        check_kld::<f16>(distribution_a, distribution_b, kld_expected);
+        check_kld::<bf16>(distribution_a, distribution_b, kld_expected);
 
         // JS distance = sqrt(0.5 * (KL(a||m) + KL(b||m))) where m = (a+b)/2
         let kl_am = 0.1_f64 * (0.1_f64 / 0.15).ln() + 0.9 * (0.9_f64 / 0.85).ln();
         let kl_bm = 0.2_f64 * (0.2_f64 / 0.15).ln() + 0.8 * (0.8_f64 / 0.85).ln();
         let jsd_expected = (0.5 * (kl_am + kl_bm)).sqrt();
-        check_jsd::<f64>(a, b, jsd_expected);
-        check_jsd::<f32>(a, b, jsd_expected);
-        check_jsd::<f16>(a, b, jsd_expected);
-        check_jsd::<bf16>(a, b, jsd_expected);
+        check_jsd::<f64>(distribution_a, distribution_b, jsd_expected);
+        check_jsd::<f32>(distribution_a, distribution_b, jsd_expected);
+        check_jsd::<f16>(distribution_a, distribution_b, jsd_expected);
+        check_jsd::<bf16>(distribution_a, distribution_b, jsd_expected);
     }
 }
