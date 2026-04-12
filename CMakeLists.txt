@@ -619,7 +619,15 @@ if (NK_BUILD_SHARED)
         # Hide all symbols by default; only NK_DYNAMIC-annotated API functions are exported.
         # Strip unwind tables from this pure-C library (saves ~78 KB).
         if (NOT MSVC)
-            target_compile_options(nk_shared PRIVATE -fvisibility=hidden -fno-asynchronous-unwind-tables)
+            target_compile_options(nk_shared PRIVATE
+                -fvisibility=hidden
+                -fno-asynchronous-unwind-tables
+                -fno-builtin-memset
+                -fno-builtin-memcpy
+                -fno-builtin-memmove)
+            if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
+                target_compile_options(nk_shared PRIVATE -fno-tree-loop-distribute-patterns)
+            endif ()
         endif ()
 
         # MSVC ARM64 cross-compilation: <intrin.h> pulls in <winnt.h> which

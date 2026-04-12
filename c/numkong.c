@@ -935,49 +935,6 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved) {
 #endif
 #endif
 
-// SME ABI runtime stubs — provide the lazy-ZA-save helpers that compiler-rt
-// may not ship (e.g., Apple's toolchain). Called by compiler-generated code
-// in __arm_new("za") prologues/epilogues (used by dots streaming functions).
-//
-// In NumKong, TPIDR2_EL0 is always null at entry because no NK_PUBLIC function
-// carries ZA state. So __arm_tpidr2_save is always a no-op and
-// __arm_tpidr2_restore has nothing to restore.
-// Weak linkage lets a real compiler-rt override these if available.
-#if NK_TARGET_ARM64_ && NK_TARGET_SME
-__attribute__((weak, visibility("default"))) void __arm_tpidr2_save(void) {}
-__attribute__((weak, visibility("default"))) void __arm_tpidr2_restore(void *blk) { nk_unused_(blk); }
-
-// Streaming-compatible mem* stubs — safety net for any compiler-generated
-// streaming-mode memory operations. After the __arm_locally_streaming removal
-// these should never be reached, but weak symbols ensure linkage even if a
-// future compiler version reintroduces the calls.
-__attribute__((weak, visibility("default"))) void *__arm_sc_memset(void *dest, int ch,
-                                                                   __SIZE_TYPE__ count) __arm_streaming_compatible {
-    unsigned char *d = (unsigned char *)dest;
-    for (__SIZE_TYPE__ i = 0; i < count; i++) d[i] = (unsigned char)ch;
-    return dest;
-}
-__attribute__((weak, visibility("default"))) void *__arm_sc_memcpy(void *dest, void const *src,
-                                                                   __SIZE_TYPE__ count) __arm_streaming_compatible {
-    unsigned char *d = (unsigned char *)dest;
-    unsigned char const *s = (unsigned char const *)src;
-    for (__SIZE_TYPE__ i = 0; i < count; i++) d[i] = s[i];
-    return dest;
-}
-__attribute__((weak, visibility("default"))) void *__arm_sc_memmove(void *dest, void const *src,
-                                                                    __SIZE_TYPE__ count) __arm_streaming_compatible {
-    unsigned char *d = (unsigned char *)dest;
-    unsigned char const *s = (unsigned char const *)src;
-    if (d < s) {
-        for (__SIZE_TYPE__ i = 0; i < count; i++) d[i] = s[i];
-    }
-    else {
-        for (__SIZE_TYPE__ i = count; i > 0; i--) d[i - 1] = s[i - 1];
-    }
-    return dest;
-}
-#endif
-
 #ifdef __cplusplus
 }
 #endif

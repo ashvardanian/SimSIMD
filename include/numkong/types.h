@@ -1627,6 +1627,49 @@ NK_INTERNAL nk_size_t nk_sme_cntd_(void) {
     __asm__ __volatile__("smstart sm\n\t" "cntd %0\n\t" "smstop sm" : "=r"(r));
     return (nk_size_t)r;
 }
+
+/** @brief Enter streaming SVE mode (PSTATE.SM = 1). Caller is responsible for smstop. */
+NK_INTERNAL void nk_sme_start_streaming_(void) { __asm__ __volatile__("smstart sm" ::: "memory"); }
+/** @brief Exit streaming SVE mode (PSTATE.SM = 0). Must pair with nk_sme_start_streaming_. */
+NK_INTERNAL void nk_sme_stop_streaming_(void) { __asm__ __volatile__("smstop sm" ::: "memory"); }
+
+/**
+ *  SME runtime stubs — weak definitions for symbols the compiler may reference
+ *  from __arm_streaming or __arm_new("za") functions. Every TU that includes
+ *  this header emits a weak copy; the linker deduplicates to one.
+ *
+ *  - __arm_tpidr2_save / __arm_tpidr2_restore: lazy ZA save/restore protocol
+ *    used in __arm_new("za") prologues. Always no-ops in NumKong because no
+ *    NK_PUBLIC function carries ZA state (TPIDR2_EL0 is always null at entry).
+ *
+ *  - __arm_sc_memset / __arm_sc_memcpy / __arm_sc_memmove: streaming-compatible
+ *    memory routines the compiler may emit inside __arm_streaming functions.
+ *    Apple Clang provides these in its runtime; upstream LLVM does not.
+ */
+__attribute__((weak)) void __arm_tpidr2_save(void) {}
+__attribute__((weak)) void __arm_tpidr2_restore(void *blk) { nk_unused_(blk); }
+__attribute__((weak)) void *__arm_sc_memset(void *d, int c, __SIZE_TYPE__ n) __arm_streaming_compatible {
+    unsigned char *p = (unsigned char *)d;
+    for (__SIZE_TYPE__ i = 0; i < n; i++) p[i] = (unsigned char)c;
+    return d;
+}
+__attribute__((weak)) void *__arm_sc_memcpy(void *d, void const *s, __SIZE_TYPE__ n) __arm_streaming_compatible {
+    unsigned char *dp = (unsigned char *)d;
+    unsigned char const *sp = (unsigned char const *)s;
+    for (__SIZE_TYPE__ i = 0; i < n; i++) dp[i] = sp[i];
+    return d;
+}
+__attribute__((weak)) void *__arm_sc_memmove(void *d, void const *s, __SIZE_TYPE__ n) __arm_streaming_compatible {
+    unsigned char *dp = (unsigned char *)d;
+    unsigned char const *sp = (unsigned char const *)s;
+    if (dp < sp) {
+        for (__SIZE_TYPE__ i = 0; i < n; i++) dp[i] = sp[i];
+    }
+    else {
+        for (__SIZE_TYPE__ i = n; i > 0; i--) dp[i - 1] = sp[i - 1];
+    }
+    return d;
+}
 #endif
 
 #ifdef __cplusplus
