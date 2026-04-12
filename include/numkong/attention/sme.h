@@ -249,10 +249,9 @@ NK_PUBLIC nk_size_t nk_attention_packed_kv_size_f16_sme(nk_size_t num_kv_heads, 
     return nk_attention_packed_kv_size_bf16_sme(num_kv_heads, head_dim, max_seq_len);
 }
 
-__arm_locally_streaming static void nk_attention_pack_kv_bf16_sme_streaming_(nk_bf16_t const *k, nk_bf16_t const *v,
-                                                                             nk_size_t num_kv_heads, nk_size_t head_dim,
-                                                                             nk_size_t seq_len, nk_size_t k_stride,
-                                                                             nk_size_t v_stride, void *kv_packed) {
+static void nk_attention_pack_kv_bf16_sme_ssve_( //
+    nk_bf16_t const *k, nk_bf16_t const *v, nk_size_t num_kv_heads, nk_size_t head_dim, nk_size_t seq_len,
+    nk_size_t k_stride, nk_size_t v_stride, void *kv_packed) NK_STREAMING_ {
 
     nk_attention_sme_packed_header_t *header = (nk_attention_sme_packed_header_t *)kv_packed;
     nk_size_t head_dim_padded = (head_dim + 31) / 32 * 32;
@@ -315,16 +314,17 @@ __arm_locally_streaming static void nk_attention_pack_kv_bf16_sme_streaming_(nk_
     }
 }
 
-NK_PUBLIC void nk_attention_pack_kv_bf16_sme(nk_bf16_t const *k, nk_bf16_t const *v, nk_size_t num_kv_heads,
-                                             nk_size_t head_dim, nk_size_t seq_len, nk_size_t k_stride,
-                                             nk_size_t v_stride, void *kv_packed) {
-    nk_attention_pack_kv_bf16_sme_streaming_(k, v, num_kv_heads, head_dim, seq_len, k_stride, v_stride, kv_packed);
+NK_PUBLIC void nk_attention_pack_kv_bf16_sme( //
+    nk_bf16_t const *k, nk_bf16_t const *v, nk_size_t num_kv_heads, nk_size_t head_dim, nk_size_t seq_len,
+    nk_size_t k_stride, nk_size_t v_stride, void *kv_packed) {
+    nk_sme_start_streaming_();
+    nk_attention_pack_kv_bf16_sme_ssve_(k, v, num_kv_heads, head_dim, seq_len, k_stride, v_stride, kv_packed);
+    nk_sme_stop_streaming_();
 }
 
-__arm_locally_streaming static void nk_attention_pack_kv_f16_sme_streaming_(nk_f16_t const *k, nk_f16_t const *v,
-                                                                            nk_size_t num_kv_heads, nk_size_t head_dim,
-                                                                            nk_size_t seq_len, nk_size_t k_stride,
-                                                                            nk_size_t v_stride, void *kv_packed) {
+static void nk_attention_pack_kv_f16_sme_ssve_( //
+    nk_f16_t const *k, nk_f16_t const *v, nk_size_t num_kv_heads, nk_size_t head_dim, nk_size_t seq_len,
+    nk_size_t k_stride, nk_size_t v_stride, void *kv_packed) NK_STREAMING_ {
 
     nk_attention_sme_packed_header_t *header = (nk_attention_sme_packed_header_t *)kv_packed;
     nk_size_t head_dim_padded = (head_dim + 31) / 32 * 32;
@@ -385,10 +385,12 @@ __arm_locally_streaming static void nk_attention_pack_kv_f16_sme_streaming_(nk_f
     }
 }
 
-NK_PUBLIC void nk_attention_pack_kv_f16_sme(nk_f16_t const *k, nk_f16_t const *v, nk_size_t num_kv_heads,
-                                            nk_size_t head_dim, nk_size_t seq_len, nk_size_t k_stride,
-                                            nk_size_t v_stride, void *kv_packed) {
-    nk_attention_pack_kv_f16_sme_streaming_(k, v, num_kv_heads, head_dim, seq_len, k_stride, v_stride, kv_packed);
+NK_PUBLIC void nk_attention_pack_kv_f16_sme( //
+    nk_f16_t const *k, nk_f16_t const *v, nk_size_t num_kv_heads, nk_size_t head_dim, nk_size_t seq_len,
+    nk_size_t k_stride, nk_size_t v_stride, void *kv_packed) {
+    nk_sme_start_streaming_();
+    nk_attention_pack_kv_f16_sme_ssve_(k, v, num_kv_heads, head_dim, seq_len, k_stride, v_stride, kv_packed);
+    nk_sme_stop_streaming_();
 }
 
 /**
@@ -402,13 +404,13 @@ NK_PUBLIC void nk_attention_pack_kv_f16_sme(nk_f16_t const *k, nk_f16_t const *v
  *  - Correction skip when running max is unchanged
  *  - Decode path (valid_query_count==1) remains element-wise SVE (BFMOPA overhead too high)
  */
-__arm_locally_streaming __arm_new("za") static void nk_attention_bf16_sme_streaming_(
+__arm_new("za") static void nk_attention_bf16_sme_streaming_(
     nk_bf16_t const *q,        // [query_len, head_dim]
     nk_bf16_t const *k,        // [kv_len, head_dim_padded] BFMOPA-interleaved
     nk_bf16_t const *v_packed, // BFMOPA-interleaved V for this KV head
     nk_bf16_t *output,         // [query_len, head_dim]
     nk_size_t query_len, nk_size_t kv_len, nk_size_t head_dim, nk_size_t head_dim_padded, nk_size_t dim_tile_count,
-    nk_f32_t scale) {
+    nk_f32_t scale) NK_STREAMING_ {
 
     svbool_t const predicate_all_b32x = svptrue_b32();
     svbool_t const predicate_all_b16x = svptrue_b16();
@@ -1184,9 +1186,9 @@ __arm_locally_streaming __arm_new("za") static void nk_attention_bf16_sme_stream
     }
 }
 
-NK_PUBLIC void nk_attention_bf16_sme(nk_bf16_t const *q, void const *kv_packed, nk_bf16_t *output, nk_size_t num_heads,
-                                     nk_size_t num_kv_heads, nk_size_t query_len, nk_size_t kv_len, nk_size_t head_dim,
-                                     nk_f32_t scale) {
+NK_PUBLIC void nk_attention_bf16_sme( //
+    nk_bf16_t const *q, void const *kv_packed, nk_bf16_t *output, nk_size_t num_heads, nk_size_t num_kv_heads,
+    nk_size_t query_len, nk_size_t kv_len, nk_size_t head_dim, nk_f32_t scale) {
 
     nk_attention_sme_packed_header_t const *header = (nk_attention_sme_packed_header_t const *)kv_packed;
     nk_size_t head_dim_padded = header->head_dim_padded;
@@ -1199,6 +1201,7 @@ NK_PUBLIC void nk_attention_bf16_sme(nk_bf16_t const *q, void const *kv_packed, 
 
     nk_size_t group_size = (num_kv_heads > 0) ? num_heads / num_kv_heads : 1;
 
+    nk_sme_start_streaming_();
     for (nk_size_t q_head = 0; q_head < num_heads; q_head++) {
         nk_size_t kv_head = q_head / group_size;
 
@@ -1214,15 +1217,13 @@ NK_PUBLIC void nk_attention_bf16_sme(nk_bf16_t const *q, void const *kv_packed, 
                                              q_block_len, kv_len, head_dim, head_dim_padded, dim_tile_count, scale);
         }
     }
+    nk_sme_stop_streaming_();
 }
 
-__arm_locally_streaming __arm_new("za") static void nk_attention_f16_sme_streaming_(
-    nk_f16_t const *q,        // [query_len, head_dim]
-    nk_f16_t const *k,        // [kv_len, head_dim_padded] FMOPA-interleaved
-    nk_f16_t const *v_packed, // FMOPA-interleaved V for this KV head
-    nk_f16_t *output,         // [query_len, head_dim]
-    nk_size_t query_len, nk_size_t kv_len, nk_size_t head_dim, nk_size_t head_dim_padded, nk_size_t dim_tile_count,
-    nk_f32_t scale) {
+__arm_new("za") static void nk_attention_f16_sme_streaming_( //
+    nk_f16_t const *q, nk_f16_t const *k, nk_f16_t const *v_packed, nk_f16_t *output, nk_size_t query_len,
+    nk_size_t kv_len, nk_size_t head_dim, nk_size_t head_dim_padded, nk_size_t dim_tile_count,
+    nk_f32_t scale) NK_STREAMING_ {
 
     svbool_t const predicate_all_b32x = svptrue_b32();
     svbool_t const predicate_all_b16x = svptrue_b16();
@@ -2008,9 +2009,9 @@ __arm_locally_streaming __arm_new("za") static void nk_attention_f16_sme_streami
     }
 }
 
-NK_PUBLIC void nk_attention_f16_sme(nk_f16_t const *q, void const *kv_packed, nk_f16_t *output, nk_size_t num_heads,
-                                    nk_size_t num_kv_heads, nk_size_t query_len, nk_size_t kv_len, nk_size_t head_dim,
-                                    nk_f32_t scale) {
+NK_PUBLIC void nk_attention_f16_sme( //
+    nk_f16_t const *q, void const *kv_packed, nk_f16_t *output, nk_size_t num_heads, nk_size_t num_kv_heads,
+    nk_size_t query_len, nk_size_t kv_len, nk_size_t head_dim, nk_f32_t scale) {
 
     nk_attention_sme_packed_header_t const *header = (nk_attention_sme_packed_header_t const *)kv_packed;
     nk_size_t head_dim_padded = header->head_dim_padded;
@@ -2024,6 +2025,7 @@ NK_PUBLIC void nk_attention_f16_sme(nk_f16_t const *q, void const *kv_packed, nk
 
     nk_size_t group_size = (num_kv_heads > 0) ? num_heads / num_kv_heads : 1;
 
+    nk_sme_start_streaming_();
     for (nk_size_t q_head = 0; q_head < num_heads; q_head++) {
         nk_size_t kv_head = q_head / group_size;
 
@@ -2039,6 +2041,7 @@ NK_PUBLIC void nk_attention_f16_sme(nk_f16_t const *q, void const *kv_packed, nk
                                             q_block_len, kv_len, head_dim, head_dim_padded, dim_tile_count, scale);
         }
     }
+    nk_sme_stop_streaming_();
 }
 
 NK_PUBLIC void nk_attention_causal_bf16_sme(nk_bf16_t const *q, void const *kv_packed, nk_bf16_t *output,
