@@ -20,6 +20,13 @@
 
 #include "numkong/capabilities.h" // nk_capabilities, nk_configure_thread
 
+#if !NK_TARGET_WASM_
+#include <csignal> // `std::signal`, `SIGILL`
+#define NK_HAS_SIGNAL_ 1
+#else
+#define NK_HAS_SIGNAL_ 0
+#endif
+
 #include "test.hpp"
 #include "test_cross.hpp"
 
@@ -102,6 +109,7 @@ void print_stats_header(comparison_family_t family) noexcept {
     std::printf("\n");
 }
 
+#if NK_HAS_SIGNAL_
 /** @brief  Fatal signal handler that logs the signal and faulting kernel before exiting. */
 static void crash_handler(int sig) {
     // Only async-signal-safe calls allowed: write(2) and _exit(2).
@@ -131,9 +139,11 @@ static void crash_handler(int sig) {
 #endif
     _exit(128 + sig);
 }
+#endif // NK_HAS_SIGNAL_
 
 int main(int argc, char **argv) {
 
+#if NK_HAS_SIGNAL_
     std::signal(SIGILL, crash_handler);
     std::signal(SIGSEGV, crash_handler);
 #if defined(SIGBUS)
@@ -141,6 +151,7 @@ int main(int argc, char **argv) {
 #endif
     std::signal(SIGFPE, crash_handler);
     std::signal(SIGABRT, crash_handler);
+#endif // NK_HAS_SIGNAL_
 
     // Parse CLI arguments
     for (int i = 1; i < argc; ++i) {

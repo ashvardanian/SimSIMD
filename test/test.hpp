@@ -34,7 +34,6 @@
 #define NK_TEST_HPP
 
 #include <cmath>   // `std::fabs`, `std::isnan`, `std::isinf`
-#include <csignal> // `std::signal`, `SIGILL`
 #include <cstdint> // `std::uint64_t`, `std::int32_t`, `std::int64_t`
 #include <cstdio>  // `std::printf`, `std::fflush`
 #include <cstdlib> // `std::abort`
