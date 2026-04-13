@@ -500,13 +500,6 @@ NK_PUBLIC nk_capability_t nk_capabilities_x8664_(void) {
 
 #if NK_TARGET_ARM64_
 
-#if defined(__clang__)
-#pragma clang attribute push(__attribute__((target("arch=armv8.5-a+sve"))), apply_to = function)
-#elif defined(__GNUC__)
-#pragma GCC push_options
-#pragma GCC target("arch=armv8.5-a+sve")
-#endif
-
 #if NK_HAS_POSIX_EXTENSIONS_
 static sigjmp_buf nk_mrs_arm64_jump_buffer_;
 static void nk_mrs_arm64_sigill_handler_(int sig) {
@@ -715,12 +708,6 @@ NK_PUBLIC nk_capability_t nk_capabilities_arm64_(void) {
     return (nk_capability_t)(nk_cap_neon_k | nk_cap_serial_k);
 #endif
 }
-
-#if defined(__clang__)
-#pragma clang attribute pop
-#elif defined(__GNUC__)
-#pragma GCC pop_options
-#endif
 
 #endif // NK_TARGET_ARM64_
 
