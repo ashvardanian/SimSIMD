@@ -204,21 +204,27 @@ endif ()
 
 # Compiler-specific flags
 if (CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$" OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    # Pin TU baseline to each arch's ABI floor; SIMD kernels carry per-function pragmas.
+    # Portable baseline: pin TU ISA floor + forbid auto-vectorization so serial
+    # fallbacks don't get silently promoted to NEON/SSE2/VSX (NEON under +nosimd
+    # also miscompiles on GCC). SIMD kernels use explicit intrinsics; unaffected.
+    # `NK_MARCH_NATIVE=ON` opts out for host-tuned builds.
     if (NK_MARCH_NATIVE AND (NK_IS_LINUX_ OR NK_IS_FREEBSD_) AND NOT CMAKE_CROSSCOMPILING)
         message(WARNING "NK_MARCH_NATIVE=ON: baking host-specific instructions; result will not run on older CPUs")
         add_compile_options(-march=native)
-    elseif (NK_IS_64BIT_ARM_)
-        add_compile_options(-march=armv8-a+nosimd)
-    elseif (NK_IS_64BIT_X86_)
-        add_compile_options(-march=x86-64)
-    elseif (NK_IS_64BIT_RISCV_)
-        add_compile_options(-march=rv64gc)
-    elseif (NK_IS_64BIT_POWER_)
-        add_compile_options(-mcpu=power8)
-    elseif (NK_IS_64BIT_LOONGARCH_)
-        # LASX needs TU-level `-mlasx` until GCC >= 15 / Clang >= 22 ship per-function support.
-        add_compile_options(-march=loongarch64 -mlasx)
+    else ()
+        add_compile_options(-fno-tree-vectorize -fno-tree-slp-vectorize)
+        if (NK_IS_64BIT_ARM_)
+            add_compile_options(-march=armv8-a+nosimd)
+        elseif (NK_IS_64BIT_X86_)
+            add_compile_options(-march=x86-64)
+        elseif (NK_IS_64BIT_RISCV_)
+            add_compile_options(-march=rv64gc)
+        elseif (NK_IS_64BIT_POWER_)
+            add_compile_options(-mcpu=power8)
+        elseif (NK_IS_64BIT_LOONGARCH_)
+            # LASX needs TU-level `-mlasx` until GCC >= 15 / Clang >= 22 ship per-function support.
+            add_compile_options(-march=loongarch64 -mlasx)
+        endif ()
     endif ()
 
     add_compile_options(-pedantic)
@@ -229,7 +235,7 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$" OR CMAKE_CXX_COMPILER_ID STR
         add_compile_options(-fmax-errors=1 -Wno-tautological-constant-compare -Wno-psabi)
     endif ()
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
-    add_compile_options(-w -ferror-limit=1)
+    add_compile_options(-w -ferror-limit=1 -fno-tree-vectorize -fno-tree-slp-vectorize)
 elseif (MSVC)
     # MSVC: no per-function target pragma, no `+nosimd`; these match defaults.
     if (NK_IS_64BIT_X86_)

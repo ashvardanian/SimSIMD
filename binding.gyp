@@ -94,6 +94,19 @@
                         ]
                     }
                 ],
+                # Forbid auto-vectorization so serial fallbacks don't get silently
+                # promoted to NEON/SSE2/VSX (NEON under +nosimd also miscompiles
+                # on GCC). SIMD kernels use explicit intrinsics; unaffected.
+                # MSVC has no command-line vectorizer toggle.
+                [
+                    "OS!='win'",
+                    {
+                        "cflags": [
+                            "-fno-tree-vectorize",
+                            "-fno-tree-slp-vectorize"
+                        ]
+                    }
+                ],
                 [
                     "OS=='mac'",
                     {

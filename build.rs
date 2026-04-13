@@ -377,17 +377,22 @@ fn build_numkong() -> Result<HashMap<String, bool>, String> {
     // Pin TU baseline to each arch's ABI floor; SIMD kernels carry per-function pragmas.
     // `NK_MARCH_NATIVE=1` opts into a host-tuned, non-portable build (ignored on MSVC).
     let march_native = env::var("NK_MARCH_NATIVE").is_ok_and(|v| v == "1" || v == "true");
+    // Portable baseline: pin TU ISA floor + forbid auto-vectorization so serial
+    // fallbacks don't get silently promoted to NEON/SSE2/VSX (NEON under +nosimd
+    // also miscompiles on GCC). SIMD kernels use explicit intrinsics; unaffected.
+    // MSVC has no command-line vectorizer toggle; `NK_MARCH_NATIVE=1` opts out.
     if march_native && !is_msvc {
         println!("cargo:warning=NK_MARCH_NATIVE=1: building -march=native, result will not run on older CPUs");
         build.flag_if_supported("-march=native");
     } else if is_msvc {
-        // MSVC: no per-function target pragma, no `+nosimd`; these match defaults.
         match target_arch.as_str() {
             "x86_64"  => { build.flag_if_supported("/arch:SSE2"); }
             "aarch64" => { build.flag_if_supported("/arch:armv8.0"); }
             _ => {}
         }
     } else {
+        build.flag_if_supported("-fno-tree-vectorize");
+        build.flag_if_supported("-fno-tree-slp-vectorize");
         match target_arch.as_str() {
             "x86_64"      => { build.flag_if_supported("-march=x86-64"); }
             "aarch64"     => { build.flag_if_supported("-march=armv8-a+nosimd"); }

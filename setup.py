@@ -76,32 +76,36 @@ def is_64bit_power() -> bool:
 
 
 def march_baseline_args() -> list[str]:
-    """TU-level baseline arch flag for the current platform/arch.
+    """TU-level baseline: ISA floor + auto-vectorizer lockdown.
 
-    Honors `NK_MARCH_NATIVE=1` for a host-tuned, non-portable build (ignored on MSVC).
+    Keeps serial kernels serial — auto-vec would otherwise promote fallbacks to
+    NEON/SSE2/VSX (NEON under +nosimd also miscompiles on GCC). SIMD kernels use
+    explicit intrinsics; unaffected. MSVC has no command-line vectorizer toggle.
+    `NK_MARCH_NATIVE=1` opts out for host-tuned builds (non-MSVC).
     """
     msvc = sys.platform == "win32"
-    if not msvc and os.environ.get("NK_MARCH_NATIVE") in ("1", "true", "TRUE"):
-        print("[NumKong] NK_MARCH_NATIVE=1: building -march=native, result will not run on older CPUs")
-        return ["-march=native"]
     if msvc:
         if is_64bit_x86():
             return ["/arch:SSE2"]
         if is_64bit_arm():
             return ["/arch:armv8.0"]
         return []
+    if os.environ.get("NK_MARCH_NATIVE") in ("1", "true", "TRUE"):
+        print("[NumKong] NK_MARCH_NATIVE=1: building -march=native, result will not run on older CPUs")
+        return ["-march=native"]
+    no_vectorize = ["-fno-tree-vectorize", "-fno-tree-slp-vectorize"]
     if is_64bit_arm():
-        return ["-march=armv8-a+nosimd"]
+        return ["-march=armv8-a+nosimd"] + no_vectorize
     if is_64bit_x86():
-        return ["-march=x86-64"]
+        return ["-march=x86-64"] + no_vectorize
     if is_64bit_riscv():
-        return ["-march=rv64gc"]
+        return ["-march=rv64gc"] + no_vectorize
     if is_64bit_power():
-        return ["-mcpu=power8"]
+        return ["-mcpu=power8"] + no_vectorize
     if is_64bit_loongarch():
         # LASX needs TU-level `-mlasx` until GCC >= 15 / Clang >= 22 ship per-function support.
-        return ["-march=loongarch64", "-mlasx"]
-    return []
+        return ["-march=loongarch64", "-mlasx"] + no_vectorize
+    return no_vectorize
 
 
 def is_wasm() -> bool:
