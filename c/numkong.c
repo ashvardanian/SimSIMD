@@ -935,19 +935,6 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved) {
 #endif
 #endif
 
-// SME ABI runtime stubs — provide the lazy-ZA-save helpers that compiler-rt
-// may not ship (e.g., Apple's toolchain). Called by compiler-generated code
-// in __arm_new("za") prologues/epilogues (used by dots streaming functions).
-//
-// In NumKong, TPIDR2_EL0 is always null at entry because no NK_PUBLIC function
-// carries ZA state. So __arm_tpidr2_save is always a no-op and
-// __arm_tpidr2_restore has nothing to restore.
-// Weak linkage lets a real compiler-rt override these if available.
-#if NK_TARGET_ARM64_ && NK_TARGET_SME
-__attribute__((weak, visibility("default"))) void __arm_tpidr2_save(void) {}
-__attribute__((weak, visibility("default"))) void __arm_tpidr2_restore(void *blk) { nk_unused_(blk); }
-#endif
-
 #ifdef __cplusplus
 }
 #endif

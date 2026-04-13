@@ -126,6 +126,8 @@ jobs:
         uses: actions/checkout@v6
         with:
           ref: ${{ inputs.ref || github.sha }}
+      - name: Print Machine Specs
+        run: sysctl hw.optional.arm hw.optional machdep.cpu || true
       - name: Install Python
         uses: actions/setup-python@v6
         with:
@@ -168,6 +170,8 @@ jobs:
         uses: actions/checkout@v6
         with:
           ref: ${{ inputs.ref || github.sha }}
+      - name: Print Machine Specs
+        run: sysctl hw.optional.arm hw.optional machdep.cpu || true
       - name: Install Python
         uses: actions/setup-python@v6
         with:
@@ -226,6 +230,11 @@ jobs:
         uses: actions/checkout@v6
         with:
           ref: ${{ inputs.ref || github.sha }}
+      - name: Print Machine Specs
+        shell: pwsh
+        run: |
+          Get-CimInstance Win32_Processor | Format-List Name,Manufacturer,NumberOfCores,NumberOfLogicalProcessors,Description,Architecture
+          Get-ComputerInfo | Format-List CsProcessors,OsArchitecture,WindowsVersion
       - name: Install Python
         uses: actions/setup-python@v6
         with:

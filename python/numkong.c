@@ -1182,7 +1182,7 @@ static PyModuleDef nk_module = {
     PyModuleDef_HEAD_INIT, .m_name = "NumKong", .m_doc = doc_module, .m_size = -1, .m_methods = nk_methods,
 };
 
-PyMODINIT_FUNC PyInit_numkong(void) {
+PyMODINIT_FUNC PyInit__numkong(void) {
     PyObject *m;
 
     if (PyType_Ready(&TensorType) < 0) return NULL;

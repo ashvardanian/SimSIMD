@@ -64,7 +64,7 @@
                     ],
                     "AdditionalOptions": [
                         "/Zc:preprocessor",
-                        "/openmp"
+                        "/openmp:llvm"
                     ],
                 },
             },
@@ -74,8 +74,22 @@
                     {
                         "xcode_settings": {
                             "MACOSX_DEPLOYMENT_TARGET": "11.0",
-                            "OTHER_CFLAGS": ["-Xpreprocessor", "-fopenmp"],
-                            "OTHER_LDFLAGS": ["-lomp"]
+                            # Apple Clang ships no `omp.h`; the CI step
+                            # `brew install libomp` makes it keg-only under
+                            # `/opt/homebrew/opt/libomp` (arm64) or
+                            # `/usr/local/opt/libomp` (x86_64). Clang silently
+                            # ignores `-I` / `-L` dirs that don't exist, so
+                            # listing both keeps the file arch-agnostic.
+                            "OTHER_CFLAGS": [
+                                "-Xpreprocessor", "-fopenmp",
+                                "-I/opt/homebrew/opt/libomp/include",
+                                "-I/usr/local/opt/libomp/include"
+                            ],
+                            "OTHER_LDFLAGS": [
+                                "-lomp",
+                                "-L/opt/homebrew/opt/libomp/lib",
+                                "-L/usr/local/opt/libomp/lib"
+                            ]
                         }
                     }
                 ],

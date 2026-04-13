@@ -76,8 +76,8 @@ const PROBES = [
     ["NK_TARGET_SME2P1", "probes/arm_sme2p1.c", ["-march=armv8-a+sme2p1"], []],
     ["NK_TARGET_SMEF64", "probes/arm_sme_f64.c", ["-march=armv8-a+sme+sme-f64f64"], []],
     ["NK_TARGET_SMEHALF", "probes/arm_sme_half.c", ["-march=armv8-a+sme+sme-f16f16"], []],
-    ["NK_TARGET_SMEBF16", "probes/arm_sme_bf16.c", ["-march=armv8-a+sme2+b16b16"], []],
-    ["NK_TARGET_SMEBI32", "probes/arm_sme_bi32.c", ["-march=armv8-a+sme2+sme-i16i32"], []],
+    ["NK_TARGET_SMEBF16", "probes/arm_sme_bf16.c", ["-march=armv8-a+sme2+sme-b16b16"], []],
+    ["NK_TARGET_SMEBI32", "probes/arm_sme_bi32.c", ["-march=armv8-a+sme2"], []],
     ["NK_TARGET_SMELUT2", "probes/arm_sme_lut2.c", ["-march=armv8-a+sme2+lut"], []],
     ["NK_TARGET_SMEFA64", "probes/arm_sme_fa64.c", ["-march=armv8-a+sme+sme-fa64"], []],
     // RISC-V

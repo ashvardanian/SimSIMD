@@ -153,9 +153,9 @@ NK_PUBLIC void nk_dots_pack_f32_smef64(nk_f32_t const *b, nk_size_t columns, nk_
     }
 }
 
-__arm_locally_streaming __arm_new("za") static void nk_dots_packed_f32_smef64_streaming_(
+__arm_new("za") static void nk_dots_packed_f32_smef64_streaming_( //
     nk_f32_t const *a, void const *b_packed, nk_f64_t *c, nk_size_t rows, nk_size_t columns, nk_size_t depth,
-    nk_size_t a_stride_elements, nk_size_t c_stride_elements) {
+    nk_size_t a_stride_elements, nk_size_t c_stride_elements) NK_STREAMING_ {
 
     nk_dots_sme_packed_header_t const *header = (nk_dots_sme_packed_header_t const *)b_packed;
     nk_size_t const column_tile_count = header->column_tile_count;
@@ -390,14 +390,16 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_f32_smef64_st
     }
 }
 
-NK_PUBLIC void nk_dots_packed_f32_smef64(nk_f32_t const *a, void const *b_packed, nk_f64_t *c, nk_size_t rows,
-                                         nk_size_t columns, nk_size_t depth, nk_size_t a_stride_in_bytes,
-                                         nk_size_t c_stride_in_bytes) {
+NK_PUBLIC void nk_dots_packed_f32_smef64( //
+    nk_f32_t const *a, void const *b_packed, nk_f64_t *c, nk_size_t rows, nk_size_t columns, nk_size_t depth,
+    nk_size_t a_stride_in_bytes, nk_size_t c_stride_in_bytes) {
 
     nk_size_t const a_stride_elements = a_stride_in_bytes / sizeof(nk_f32_t);
     nk_size_t const c_stride_elements = c_stride_in_bytes / sizeof(nk_f64_t);
 
+    nk_sme_start_streaming_();
     nk_dots_packed_f32_smef64_streaming_(a, b_packed, c, rows, columns, depth, a_stride_elements, c_stride_elements);
+    nk_sme_stop_streaming_();
 }
 
 /**
@@ -406,9 +408,9 @@ NK_PUBLIC void nk_dots_packed_f32_smef64(nk_f32_t const *a, void const *b_packed
  *  pre-reads A columns into Z registers, then reloads ZA0 with widened B data
  *  per column tile. Eliminates all scalar B-packing loops.
  */
-__arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f32_smef64_streaming_(
+__arm_new("za") static void nk_dots_symmetric_f32_smef64_streaming_( //
     nk_f32_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_elements, nk_f64_t *result,
-    nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
+    nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) NK_STREAMING_ {
 
     nk_size_t const tile_dimension = svcntd();              // 8 for SVL=512
     nk_size_t const depth_tile_size = svcntw();             // 16 for SVL=512
@@ -721,15 +723,16 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f32_smef64
     }
 }
 
-NK_PUBLIC void nk_dots_symmetric_f32_smef64(nk_f32_t const *vectors, nk_size_t vectors_count, nk_size_t depth,
-                                            nk_size_t stride_in_bytes, nk_f64_t *result,
-                                            nk_size_t result_stride_in_bytes, nk_size_t row_start,
-                                            nk_size_t row_count) {
+NK_PUBLIC void nk_dots_symmetric_f32_smef64( //
+    nk_f32_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_in_bytes, nk_f64_t *result,
+    nk_size_t result_stride_in_bytes, nk_size_t row_start, nk_size_t row_count) {
 
     nk_size_t const stride_elements = stride_in_bytes / sizeof(nk_f32_t);
     nk_size_t const result_stride_elements = result_stride_in_bytes / sizeof(nk_f64_t);
+    nk_sme_start_streaming_();
     nk_dots_symmetric_f32_smef64_streaming_(vectors, vectors_count, depth, stride_elements, result,
                                             result_stride_elements, row_start, row_count);
+    nk_sme_stop_streaming_();
 }
 
 #pragma endregion F32 Floats
@@ -783,17 +786,16 @@ NK_PUBLIC void nk_dots_symmetric_f32_smef64(nk_f32_t const *vectors, nk_size_t v
  *
  *  All slices fit in f32 (24-bit significand). Products: max 19+19 = 38 ≤ 53, exact in f64.
  */
-NK_PUBLIC nk_u64_t nk_f64_smef64_ozaki_mask_19_bits_(void) NK_STREAMING_ {
+NK_PUBLIC nk_u64_t nk_f64_smef64_ozaki_mask_19_bits_(void) {
     return 0xFFFFFFFC00000000ULL; // keep top 19 sig bits
 }
-NK_PUBLIC nk_u64_t nk_f64_smef64_ozaki_mask_17_bits_(void) NK_STREAMING_ {
+NK_PUBLIC nk_u64_t nk_f64_smef64_ozaki_mask_17_bits_(void) {
     return 0xFFFFFFF000000000ULL; // keep top 17 sig bits
 }
 
 /*  Split a scalar f64 into 3 non-overlapping Ozaki slices (19+17+17 mantissa bits).
  *  Each slice fits in f32. Outputs stored via pointers. */
-NK_PUBLIC void nk_f64_smef64_ozaki_split_f64_(nk_f64_t val, nk_f64_t *slice_0, nk_f64_t *slice_1,
-                                              nk_f64_t *slice_2) NK_STREAMING_ {
+NK_PUBLIC void nk_f64_smef64_ozaki_split_f64_(nk_f64_t val, nk_f64_t *slice_0, nk_f64_t *slice_1, nk_f64_t *slice_2) {
     nk_fui64_t pun;
     pun.f = val;
     pun.u &= nk_f64_smef64_ozaki_mask_19_bits_();
@@ -805,9 +807,9 @@ NK_PUBLIC void nk_f64_smef64_ozaki_split_f64_(nk_f64_t val, nk_f64_t *slice_0, n
     *slice_2 = residual - *slice_1;
 }
 
-__arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f64_smef64_streaming_(
+__arm_new("za") static void nk_dots_symmetric_f64_smef64_streaming_( //
     nk_f64_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_elements, nk_f64_t *result,
-    nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
+    nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) NK_STREAMING_ {
 
     nk_size_t const tile_dimension = svcntd();
     nk_size_t const depth_steps_per_batch = tile_dimension;
@@ -929,15 +931,16 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f64_smef64
     }
 }
 
-NK_PUBLIC void nk_dots_symmetric_f64_smef64(nk_f64_t const *vectors, nk_size_t vectors_count, nk_size_t depth,
-                                            nk_size_t stride_in_bytes, nk_f64_t *result,
-                                            nk_size_t result_stride_in_bytes, nk_size_t row_start,
-                                            nk_size_t row_count) {
+NK_PUBLIC void nk_dots_symmetric_f64_smef64( //
+    nk_f64_t const *vectors, nk_size_t vectors_count, nk_size_t depth, nk_size_t stride_in_bytes, nk_f64_t *result,
+    nk_size_t result_stride_in_bytes, nk_size_t row_start, nk_size_t row_count) {
 
     nk_size_t const stride_elements = stride_in_bytes / sizeof(nk_f64_t);
     nk_size_t const result_stride_elements = result_stride_in_bytes / sizeof(nk_f64_t);
+    nk_sme_start_streaming_();
     nk_dots_symmetric_f64_smef64_streaming_(vectors, vectors_count, depth, stride_elements, result,
                                             result_stride_elements, row_start, row_count);
+    nk_sme_stop_streaming_();
 }
 
 NK_PUBLIC nk_size_t nk_dots_packed_size_f64_smef64(nk_size_t columns, nk_size_t depth) {
@@ -1018,9 +1021,9 @@ NK_PUBLIC void nk_dots_pack_f64_smef64(nk_f64_t const *b, nk_size_t columns, nk_
     }
 }
 
-__arm_locally_streaming __arm_new("za") static void nk_dots_packed_f64_smef64_streaming_(
+__arm_new("za") static void nk_dots_packed_f64_smef64_streaming_( //
     nk_f64_t const *a, void const *b_packed, nk_f64_t *c, nk_size_t rows, nk_size_t columns, nk_size_t depth,
-    nk_size_t a_stride_elements, nk_size_t c_stride_elements) {
+    nk_size_t a_stride_elements, nk_size_t c_stride_elements) NK_STREAMING_ {
 
     // Read header
     nk_dots_sme_packed_header_t const *header = (nk_dots_sme_packed_header_t const *)b_packed;
@@ -1296,14 +1299,16 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_f64_smef64_st
     }
 }
 
-NK_PUBLIC void nk_dots_packed_f64_smef64(nk_f64_t const *a, void const *b_packed, nk_f64_t *c, nk_size_t rows,
-                                         nk_size_t columns, nk_size_t depth, nk_size_t a_stride_in_bytes,
-                                         nk_size_t c_stride_in_bytes) {
+NK_PUBLIC void nk_dots_packed_f64_smef64( //
+    nk_f64_t const *a, void const *b_packed, nk_f64_t *c, nk_size_t rows, nk_size_t columns, nk_size_t depth,
+    nk_size_t a_stride_in_bytes, nk_size_t c_stride_in_bytes) {
 
     nk_size_t const a_stride_elements = a_stride_in_bytes / sizeof(nk_f64_t);
     nk_size_t const c_stride_elements = c_stride_in_bytes / sizeof(nk_f64_t);
 
+    nk_sme_start_streaming_();
     nk_dots_packed_f64_smef64_streaming_(a, b_packed, c, rows, columns, depth, a_stride_elements, c_stride_elements);
+    nk_sme_stop_streaming_();
 }
 
 #pragma endregion F64 Floats

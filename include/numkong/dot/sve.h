@@ -39,6 +39,7 @@
 #if NK_TARGET_SVE
 
 #include "numkong/types.h"      // `nk_f32_t`
+#include "numkong/reduce/sve.h" // `nk_svaddv_f64_`
 #include "numkong/dot/serial.h" // `nk_u1x8_popcount_`
 
 #if defined(__cplusplus)
@@ -110,7 +111,7 @@ NK_PUBLIC void nk_dot_f32_sve(nk_f32_t const *a_scalars, nk_f32_t const *b_scala
         ab_f64x = svmla_f64_m(pred_odd_b64x, ab_f64x, svcvt_f64_f32_x(pred_odd_b64x, svext_f32(a_f32x, a_f32x, 1)),
                               svcvt_f64_f32_x(pred_odd_b64x, svext_f32(b_f32x, b_f32x, 1)));
     }
-    *result = svaddv_f64(svptrue_b64(), ab_f64x);
+    *result = nk_svaddv_f64_(svptrue_b64(), ab_f64x);
 }
 
 NK_PUBLIC void nk_dot_f32c_sve(nk_f32c_t const *a_pairs, nk_f32c_t const *b_pairs, nk_size_t count_pairs,
@@ -149,8 +150,8 @@ NK_PUBLIC void nk_dot_f32c_sve(nk_f32c_t const *a_pairs, nk_f32c_t const *b_pair
         ab_imag_f64x = svmla_f64_m(pred_odd_b64x, ab_imag_f64x, a_real_odd_f64x, b_imag_odd_f64x);
         ab_imag_f64x = svmla_f64_m(pred_odd_b64x, ab_imag_f64x, a_imag_odd_f64x, b_real_odd_f64x);
     }
-    results->real = svaddv_f64(svptrue_b64(), ab_real_f64x);
-    results->imag = svaddv_f64(svptrue_b64(), ab_imag_f64x);
+    results->real = nk_svaddv_f64_(svptrue_b64(), ab_real_f64x);
+    results->imag = nk_svaddv_f64_(svptrue_b64(), ab_imag_f64x);
 }
 
 NK_PUBLIC void nk_vdot_f32c_sve(nk_f32c_t const *a_pairs, nk_f32c_t const *b_pairs, nk_size_t count_pairs,
@@ -189,8 +190,8 @@ NK_PUBLIC void nk_vdot_f32c_sve(nk_f32c_t const *a_pairs, nk_f32c_t const *b_pai
         ab_imag_f64x = svmla_f64_m(pred_odd_b64x, ab_imag_f64x, a_real_odd_f64x, b_imag_odd_f64x);
         ab_imag_f64x = svmls_f64_m(pred_odd_b64x, ab_imag_f64x, a_imag_odd_f64x, b_real_odd_f64x);
     }
-    results->real = svaddv_f64(svptrue_b64(), ab_real_f64x);
-    results->imag = svaddv_f64(svptrue_b64(), ab_imag_f64x);
+    results->real = nk_svaddv_f64_(svptrue_b64(), ab_real_f64x);
+    results->imag = nk_svaddv_f64_(svptrue_b64(), ab_imag_f64x);
 }
 
 NK_PUBLIC void nk_dot_f64_sve(nk_f64_t const *a_scalars, nk_f64_t const *b_scalars, nk_size_t count_scalars,

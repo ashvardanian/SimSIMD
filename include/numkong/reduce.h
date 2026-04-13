@@ -389,6 +389,8 @@ NK_PUBLIC void nk_reduce_moments_i16_neon(nk_i16_t const *, nk_size_t, nk_size_t
 /** @copydoc nk_reduce_moments_f64 */
 NK_PUBLIC void nk_reduce_moments_u16_neon(nk_u16_t const *, nk_size_t, nk_size_t, nk_u64_t *, nk_u64_t *);
 /** @copydoc nk_reduce_moments_f64 */
+NK_PUBLIC void nk_reduce_moments_u1_neon(nk_u1x8_t const *, nk_size_t, nk_size_t, nk_u64_t *, nk_u64_t *);
+/** @copydoc nk_reduce_moments_f64 */
 NK_PUBLIC void nk_reduce_moments_i32_neon(nk_i32_t const *, nk_size_t, nk_size_t, nk_i64_t *, nk_u64_t *);
 /** @copydoc nk_reduce_moments_f64 */
 NK_PUBLIC void nk_reduce_moments_u32_neon(nk_u32_t const *, nk_size_t, nk_size_t, nk_u64_t *, nk_u64_t *);
@@ -1559,6 +1561,8 @@ NK_PUBLIC void nk_reduce_moments_u1(nk_u1x8_t const *d, nk_size_t n, nk_size_t s
     nk_reduce_moments_u1_skylake(d, n, s, sum, sumsq);
 #elif NK_TARGET_HASWELL
     nk_reduce_moments_u1_haswell(d, n, s, sum, sumsq);
+#elif NK_TARGET_NEON
+    nk_reduce_moments_u1_neon(d, n, s, sum, sumsq);
 #else
     nk_reduce_moments_u1_serial(d, n, s, sum, sumsq);
 #endif

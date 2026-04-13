@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   test_c:
-    name: Test C
+    name: Test C on Linux
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
@@ -53,12 +53,51 @@ jobs:
       - name: Test Shared Library
         run: LD_LIBRARY_PATH=build_shared build_shared/nk_shared_test
 
-  test_windows:
-    name: Test Windows
-    runs-on: windows-2025
+  test_macos_homebrew_llvm:
+    name: Test macOS Homebrew LLVM
+    runs-on: macos-15
+
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+
+      - name: Install Homebrew LLVM
+        run: brew install llvm
+
+      # Record everything the runner CPU advertises so a future probe
+      # mismatch can be diagnosed without repro-locally-only guesswork.
+      - name: Print Machine Specs
+        run: sysctl hw.optional.arm || true
+
+      - name: Build
+        run: |
+          LLVM_PREFIX="$(brew --prefix llvm)"
+          cmake -B build_brew_llvm \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER="${LLVM_PREFIX}/bin/clang" \
+            -DCMAKE_CXX_COMPILER="${LLVM_PREFIX}/bin/clang++" \
+            -DNK_BUILD_TEST=1 \
+            -DNK_BUILD_SHARED=1
+          cmake --build build_brew_llvm --config Release
+
+      - name: Test
+        run: DYLD_LIBRARY_PATH=build_brew_llvm build_brew_llvm/nk_test
+        env:
+          NK_BUDGET_SECS: 0.2
+
+  test_windows:
+    name: Test C on Windows
+    runs-on: windows-2025
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Print Machine Specs
+        shell: pwsh
+        run: |
+          Get-CimInstance Win32_Processor | Format-List Name,Manufacturer,NumberOfCores,NumberOfLogicalProcessors,Description,Architecture
+          Get-ComputerInfo | Format-List CsProcessors,OsArchitecture,WindowsVersion
 
       - name: Set Up MSVC
         uses: microsoft/setup-msbuild@v3
@@ -87,7 +126,10 @@ jobs:
           cmake --build build_shared --config Release --target nk_shared_test
 
       - name: Test Shared Library
+        shell: cmd # PowerShell normalizes structured-exception exit codes to 1; cmd preserves the real code
         run: build_shared\Release\nk_shared_test.exe
+        env:
+          NK_BUDGET_SECS: 0.2
 
   test_android:
     name: Test Android
