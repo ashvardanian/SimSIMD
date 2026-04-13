@@ -79,9 +79,8 @@ def march_baseline_args() -> list[str]:
     """TU-level baseline: ISA floor + auto-vectorizer lockdown.
 
     Keeps serial kernels serial — auto-vec would otherwise promote fallbacks to
-    NEON/SSE2/VSX (NEON under +nosimd also miscompiles on GCC). SIMD kernels use
-    explicit intrinsics; unaffected. MSVC has no command-line vectorizer toggle.
-    `NK_MARCH_NATIVE=1` opts out for host-tuned builds (non-MSVC).
+    NEON/SSE2/VSX. SIMD kernels use explicit intrinsics; unaffected. MSVC has no
+    command-line vectorizer toggle. `NK_MARCH_NATIVE=1` opts out (non-MSVC).
     """
     msvc = sys.platform == "win32"
     if msvc:
@@ -95,7 +94,7 @@ def march_baseline_args() -> list[str]:
         return ["-march=native"]
     no_vectorize = ["-fno-tree-vectorize", "-fno-tree-slp-vectorize"]
     if is_64bit_arm():
-        return ["-march=armv8-a+nosimd"] + no_vectorize
+        return ["-march=armv8-a"] + no_vectorize
     if is_64bit_x86():
         return ["-march=x86-64"] + no_vectorize
     if is_64bit_riscv():

@@ -378,9 +378,9 @@ fn build_numkong() -> Result<HashMap<String, bool>, String> {
     // `NK_MARCH_NATIVE=1` opts into a host-tuned, non-portable build (ignored on MSVC).
     let march_native = env::var("NK_MARCH_NATIVE").is_ok_and(|v| v == "1" || v == "true");
     // Portable baseline: pin TU ISA floor + forbid auto-vectorization so serial
-    // fallbacks don't get silently promoted to NEON/SSE2/VSX (NEON under +nosimd
-    // also miscompiles on GCC). SIMD kernels use explicit intrinsics; unaffected.
-    // MSVC has no command-line vectorizer toggle; `NK_MARCH_NATIVE=1` opts out.
+    // fallbacks don't get silently promoted to NEON/SSE2/VSX. SIMD kernels use
+    // explicit intrinsics; unaffected. MSVC has no command-line vectorizer
+    // toggle; `NK_MARCH_NATIVE=1` opts out for host-tuned builds.
     if march_native && !is_msvc {
         println!("cargo:warning=NK_MARCH_NATIVE=1: building -march=native, result will not run on older CPUs");
         build.flag_if_supported("-march=native");
@@ -395,7 +395,7 @@ fn build_numkong() -> Result<HashMap<String, bool>, String> {
         build.flag_if_supported("-fno-tree-slp-vectorize");
         match target_arch.as_str() {
             "x86_64"      => { build.flag_if_supported("-march=x86-64"); }
-            "aarch64"     => { build.flag_if_supported("-march=armv8-a+nosimd"); }
+            "aarch64"     => { build.flag_if_supported("-march=armv8-a"); }
             "riscv64"     => { build.flag_if_supported("-march=rv64gc"); }
             "powerpc64"   => { build.flag_if_supported("-mcpu=power8"); }
             "loongarch64" => {

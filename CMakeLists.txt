@@ -205,8 +205,8 @@ endif ()
 # Compiler-specific flags
 if (CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$" OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     # Portable baseline: pin TU ISA floor + forbid auto-vectorization so serial
-    # fallbacks don't get silently promoted to NEON/SSE2/VSX (NEON under +nosimd
-    # also miscompiles on GCC). SIMD kernels use explicit intrinsics; unaffected.
+    # fallbacks don't get silently promoted to NEON/SSE2/VSX. SIMD kernels use
+    # explicit intrinsics and per-function `target` pragmas; unaffected.
     # `NK_MARCH_NATIVE=ON` opts out for host-tuned builds.
     if (NK_MARCH_NATIVE AND (NK_IS_LINUX_ OR NK_IS_FREEBSD_) AND NOT CMAKE_CROSSCOMPILING)
         message(WARNING "NK_MARCH_NATIVE=ON: baking host-specific instructions; result will not run on older CPUs")
@@ -214,7 +214,7 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$" OR CMAKE_CXX_COMPILER_ID STR
     else ()
         add_compile_options(-fno-tree-vectorize -fno-tree-slp-vectorize)
         if (NK_IS_64BIT_ARM_)
-            add_compile_options(-march=armv8-a+nosimd)
+            add_compile_options(-march=armv8-a)
         elseif (NK_IS_64BIT_X86_)
             add_compile_options(-march=x86-64)
         elseif (NK_IS_64BIT_RISCV_)
@@ -237,7 +237,7 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$" OR CMAKE_CXX_COMPILER_ID STR
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
     add_compile_options(-w -ferror-limit=1 -fno-tree-vectorize -fno-tree-slp-vectorize)
 elseif (MSVC)
-    # MSVC: no per-function target pragma, no `+nosimd`; these match defaults.
+    # MSVC: no per-function target pragma; these match defaults.
     if (NK_IS_64BIT_X86_)
         add_compile_options(/arch:SSE2)
     elseif (NK_IS_64BIT_ARM_)

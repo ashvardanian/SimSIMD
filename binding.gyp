@@ -74,7 +74,7 @@
                     "OS!='win' and target_arch=='arm64'",
                     {
                         "cflags": [
-                            "-march=armv8-a+nosimd"
+                            "-march=armv8-a"
                         ]
                     }
                 ],
@@ -95,9 +95,9 @@
                     }
                 ],
                 # Forbid auto-vectorization so serial fallbacks don't get silently
-                # promoted to NEON/SSE2/VSX (NEON under +nosimd also miscompiles
-                # on GCC). SIMD kernels use explicit intrinsics; unaffected.
-                # MSVC has no command-line vectorizer toggle.
+                # promoted to NEON/SSE2/VSX. SIMD kernels use explicit intrinsics
+                # and per-function `target` pragmas; unaffected. MSVC has no
+                # command-line vectorizer toggle.
                 [
                     "OS!='win'",
                     {
@@ -132,7 +132,7 @@
                         }
                     }
                 ],
-                # MSVC: no per-function target pragma, no `+nosimd`; these match defaults.
+                # MSVC: no per-function target pragma; these match defaults.
                 [
                     "OS=='win' and target_arch=='arm64'",
                     {
