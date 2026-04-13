@@ -80,6 +80,25 @@ jobs:
             -DNK_BUILD_SHARED=1
           cmake --build build_brew_llvm --config Release
 
+      # Smoke test under lldb with an impossible NK_FILTER so no kernels run —
+      # only `nk_capabilities()` / `nk_configure_thread()` and the suite's
+      # argv/env setup. If a SIGILL fires during probing (as on Apple M1 with
+      # Homebrew LLVM), lldb captures the backtrace, faulting PC symbol, and
+      # 8 instructions around it so the offender is visible in the job log.
+      - name: Smoke test under lldb (probing only)
+        run: |
+          DYLD_LIBRARY_PATH=build_brew_llvm \
+            lldb --batch \
+              -o run \
+              -k 'bt all' \
+              -k 'image lookup -a {frame.pc}' \
+              -k 'disassemble -c 8 -s {frame.pc}' \
+              -k 'quit' \
+              -- build_brew_llvm/nk_test
+        env:
+          NK_FILTER: __nk_impossible_filter__
+          NK_BUDGET_SECS: 0.05
+
       - name: Test
         run: DYLD_LIBRARY_PATH=build_brew_llvm build_brew_llvm/nk_test
         env:
