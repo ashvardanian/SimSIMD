@@ -69,6 +69,31 @@
                 },
             },
             "conditions": [
+                # Pin TU baseline to each arch's ABI floor; SIMD kernels use per-function pragmas.
+                [
+                    "OS!='win' and target_arch=='arm64'",
+                    {
+                        "cflags": [
+                            "-march=armv8-a+nosimd"
+                        ]
+                    }
+                ],
+                [
+                    "OS!='win' and target_arch=='x64'",
+                    {
+                        "cflags": [
+                            "-march=x86-64"
+                        ]
+                    }
+                ],
+                [
+                    "OS!='win' and target_arch=='riscv64'",
+                    {
+                        "cflags": [
+                            "-march=rv64gc"
+                        ]
+                    }
+                ],
                 [
                     "OS=='mac'",
                     {
@@ -81,7 +106,8 @@
                             # ignores `-I` / `-L` dirs that don't exist, so
                             # listing both keeps the file arch-agnostic.
                             "OTHER_CFLAGS": [
-                                "-Xpreprocessor", "-fopenmp",
+                                "-Xpreprocessor",
+                                "-fopenmp",
                                 "-I/opt/homebrew/opt/libomp/include",
                                 "-I/usr/local/opt/libomp/include"
                             ],
@@ -93,12 +119,20 @@
                         }
                     }
                 ],
+                # MSVC: no per-function target pragma, no `+nosimd`; these match defaults.
                 [
                     "OS=='win' and target_arch=='arm64'",
                     {
                         "defines": [
                             "_ARM64_"
-                        ]
+                        ],
+                        "msvs_settings": {
+                            "VCCLCompilerTool": {
+                                "AdditionalOptions": [
+                                    "/arch:armv8.0"
+                                ]
+                            }
+                        }
                     }
                 ],
                 [
@@ -106,7 +140,14 @@
                     {
                         "defines": [
                             "_AMD64_"
-                        ]
+                        ],
+                        "msvs_settings": {
+                            "VCCLCompilerTool": {
+                                "AdditionalOptions": [
+                                    "/arch:SSE2"
+                                ]
+                            }
+                        }
                     }
                 ],
             ],

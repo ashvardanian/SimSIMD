@@ -374,6 +374,36 @@ fn build_numkong() -> Result<HashMap<String, bool>, String> {
         build.flag_if_supported("-mpreferred-stack-boundary=4");
     }
 
+    // Pin TU baseline to each arch's ABI floor; SIMD kernels carry per-function pragmas.
+    // `NK_MARCH_NATIVE=1` opts into a host-tuned, non-portable build (ignored on MSVC).
+    let march_native = env::var("NK_MARCH_NATIVE").is_ok_and(|v| v == "1" || v == "true");
+    if march_native && !is_msvc {
+        println!("cargo:warning=NK_MARCH_NATIVE=1: building -march=native, result will not run on older CPUs");
+        build.flag_if_supported("-march=native");
+    } else if is_msvc {
+        // MSVC: no per-function target pragma, no `+nosimd`; these match defaults.
+        match target_arch.as_str() {
+            "x86_64"  => { build.flag_if_supported("/arch:SSE2"); }
+            "aarch64" => { build.flag_if_supported("/arch:armv8.0"); }
+            _ => {}
+        }
+    } else {
+        match target_arch.as_str() {
+            "x86_64"      => { build.flag_if_supported("-march=x86-64"); }
+            "aarch64"     => { build.flag_if_supported("-march=armv8-a+nosimd"); }
+            "riscv64"     => { build.flag_if_supported("-march=rv64gc"); }
+            "powerpc64"   => { build.flag_if_supported("-mcpu=power8"); }
+            "loongarch64" => {
+                // LASX must be enabled at TU level: GCC's LoongArch backend
+                // doesn't support per-function `target` attribute / pragma
+                // until GCC 15 (Feb 2025), and Clang until 22.1 (May 2025).
+                build.flag_if_supported("-march=loongarch64");
+                build.flag_if_supported("-mlasx");
+            }
+            _ => {}
+        }
+    }
+
     // Select probe tables for this architecture
     let probe_tables: &[&[IsaProbe]] = match target_arch.as_str() {
         "x86_64" => &[X86_PROBES],
@@ -431,6 +461,7 @@ fn build_numkong() -> Result<HashMap<String, bool>, String> {
     watch_dir("probes");
 
     // Rerun on env var changes
+    println!("cargo:rerun-if-env-changed=NK_MARCH_NATIVE");
     for table in [
         X86_PROBES,
         ARM_PROBES,

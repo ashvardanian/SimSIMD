@@ -32,14 +32,38 @@ build_release/nk_bench
 build_release/nk_test
 ```
 
-| CMake Flag             | Default            | Description                                     |
-| ---------------------- | ------------------ | ----------------------------------------------- |
-| `NK_BUILD_TEST`        | `OFF`              | Compile precision tests with ULP error analysis |
-| `NK_BUILD_BENCH`       | `OFF`              | Compile micro-benchmarks                        |
-| `NK_BUILD_SHARED`      | `ON`, if top-level | Compile dynamic library                         |
-| `NK_BUILD_SHARED_TEST` | `OFF`              | Compile tests against the shared library        |
-| `NK_COMPARE_TO_BLAS`   | `AUTO`             | Include OpenBLAS or Apple Accelerate            |
-| `NK_COMPARE_TO_MKL`    | `AUTO`             | Include Intel MKL                               |
+| CMake Flag                 | Default            | Description                                            |
+| -------------------------- | ------------------ | ------------------------------------------------------ |
+| `NK_BUILD_TEST`            | `OFF`              | Compile precision tests with ULP error analysis        |
+| `NK_BUILD_BENCH`           | `OFF`              | Compile micro-benchmarks                               |
+| `NK_BUILD_SHARED`          | `ON`, if top-level | Compile dynamic library                                |
+| `NK_BUILD_SHARED_TEST`     | `OFF`              | Compile tests against the shared library               |
+| `NK_COMPARE_TO_BLAS`       | `AUTO`             | Include OpenBLAS into test/bench comparisons           |
+| `NK_COMPARE_TO_ACCELERATE` | `AUTO`             | Include Apple's Accelerate into test/bench comparisons |
+| `NK_COMPARE_TO_MKL`        | `AUTO`             | Include Intel' MKL into test/bench comparisons         |
+| `NK_MARCH_NATIVE`          | `OFF`              | Tune for host CPU with `-march=native`                 |
+
+### Target Baseline Policy
+
+`CMakeLists.txt`, `build.rs`, `setup.py`, and `binding.gyp` pin the TU-level baseline to each architecture's ABI floor so distributable artifacts run on any CPU matching the ABI, not just the build host.
+SIMD kernels live inside `#pragma GCC target(...)` regions and are only called after runtime probing — see the README's [Compile-Time and Run-Time Dispatch](../README.md#compile-time-and-run-time-dispatch) section.
+
+| Target arch   | GCC/Clang baseline          | MSVC baseline   | Notes                                                       |
+| ------------- | --------------------------- | --------------- | ----------------------------------------------------------- |
+| `x86_64`      | `-march=x86-64`             | `/arch:SSE2`    | System V psABI / Microsoft x64 ABI floor; SSE2 is mandatory |
+| `aarch64`     | `-march=armv8-a+nosimd`     | `/arch:armv8.0` | GCC/Clang `+nosimd` forbids NEON outside pragma regions     |
+| `riscv64`     | `-march=rv64gc`             | n/a             | V extension is runtime-probed and dispatched                |
+| `powerpc64le` | `-mcpu=power8`              | n/a             | ELFv2 ABI floor (VSX is mandatory)                          |
+| `loongarch64` | `-march=loongarch64 -mlasx` | n/a             | LASX baked into the baseline — see LoongArch note below     |
+
+The AArch64 `+nosimd` baseline is structural — it makes accidental NEON use outside a pragma region a compile error, and makes `always_inline` target-mismatch errors impossible (callee baseline can never exceed any caller pragma).
+MSVC has no per-function target pragma and no `+nosimd` knob, so the explicit `/arch:` flags above match defaults and document intent only; NumKong's MSVC strategy is compile-time gating via `_MSC_VER` version checks (see `include/numkong/types.h`).
+LoongArch is the one arch that can't honor the per-function-pragma model: `__attribute__((target("lasx")))` and `#pragma GCC target("lasx")` only landed in GCC 15.1 (Feb 2025) and Clang 22.1 (May 2025), and the bundled `lasxintrin.h` gates every wrapper on the `__loongarch_asx` macro that those older toolchains only set via TU-level `-mlasx`.
+Until NumKong's minimum supported toolchain catches up, LoongArch artifacts require LASX-capable hardware (LA464+, c. 2021).
+`Package.swift` and `golang/numkong.go` do not pin baselines: SPM forbids `.unsafeFlags()` on remotely consumed targets, and the cgo bindings rely on the surrounding compiler default.
+
+For host-tuned local builds, set `NK_MARCH_NATIVE=1` (env var honored by `build.rs` and `setup.py`; CMake option `-DNK_MARCH_NATIVE=ON`).
+The resulting artifact bakes host-specific instructions into scaffolding code and is __not__ portable.
 
 ### Compiler Requirements
 
@@ -253,6 +277,9 @@ brew install llvm libomp
 CC=$(brew --prefix llvm)/bin/clang CXX=$(brew --prefix llvm)/bin/clang++ pip install -e .
 ```
 
+Wheels pin a portable per-arch baseline by default — see [Target Baseline Policy](#target-baseline-policy).
+For host-tuned local installs, set `NK_MARCH_NATIVE=1 pip install -e .` (the resulting build is not redistributable).
+
 Before merging your changes you may want to test your changes against the entire matrix of Python versions NumKong supports.
 For that you need the `cibuildwheel`, which is tricky to use on macOS and Windows, as it would target just the local environment.
 Still, if you have Docker running on any desktop OS, you can use it to build and test the Python bindings for all Python versions for Linux:
@@ -293,8 +320,11 @@ black .           # format with default settings
 
 ```sh
 cargo test -p numkong
-cargo test -p numkong -- --nocapture # To see the output
+cargo test -p numkong -- --nocapture      # to see the output
+NK_MARCH_NATIVE=1 cargo build --release   # for host-tuned local builds
 ```
+
+The crate pins a portable per-arch baseline by default — see [Target Baseline Policy](#target-baseline-policy).
 
 To automatically detect the Minimum Supported Rust Version — MSRV:
 
