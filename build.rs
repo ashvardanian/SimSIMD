@@ -228,13 +228,13 @@ const ARM_PROBES: &[IsaProbe] = &[
     IsaProbe {
         name: "NK_TARGET_SMEBF16",
         probe_file: "probes/arm_sme_bf16.c",
-        gcc_flags: &["-march=armv8-a+sme2+b16b16"],
+        gcc_flags: &["-march=armv8-a+sme2+sme-b16b16"],
         msvc_flags: &[],
     },
     IsaProbe {
         name: "NK_TARGET_SMEBI32",
         probe_file: "probes/arm_sme_bi32.c",
-        gcc_flags: &["-march=armv8-a+sme2+sme-i16i32"],
+        gcc_flags: &["-march=armv8-a+sme2"],
         msvc_flags: &[],
     },
     IsaProbe {
