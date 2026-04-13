@@ -9,11 +9,10 @@
  *  to the compiler, causing false-positive uninitialized-value reports.
  *  These macros wrap the reduction and unpoison the scalar result.
  *
- *  Implemented as statement-expression macros rather than inline functions because
- *  `svaddv` callers span both SVE and SME streaming translation units with
- *  incompatible target attributes — an `always_inline` function compiled for
- *  `+sve` cannot be inlined into a streaming-mode caller compiled for `+sme`,
- *  and vice-versa. Macros expand in the caller's target context, avoiding this.
+ *  The `svaddv` intrinsic stays inside a macro so it expands in the caller's
+ *  target context — SVE and SME streaming translation units carry incompatible
+ *  target attributes. The unpoisoning runs on the already-reduced scalar, so it
+ *  lives in a target-agnostic `NK_INTERNAL` helper called from the macro.
  *
  *  @sa include/numkong/reduce.h
  */
@@ -25,40 +24,28 @@
 
 #include "numkong/types.h"
 
-#define nk_svaddv_f64_(predicate, vector)                \
-    ({                                                   \
-        nk_f64_t r_ = svaddv_f64((predicate), (vector)); \
-        nk_unpoison_(&r_, sizeof(r_));                    \
-        r_;                                              \
-    })
+NK_INTERNAL nk_f64_t nk_unpoison_f64_(nk_f64_t v) {
+    nk_unpoison_(&v, sizeof(v));
+    return v;
+}
+NK_INTERNAL nk_f32_t nk_unpoison_f32_(nk_f32_t v) {
+    nk_unpoison_(&v, sizeof(v));
+    return v;
+}
+NK_INTERNAL nk_u64_t nk_unpoison_u64_(nk_u64_t v) {
+    nk_unpoison_(&v, sizeof(v));
+    return v;
+}
+NK_INTERNAL nk_i64_t nk_unpoison_i64_(nk_i64_t v) {
+    nk_unpoison_(&v, sizeof(v));
+    return v;
+}
 
-#define nk_svaddv_f32_(predicate, vector)                \
-    ({                                                   \
-        nk_f32_t r_ = svaddv_f32((predicate), (vector)); \
-        nk_unpoison_(&r_, sizeof(r_));                    \
-        r_;                                              \
-    })
-
-#define nk_svaddv_u32_(predicate, vector)                \
-    ({                                                   \
-        nk_u64_t r_ = svaddv_u32((predicate), (vector)); \
-        nk_unpoison_(&r_, sizeof(r_));                    \
-        r_;                                              \
-    })
-
-#define nk_svaddv_s32_(predicate, vector)                \
-    ({                                                   \
-        nk_i64_t r_ = svaddv_s32((predicate), (vector)); \
-        nk_unpoison_(&r_, sizeof(r_));                    \
-        r_;                                              \
-    })
-
-#define nk_svaddv_u8_(predicate, vector)                \
-    ({                                                  \
-        nk_u64_t r_ = svaddv_u8((predicate), (vector)); \
-        nk_unpoison_(&r_, sizeof(r_));                   \
-        r_;                                             \
-    })
+#define nk_svaddv_f64_(predicate, vector) nk_unpoison_f64_(svaddv_f64((predicate), (vector)))
+#define nk_svaddv_f32_(predicate, vector) nk_unpoison_f32_(svaddv_f32((predicate), (vector)))
+#define nk_svaddv_u32_(predicate, vector) nk_unpoison_u64_(svaddv_u32((predicate), (vector)))
+#define nk_svaddv_s32_(predicate, vector) nk_unpoison_i64_(svaddv_s32((predicate), (vector)))
+#define nk_svaddv_u8_(predicate, vector)  nk_unpoison_u64_(svaddv_u8((predicate), (vector)))
 
 #endif // NK_TARGET_SVE || NK_TARGET_SVE2 || NK_TARGET_SME
 #endif // NK_TARGET_ARM64_
