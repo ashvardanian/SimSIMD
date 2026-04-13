@@ -98,7 +98,45 @@ void print_stats_header(comparison_family_t family) noexcept {
     std::printf("\n");
 }
 
+/** @brief  Fatal signal handler that logs the signal and faulting kernel before exiting. */
+static void crash_handler(int sig) {
+    // Only async-signal-safe calls allowed: write(2) and _exit(2).
+    char const *sig_name = "unknown signal";
+    switch (sig) {
+    case SIGILL: sig_name = "SIGILL (illegal instruction)"; break;
+    case SIGSEGV: sig_name = "SIGSEGV (segmentation fault)"; break;
+#if defined(SIGBUS)
+    case SIGBUS: sig_name = "SIGBUS (bus error)"; break;
+#endif
+    case SIGFPE: sig_name = "SIGFPE (arithmetic exception)"; break;
+    case SIGABRT: sig_name = "SIGABRT (abort)"; break;
+    }
+    char const *name = nk_test_current_kernel_ ? nk_test_current_kernel_ : "(unknown)";
+    char buf[512];
+    std::size_t len = 0;
+    for (std::size_t i = 0; sig_name[i] && len < sizeof(buf); ++i) buf[len++] = sig_name[i];
+    char const mid[] = " in kernel '";
+    for (std::size_t i = 0; mid[i] && len < sizeof(buf); ++i) buf[len++] = mid[i];
+    for (std::size_t i = 0; name[i] && len + 2 < sizeof(buf); ++i) buf[len++] = name[i];
+    buf[len++] = '\'';
+    buf[len++] = '\n';
+#if defined(_WIN32)
+    _write(2, buf, (unsigned)len);
+#else
+    (void)!write(2, buf, len);
+#endif
+    _exit(128 + sig);
+}
+
 int main(int argc, char **argv) {
+
+    std::signal(SIGILL, crash_handler);
+    std::signal(SIGSEGV, crash_handler);
+#if defined(SIGBUS)
+    std::signal(SIGBUS, crash_handler);
+#endif
+    std::signal(SIGFPE, crash_handler);
+    std::signal(SIGABRT, crash_handler);
 
     // Parse CLI arguments
     for (int i = 1; i < argc; ++i) {
