@@ -64,6 +64,11 @@ jobs:
       - name: Install Homebrew LLVM
         run: brew install llvm
 
+      # Record everything the runner CPU advertises so a future probe
+      # mismatch can be diagnosed without repro-locally-only guesswork.
+      - name: Print Machine Specs
+        run: sysctl hw.optional.arm || true
+
       - name: Build
         run: |
           LLVM_PREFIX="$(brew --prefix llvm)"
@@ -87,6 +92,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+
+      - name: Print Machine Specs
+        shell: pwsh
+        run: |
+          Get-CimInstance Win32_Processor | Format-List Name,Manufacturer,NumberOfCores,NumberOfLogicalProcessors,Description,Architecture
+          Get-ComputerInfo | Format-List CsProcessors,OsArchitecture,WindowsVersion
 
       - name: Set Up MSVC
         uses: microsoft/setup-msbuild@v3
