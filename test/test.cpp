@@ -4,6 +4,10 @@
  *  @author Ash Vardanian
  *  @date December 28, 2025
  */
+#if defined(_MSC_VER)
+#define _CRT_SECURE_NO_WARNINGS
+#include <io.h> // `_write`
+#endif
 
 #if __has_include(<regex.h>)
 #include <regex.h>
@@ -277,8 +281,12 @@ int main(int argc, char **argv) {
         global_config.mesh_points = std::max<std::size_t>(1, global_config.mesh_points / 4);
     }
 
+    // Breadcrumbs for crash_handler: if SIGILL fires here, the log shows which call faulted.
+    nk_test_current_kernel_ = "nk_capabilities()";
     nk_capability_t runtime_caps = nk_capabilities();
+    nk_test_current_kernel_ = "nk_configure_thread()";
     nk_configure_thread(runtime_caps); // Also enables AMX if available
+    nk_test_current_kernel_ = nullptr;
 
     std::printf(colors_enabled() ? "\033[1mNumKong Precision Testing Suite v%d.%d.%d\033[0m\n"
                                  : "NumKong Precision Testing Suite v%d.%d.%d\n",
