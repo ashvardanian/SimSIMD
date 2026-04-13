@@ -93,6 +93,13 @@ def march_baseline_args() -> list[str]:
         print("[NumKong] NK_MARCH_NATIVE=1: building -march=native, result will not run on older CPUs")
         return ["-march=native"]
     no_vectorize = ["-fno-tree-vectorize", "-fno-tree-slp-vectorize"]
+    # On macOS, `-arch arm64`/`-arch x86_64` already pins the ABI floor, and
+    # universal2 wheels pass both `-arch` flags to a single clang invocation —
+    # a per-arch `-march=` would then conflict with the other slice (e.g.
+    # `-march=armv8-a` is rejected by the x86_64 compile). Let Apple's `-arch`
+    # drive the baseline and keep only the auto-vectorizer lockdown.
+    if sys.platform == "darwin":
+        return no_vectorize
     if is_64bit_arm():
         return ["-march=armv8-a"] + no_vectorize
     if is_64bit_x86():
