@@ -104,6 +104,21 @@ NK_INTERNAL void nk_store_b256_neon_(nk_b256_vec_t const *src, void *dst) {
 /** @brief Type-agnostic 64-bit full load (NEON). */
 NK_INTERNAL void nk_load_b64_neon_(void const *src, nk_b64_vec_t *dst) { dst->u8x8 = vld1_u8((nk_u8_t const *)src); }
 
+/**
+ *  @brief 8-lane `uint16x8_t` splat that hides the source from the optimizer.
+ *
+ *  GCC 13 lowers `vdupq_n_u16(X)` to `fmov v.8h, #imm` (a FEAT_FP16 encoding) whenever X matches a
+ *  representable FP16 immediate, including bf16 bit patterns like 1.0 (`0x3F80`). That fails to
+ *  assemble under a `+bf16`-only pragma. The empty `__asm__` constraint forces `mov w; dup v.8h, w`
+ *  instead, valid on plain `armv8-a+simd`. No-op on Clang; skipped on MSVC (neither is affected).
+ */
+NK_INTERNAL uint16x8_t nk_u16x8_splat_(nk_u16_t bits) {
+#if defined(__GNUC__) || defined(__clang__)
+    __asm__("" : "+r"(bits));
+#endif
+    return vdupq_n_u16(bits);
+}
+
 #pragma endregion Type Punned Loads and Stores
 
 #pragma region Vectorized Conversions
