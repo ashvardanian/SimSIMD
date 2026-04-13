@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   test_c:
-    name: Test C
+    name: Test C on Linux
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
@@ -86,7 +86,7 @@ jobs:
           NK_BUDGET_SECS: 0.2
 
   test_windows:
-    name: Test Windows
+    name: Test C on Windows
     runs-on: windows-2025
 
     steps:
@@ -126,7 +126,10 @@ jobs:
           cmake --build build_shared --config Release --target nk_shared_test
 
       - name: Test Shared Library
+        shell: cmd # PowerShell normalizes structured-exception exit codes to 1; cmd preserves the real code
         run: build_shared\Release\nk_shared_test.exe
+        env:
+          NK_BUDGET_SECS: 0.2
 
   test_android:
     name: Test Android

@@ -619,12 +619,10 @@ if (NK_BUILD_SHARED)
         # Hide all symbols by default; only NK_DYNAMIC-annotated API functions are exported.
         # Strip unwind tables from this pure-C library (saves ~78 KB).
         if (NOT MSVC)
-            target_compile_options(nk_shared PRIVATE
-                -fvisibility=hidden
-                -fno-asynchronous-unwind-tables
-                -fno-builtin-memset
-                -fno-builtin-memcpy
-                -fno-builtin-memmove)
+            target_compile_options(
+                nk_shared PRIVATE -fvisibility=hidden -fno-asynchronous-unwind-tables -fno-builtin-memset
+                                  -fno-builtin-memcpy -fno-builtin-memmove
+            )
             if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
                 target_compile_options(nk_shared PRIVATE -fno-tree-loop-distribute-patterns)
             endif ()
@@ -703,6 +701,23 @@ if (NK_BUILD_SHARED_TEST)
     target_include_directories(nk_shared_test PRIVATE "${PROJECT_SOURCE_DIR}/include")
     target_compile_definitions(nk_shared_test PRIVATE NK_DYNAMIC_DISPATCH=1)
     target_link_libraries(nk_shared_test nk_shared ${NK_CXX_MATH_LIB_})
+
+    # The shared-library test must exercise only the DLL dispatch path, so compile
+    # the test binary at the platform baseline (no SIMD extensions).  This prevents
+    # types.h auto-detection (e.g. MSVC _MSC_VER >= 1920 → NK_TARGET_SKYLAKE=1) from
+    # pulling in inline AVX-512 code the CPU may not support.  All ISA-specific
+    # kernel coverage comes from nk_test (header-only, with native probe defs).
+    target_compile_definitions(
+        nk_shared_test
+        PRIVATE NK_TARGET_HASWELL=0 NK_TARGET_SKYLAKE=0 NK_TARGET_ICELAKE=0 NK_TARGET_GENOA=0 NK_TARGET_SAPPHIRE=0
+                NK_TARGET_SAPPHIREAMX=0 NK_TARGET_GRANITEAMX=0 NK_TARGET_DIAMOND=0 NK_TARGET_TURIN=0 NK_TARGET_ALDER=0
+                NK_TARGET_SIERRA=0 NK_TARGET_NEON=0 NK_TARGET_NEONHALF=0 NK_TARGET_NEONSDOT=0 NK_TARGET_NEONBFDOT=0
+                NK_TARGET_NEONFHM=0 NK_TARGET_NEONFP8=0 NK_TARGET_SVE=0 NK_TARGET_SVEHALF=0 NK_TARGET_SVEBFDOT=0
+                NK_TARGET_SVESDOT=0 NK_TARGET_SVE2=0 NK_TARGET_SVE2P1=0 NK_TARGET_SME=0 NK_TARGET_SME2=0
+                NK_TARGET_SME2P1=0 NK_TARGET_SMEF64=0 NK_TARGET_SMEHALF=0 NK_TARGET_SMEBF16=0 NK_TARGET_SMEBI32=0
+                NK_TARGET_SMELUT2=0 NK_TARGET_SMEFA64=0 NK_TARGET_RVV=0 NK_TARGET_RVVHALF=0 NK_TARGET_RVVBF16=0
+                NK_TARGET_RVVBB=0 NK_TARGET_LOONGSONASX=0 NK_TARGET_POWERVSX=0 NK_TARGET_V128RELAXED=0
+    )
 
     add_test(NAME nk_shared_test COMMAND nk_shared_test)
 endif ()
