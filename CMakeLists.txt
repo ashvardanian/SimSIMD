@@ -100,6 +100,8 @@ option(NK_BUILD_TEST "Compile precision tests with ULP-based error analysis" OFF
 option(NK_BUILD_BENCH "Compile micro-benchmarks for current ISA" OFF)
 option(NK_WASI_HOSTED "Import capability probes from WASI host environment" OFF)
 
+option(NK_MARCH_NATIVE "Build with -march=native (host-tuned, not portable)" OFF)
+
 # `add_test()` entries are only generated when testing is enabled.
 if (NK_BUILD_TEST OR NK_BUILD_SHARED_TEST)
     enable_testing()
@@ -202,9 +204,21 @@ endif ()
 
 # Compiler-specific flags
 if (CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$" OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    # Enable -march=native for native builds on Linux/FreeBSD (not macOS or cross-compilation)
-    if ((NK_IS_LINUX_ OR NK_IS_FREEBSD_) AND NOT CMAKE_CROSSCOMPILING)
+    # Pin TU baseline to each arch's ABI floor; SIMD kernels carry per-function pragmas.
+    if (NK_MARCH_NATIVE AND (NK_IS_LINUX_ OR NK_IS_FREEBSD_) AND NOT CMAKE_CROSSCOMPILING)
+        message(WARNING "NK_MARCH_NATIVE=ON: baking host-specific instructions; result will not run on older CPUs")
         add_compile_options(-march=native)
+    elseif (NK_IS_64BIT_ARM_)
+        add_compile_options(-march=armv8-a+nosimd)
+    elseif (NK_IS_64BIT_X86_)
+        add_compile_options(-march=x86-64)
+    elseif (NK_IS_64BIT_RISCV_)
+        add_compile_options(-march=rv64gc)
+    elseif (NK_IS_64BIT_POWER_)
+        add_compile_options(-mcpu=power8)
+    elseif (NK_IS_64BIT_LOONGARCH_)
+        # LASX needs TU-level `-mlasx` until GCC >= 15 / Clang >= 22 ship per-function support.
+        add_compile_options(-march=loongarch64 -mlasx)
     endif ()
 
     add_compile_options(-pedantic)
@@ -216,6 +230,13 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$" OR CMAKE_CXX_COMPILER_ID STR
     endif ()
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
     add_compile_options(-w -ferror-limit=1)
+elseif (MSVC)
+    # MSVC: no per-function target pragma, no `+nosimd`; these match defaults.
+    if (NK_IS_64BIT_X86_)
+        add_compile_options(/arch:SSE2)
+    elseif (NK_IS_64BIT_ARM_)
+        add_compile_options(/arch:armv8.0)
+    endif ()
 endif ()
 
 # Define the header-only library

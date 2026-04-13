@@ -75,6 +75,35 @@ def is_64bit_power() -> bool:
     return (arch in ("ppc64le", "ppc64", "powerpc64le", "powerpc64")) and (sys.maxsize > 2**32)
 
 
+def march_baseline_args() -> list[str]:
+    """TU-level baseline arch flag for the current platform/arch.
+
+    Honors `NK_MARCH_NATIVE=1` for a host-tuned, non-portable build (ignored on MSVC).
+    """
+    msvc = sys.platform == "win32"
+    if not msvc and os.environ.get("NK_MARCH_NATIVE") in ("1", "true", "TRUE"):
+        print("[NumKong] NK_MARCH_NATIVE=1: building -march=native, result will not run on older CPUs")
+        return ["-march=native"]
+    if msvc:
+        if is_64bit_x86():
+            return ["/arch:SSE2"]
+        if is_64bit_arm():
+            return ["/arch:armv8.0"]
+        return []
+    if is_64bit_arm():
+        return ["-march=armv8-a+nosimd"]
+    if is_64bit_x86():
+        return ["-march=x86-64"]
+    if is_64bit_riscv():
+        return ["-march=rv64gc"]
+    if is_64bit_power():
+        return ["-mcpu=power8"]
+    if is_64bit_loongarch():
+        # LASX needs TU-level `-mlasx` until GCC >= 15 / Clang >= 22 ship per-function support.
+        return ["-march=loongarch64", "-mlasx"]
+    return []
+
+
 def is_wasm() -> bool:
     """Detect WASM/Emscripten target."""
     host = os.environ.get("_PYTHON_HOST_PLATFORM", "")
@@ -238,15 +267,8 @@ def linux_settings() -> tuple[list[str], list[str], list[tuple[str, str]]]:
         "-fvisibility=default",
         "-fPIC",
         "-w",  # Hush warnings
+        *march_baseline_args(),
     ]
-    # On RISC-V, GCC needs `-march` with the V extension for vector types to be
-    # available at translation-unit scope (`#pragma GCC target` only affects
-    # codegen, not type declarations).
-    # Keep the module-wide baseline portable (`rv64gcv`) so wheels can import on
-    # weaker emulated CPUs. Richer kernels still compile through the explicit
-    # NK_TARGET_* defines below plus per-function target attributes.
-    if is_64bit_riscv():
-        compile_args.append("-march=rv64gcv")
     link_args = [
         "-shared",
         "-fopenmp",
@@ -270,6 +292,7 @@ def darwin_settings() -> tuple[list[str], list[str], list[tuple[str, str]]]:
         "-Xpreprocessor",
         "-fopenmp",
         "-w",  # Hush warnings
+        *march_baseline_args(),
     ]
     link_args: list[str] = ["-lomp"]
     # Apple Clang ships no `omp.h` / `libomp`; point at the Homebrew-installed
@@ -307,6 +330,7 @@ def freebsd_settings() -> tuple[list[str], list[str], list[tuple[str, str]]]:
         "-fvisibility=default",
         "-fPIC",
         "-w",  # Hush warnings
+        *march_baseline_args(),
     ]
     link_args = [
         "-shared",
@@ -336,6 +360,7 @@ def windows_settings() -> tuple[list[str], list[str], list[tuple[str, str]]]:
         # https://cibuildwheel.readthedocs.io/en/stable/faq/#windows-importerror-dll-load-failed-the-specific-module-could-not-be-found
         "/d2FH4-",
         "/w",
+        *march_baseline_args(),  # MSVC: matches default; documents the contract
     ]
     link_args: list[str] = []
     macros: list[tuple[str, str]] = [

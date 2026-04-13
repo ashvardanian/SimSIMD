@@ -334,14 +334,12 @@ jobs:
             cc: powerpc64le-linux-gnu-gcc-14
             cxx: powerpc64le-linux-gnu-g++-14
             pkg: gcc-14-powerpc64le-linux-gnu g++-14-powerpc64le-linux-gnu
-            cflags: "-mcpu=power9 -mvsx"
             processor: ppc64le
           - name: loongarch64
             arch: loongarch64
             cc: loongarch64-linux-gnu-gcc-14
             cxx: loongarch64-linux-gnu-g++-14
             pkg: gcc-14-loongarch64-linux-gnu g++-14-loongarch64-linux-gnu
-            cflags: "-mlasx"
             processor: loongarch64
     steps:
       - name: Checkout Repository
@@ -364,8 +362,6 @@ jobs:
             -DCMAKE_SYSTEM_PROCESSOR=${{ matrix.processor }} \
             -DCMAKE_C_COMPILER=${{ matrix.cc }} \
             -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
-            -DCMAKE_C_FLAGS_INIT="${{ matrix.cflags }}" \
-            -DCMAKE_CXX_FLAGS_INIT="${{ matrix.cflags }}" \
             -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY \
             -DCMAKE_BUILD_TYPE=Release \
             -DNK_BUILD_SHARED=ON \

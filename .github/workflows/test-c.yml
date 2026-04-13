@@ -317,8 +317,6 @@ jobs:
             -DCMAKE_SYSTEM_PROCESSOR=loongarch64 \
             -DCMAKE_C_COMPILER=loongarch64-linux-gnu-gcc-14 \
             -DCMAKE_CXX_COMPILER=loongarch64-linux-gnu-g++-14 \
-            -DCMAKE_C_FLAGS_INIT="-mlasx" \
-            -DCMAKE_CXX_FLAGS_INIT="-mlasx" \
             -DCMAKE_CROSSCOMPILING_EMULATOR="qemu-loongarch64;-L;${SYSROOT};-cpu;max" \
             -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY \
             -DNK_BUILD_TEST=ON \
@@ -355,8 +353,6 @@ jobs:
             -DCMAKE_SYSTEM_PROCESSOR=ppc64le \
             -DCMAKE_C_COMPILER=powerpc64le-linux-gnu-gcc-14 \
             -DCMAKE_CXX_COMPILER=powerpc64le-linux-gnu-g++-14 \
-            -DCMAKE_C_FLAGS_INIT="-mcpu=power10 -mvsx" \
-            -DCMAKE_CXX_FLAGS_INIT="-mcpu=power10 -mvsx" \
             -DCMAKE_CROSSCOMPILING_EMULATOR="qemu-ppc64le;-L;${SYSROOT};-cpu;power10" \
             -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY \
             -DNK_BUILD_TEST=ON \
