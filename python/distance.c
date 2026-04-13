@@ -631,12 +631,14 @@ static int cdist_batch_symmetric(                             //
     omp_set_num_threads((int)threads);
 #endif
 
-    // Loop counter is plain `int` for MSVC compatibility: both `/openmp`
-    // (OpenMP 2.0) and `/openmp:llvm` canonical loop form accept `int` and
-    // `unsigned int`, but reject `long long` / `size_t` with C3015.
+    // `int` loop counter declared *outside* the `for` statement: MSVC's
+    // OpenMP (`/openmp` and `/openmp:llvm` alike) stays at 2.0 canonical
+    // form, which forbids in-init declarations and rejects 64-bit
+    // iterators — either would trip C3015.
     int const tile_count = (int)nk_size_divide_round_up_(n_vectors, NK_PARALLEL_SYMMETRIC_TILE);
+    int tile_idx;
 #pragma omp parallel for schedule(dynamic, 1) if (threads > 1)
-    for (int tile_idx = 0; tile_idx < tile_count; tile_idx++) {
+    for (tile_idx = 0; tile_idx < tile_count; tile_idx++) {
         nk_size_t tile_start = (nk_size_t)tile_idx * NK_PARALLEL_SYMMETRIC_TILE;
         nk_size_t tile_rows = (tile_start + NK_PARALLEL_SYMMETRIC_TILE <= n_vectors) ? NK_PARALLEL_SYMMETRIC_TILE
                                                                                      : (n_vectors - tile_start);
@@ -685,10 +687,11 @@ static int cdist_batch_packed(                                               //
     omp_set_num_threads((int)threads);
 #endif
 
-    // `int` loop counter: see note at `cdist_batch_symmetric` above.
+    // `int` loop counter pre-declared: see note at `cdist_batch_symmetric`.
     int const tile_count = (int)nk_size_divide_round_up_(a_count, NK_PARALLEL_PACKED_TILE);
+    int tile_idx;
 #pragma omp parallel for schedule(dynamic, 1) if (threads > 1)
-    for (int tile_idx = 0; tile_idx < tile_count; tile_idx++) {
+    for (tile_idx = 0; tile_idx < tile_count; tile_idx++) {
         nk_size_t row = (nk_size_t)tile_idx * NK_PARALLEL_PACKED_TILE;
         nk_size_t chunk = (row + NK_PARALLEL_PACKED_TILE <= a_count) ? NK_PARALLEL_PACKED_TILE : (a_count - row);
         kernel(a_start + row * a_stride, b_packed, out + row * out_row_stride, chunk, b_count, dimensions, a_stride,

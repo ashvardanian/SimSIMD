@@ -548,12 +548,13 @@ static napi_value api_packed_common(napi_env env, napi_callback_info info, nk_ke
     omp_set_num_threads((int)threads);
 #endif
 
-    // `int` loop counter: MSVC's OpenMP canonical loop form (both `/openmp`
-    // and `/openmp:llvm`) rejects 64-bit iterators with C3015; `int` is the
-    // universally-accepted type across compilers.
+    // `int` loop counter pre-declared: MSVC's OpenMP stays at 2.0 canonical
+    // form, which forbids in-init declarations and rejects 64-bit iterators
+    // — either would trip C3015.
     int const tile_count = (int)nk_size_divide_round_up_(height, NK_PARALLEL_PACKED_TILE);
+    int tile_idx;
 #pragma omp parallel for schedule(dynamic, 1) if (threads > 1)
-    for (int tile_idx = 0; tile_idx < tile_count; tile_idx++) {
+    for (tile_idx = 0; tile_idx < tile_count; tile_idx++) {
         nk_size_t row = (nk_size_t)tile_idx * NK_PARALLEL_PACKED_TILE;
         nk_size_t chunk = (row + NK_PARALLEL_PACKED_TILE <= height) ? NK_PARALLEL_PACKED_TILE : (height - row);
         kernel((char const *)a_data + row * a_stride, packed_data, (char *)result_data + row * result_stride, chunk,
@@ -633,10 +634,11 @@ static napi_value api_symmetric_common(napi_env env, napi_callback_info info, nk
     omp_set_num_threads((int)threads);
 #endif
 
-    // `int` loop counter: see note at `api_packed_common` above.
+    // `int` loop counter pre-declared: see note at `api_packed_common`.
     int const tile_count = (int)nk_size_divide_round_up_(row_count, NK_PARALLEL_SYMMETRIC_TILE);
+    int tile_idx;
 #pragma omp parallel for schedule(dynamic, 1) if (threads > 1)
-    for (int tile_idx = 0; tile_idx < tile_count; tile_idx++) {
+    for (tile_idx = 0; tile_idx < tile_count; tile_idx++) {
         nk_size_t tile_start = (nk_size_t)row_start + (nk_size_t)tile_idx * NK_PARALLEL_SYMMETRIC_TILE;
         nk_size_t tile_rows = (tile_start + NK_PARALLEL_SYMMETRIC_TILE <= (nk_size_t)row_start + row_count)
                                   ? NK_PARALLEL_SYMMETRIC_TILE
