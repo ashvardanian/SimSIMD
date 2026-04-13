@@ -226,7 +226,7 @@ cargo test -p numkong --features wasm-runtime -- wasm_runtime
 
 ```sh
 pip install -e .
-pip install pytest pytest-repeat tabulate numpy scipy ml_dtypes
+pip install pytest pytest-repeat pytest-randomly numpy scipy ml_dtypes tabulate
 pytest test/ -s -x -Wd
 ```
 

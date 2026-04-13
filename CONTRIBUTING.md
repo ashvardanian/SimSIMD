@@ -221,9 +221,10 @@ Still, you need a virtual environment.
 If you already have one:
 
 ```sh
-pip install -e .                             # build locally from source
-pip install pytest pytest-repeat tabulate    # testing dependencies
-pytest test/ -s -x -Wd                       # to run tests
+pip install -e .                                    # build locally from source
+pip install pytest pytest-repeat pytest-randomly    # testing dependencies
+pip install numpy scipy ml_dtypes tabulate          # optional reference libraries
+pytest test/ -s -x -Wd                              # to run tests
 
 # to check supported SIMD instructions:
 python -c "import numkong; print(numkong.get_capabilities())"
@@ -237,7 +238,7 @@ source .venv/bin/activate       # activate the environment
 uv pip install -e .             # build locally from source
 
 # to run GIL-related tests in a free-threaded environment:
-uv pip install pytest pytest-repeat tabulate numpy scipy
+uv pip install pytest pytest-repeat pytest-randomly numpy scipy ml_dtypes tabulate
 PYTHON_GIL=0 python -m pytest test/ -s -x -Wd -k gil
 ```
 
@@ -248,7 +249,7 @@ The `-Wd` will silence overflows and runtime warnings.
 When building on macOS, same as with C/C++, use non-Apple Clang version:
 
 ```sh
-brew install llvm
+brew install llvm libomp
 CC=$(brew --prefix llvm)/bin/clang CXX=$(brew --prefix llvm)/bin/clang++ pip install -e .
 ```
 
