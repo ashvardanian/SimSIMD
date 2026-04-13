@@ -3,11 +3,13 @@
 # Detect which ISA extensions the compiler can emit.
 # Probe source lives in probes/arm_*.c — shared with setup.py and build.rs.
 
-# Apple Clang's -mcpu=native doesn't define SVE/SME feature macros
-# even on M4+ hardware. Fall back to -mcpu=apple-m4 which is the
-# first Apple Silicon with SME support.
+# Apple Clang 21+ recognises M-series CPUs under -mcpu=native and advertises
+# SME/SME2/BF16 feature macros correctly. Older Apple Clang didn't, which is
+# why earlier code hardcoded -mcpu=apple-m4 — but on a pre-M4 runner that
+# hardcode over-reports capabilities and compiles in bfdot/SME kernels that
+# SIGILL at runtime on hardware lacking those features.
 if (APPLE)
-    set(nk_native_flags_ "-mcpu=apple-m4")
+    set(nk_native_flags_ "-mcpu=native")
 else ()
     set(nk_native_flags_ "-march=native")
 endif ()

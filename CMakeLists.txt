@@ -208,9 +208,16 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$" OR CMAKE_CXX_COMPILER_ID STR
     # fallbacks don't get silently promoted to NEON/SSE2/VSX. SIMD kernels use
     # explicit intrinsics and per-function `target` pragmas; unaffected.
     # `NK_MARCH_NATIVE=ON` opts out for host-tuned builds.
-    if (NK_MARCH_NATIVE AND (NK_IS_LINUX_ OR NK_IS_FREEBSD_) AND NOT CMAKE_CROSSCOMPILING)
+    if (NK_MARCH_NATIVE AND NOT MSVC AND NOT CMAKE_CROSSCOMPILING)
         message(WARNING "NK_MARCH_NATIVE=ON: baking host-specific instructions; result will not run on older CPUs")
-        add_compile_options(-march=native)
+        # Apple Clang's `-march=native` only advertises a subset of host features
+        # (no SME/SME2/FP16_FML); `-mcpu=native` is the complete knob on macOS.
+        # GCC/Clang on Linux/FreeBSD use `-march=native` as usual.
+        if (APPLE)
+            add_compile_options(-mcpu=native)
+        else ()
+            add_compile_options(-march=native)
+        endif ()
     else ()
         add_compile_options(-fno-tree-vectorize -fno-tree-slp-vectorize)
         if (NK_IS_64BIT_ARM_)

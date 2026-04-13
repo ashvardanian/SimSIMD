@@ -74,10 +74,29 @@ static void print_indicator(bool on) {
     else std::printf(colors_enabled() ? "\033[2m\xe2\x97\x8b\033[0m" : "\xe2\x97\x8b");
 }
 
-static void print_isa(char const *name, int compiled, nk_capability_t cap, nk_capability_t runtime) {
-    if (!compiled) return;
+/**
+ *  Tri-state glyph for "compiled in" vs "runtime supports":
+ *    ● compiled & runtime usable kernel    — green
+ *    ◐ compiled but runtime lacks it       — red (invoking this kernel will SIGILL)
+ *    ◑ runtime has it but not compiled in  — yellow (perf left on the table)
+ *    ○ neither                             — dim
+ */
+static void print_indicator_dual(bool compiled, bool runtime) {
+    char const *glyph;
+    char const *color;
+    if (compiled && runtime) glyph = "\xe2\x97\x8f", color = "\033[32m";
+    else if (compiled && !runtime) glyph = "\xe2\x97\x90", color = "\033[31m";
+    else if (!compiled && runtime) glyph = "\xe2\x97\x91", color = "\033[33m";
+    else glyph = "\xe2\x97\x8b", color = "\033[2m";
+    if (colors_enabled()) std::printf("%s%s\033[0m", color, glyph);
+    else std::printf("%s", glyph);
+}
+
+static void print_isa(char const *name, int compiled, nk_capability_t cap, nk_capability_t runtime_caps) {
+    bool const runtime = (runtime_caps & cap) != 0;
+    if (!compiled && !runtime) return;
     std::printf("  %s ", name);
-    print_indicator((runtime & cap) != 0);
+    print_indicator_dual(compiled != 0, runtime);
 }
 
 test_config_t global_config;

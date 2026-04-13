@@ -24,19 +24,19 @@
 
 #include "numkong/types.h"
 
-NK_INTERNAL nk_f64_t nk_unpoison_f64_(nk_f64_t v) {
+NK_INTERNAL nk_f64_t nk_unpoison_f64_(nk_f64_t v) NK_STREAMING_COMPATIBLE_ {
     nk_unpoison_(&v, sizeof(v));
     return v;
 }
-NK_INTERNAL nk_f32_t nk_unpoison_f32_(nk_f32_t v) {
+NK_INTERNAL nk_f32_t nk_unpoison_f32_(nk_f32_t v) NK_STREAMING_COMPATIBLE_ {
     nk_unpoison_(&v, sizeof(v));
     return v;
 }
-NK_INTERNAL nk_u64_t nk_unpoison_u64_(nk_u64_t v) {
+NK_INTERNAL nk_u64_t nk_unpoison_u64_(nk_u64_t v) NK_STREAMING_COMPATIBLE_ {
     nk_unpoison_(&v, sizeof(v));
     return v;
 }
-NK_INTERNAL nk_i64_t nk_unpoison_i64_(nk_i64_t v) {
+NK_INTERNAL nk_i64_t nk_unpoison_i64_(nk_i64_t v) NK_STREAMING_COMPATIBLE_ {
     nk_unpoison_(&v, sizeof(v));
     return v;
 }
