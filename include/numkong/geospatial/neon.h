@@ -21,7 +21,7 @@
 #if NK_TARGET_NEON
 
 #include "numkong/types.h"
-#include "numkong/trigonometry/neon.h" // `nk_sin_f64x2_neon_`, `nk_cos_f64x2_neon_`, `nk_atan2_f64x2_neon_`, etc.
+#include "numkong/trigonometry/neon.h" // `nk_sin_f64x2_neon_`, `nk_cos_f64x2_neon_`, `nk_atan2_f64x2_neon_`
 
 #if defined(__cplusplus)
 extern "C" {

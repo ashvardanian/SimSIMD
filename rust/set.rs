@@ -127,7 +127,7 @@ impl Jaccard for u32 {
 
 /// `BinarySimilarity` bundles binary distance metrics: Hamming and Jaccard.
 pub trait BinarySimilarity: Hamming + Jaccard {}
-impl<T: Hamming + Jaccard> BinarySimilarity for T {}
+impl<Scalar: Hamming + Jaccard> BinarySimilarity for Scalar {}
 
 #[cfg(test)]
 mod tests {
@@ -137,23 +137,23 @@ mod tests {
     #[test]
     fn hamming() {
         // u1x8
-        let a = vec![u1x8(0b11110000), u1x8(0b10101010)];
-        let b = vec![u1x8(0b00001111), u1x8(0b01010101)];
-        assert_eq!(u1x8::hamming(&a, &b).unwrap(), 16);
+        let left = vec![u1x8(0b11110000), u1x8(0b10101010)];
+        let right = vec![u1x8(0b00001111), u1x8(0b01010101)];
+        assert_eq!(u1x8::hamming(&left, &right).unwrap(), 16);
 
         // u8
-        let a: Vec<u8> = vec![0, 1, 2, 3, 4, 5, 6, 7];
-        let b: Vec<u8> = vec![0, 1, 2, 3, 0, 0, 0, 0];
-        assert_eq!(u8::hamming(&a, &b).unwrap(), 4);
+        let left: Vec<u8> = vec![0, 1, 2, 3, 4, 5, 6, 7];
+        let right: Vec<u8> = vec![0, 1, 2, 3, 0, 0, 0, 0];
+        assert_eq!(u8::hamming(&left, &right).unwrap(), 4);
     }
 
     #[test]
     fn jaccard() {
         // u1x8 — identical
-        let a = vec![u1x8(0b11110000), u1x8(0b10101010)];
-        let b = vec![u1x8(0b11110000), u1x8(0b10101010)];
+        let left = vec![u1x8(0b11110000), u1x8(0b10101010)];
+        let right = vec![u1x8(0b11110000), u1x8(0b10101010)];
         assert_close(
-            u1x8::jaccard(&a, &b).unwrap() as f64,
+            u1x8::jaccard(&left, &right).unwrap() as f64,
             0.0,
             0.01,
             0.0,
@@ -161,19 +161,19 @@ mod tests {
         );
 
         // u16 — identical
-        let a: Vec<u16> = vec![1, 2, 3, 4];
-        let b: Vec<u16> = vec![1, 2, 3, 4];
+        let left: Vec<u16> = vec![1, 2, 3, 4];
+        let right: Vec<u16> = vec![1, 2, 3, 4];
         assert_close(
-            u16::jaccard(&a, &b).unwrap() as f64,
+            u16::jaccard(&left, &right).unwrap() as f64,
             0.0,
             0.01,
             0.0,
             "jaccard_u16 identical",
         );
         // u16 — disjoint
-        let c: Vec<u16> = vec![5, 6, 7, 8];
+        let disjoint: Vec<u16> = vec![5, 6, 7, 8];
         assert_close(
-            u16::jaccard(&a, &c).unwrap() as f64,
+            u16::jaccard(&left, &disjoint).unwrap() as f64,
             1.0,
             0.01,
             0.0,
@@ -181,10 +181,10 @@ mod tests {
         );
 
         // u32 — partial overlap
-        let a: Vec<u32> = vec![1, 2, 3, 4];
-        let b: Vec<u32> = vec![1, 2, 5, 6];
+        let left: Vec<u32> = vec![1, 2, 3, 4];
+        let right: Vec<u32> = vec![1, 2, 5, 6];
         assert_close(
-            u32::jaccard(&a, &b).unwrap() as f64,
+            u32::jaccard(&left, &right).unwrap() as f64,
             0.5,
             0.01,
             0.0,

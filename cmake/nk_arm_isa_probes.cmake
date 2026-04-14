@@ -3,11 +3,13 @@
 # Detect which ISA extensions the compiler can emit.
 # Probe source lives in probes/arm_*.c — shared with setup.py and build.rs.
 
-# Apple Clang's -mcpu=native doesn't define SVE/SME feature macros
-# even on M4+ hardware. Fall back to -mcpu=apple-m4 which is the
-# first Apple Silicon with SME support.
+# Apple Clang 21+ recognises M-series CPUs under -mcpu=native and advertises
+# SME/SME2/BF16 feature macros correctly. Older Apple Clang didn't, which is
+# why earlier code hardcoded -mcpu=apple-m4 — but on a pre-M4 runner that
+# hardcode over-reports capabilities and compiles in bfdot/SME kernels that
+# SIGILL at runtime on hardware lacking those features.
 if (APPLE)
-    set(nk_native_flags_ "-mcpu=apple-m4")
+    set(nk_native_flags_ "-mcpu=native")
 else ()
     set(nk_native_flags_ "-march=native")
 endif ()
@@ -45,8 +47,8 @@ nk_isa_probe_(nk_target_sme2 "" "-march=armv8-a+sme2" "probes/arm_sme2.c")
 nk_isa_probe_(nk_target_sme2p1 "" "-march=armv8-a+sme2p1" "probes/arm_sme2p1.c")
 nk_isa_probe_(nk_target_smef64 "" "-march=armv8-a+sme+sme-f64f64" "probes/arm_sme_f64.c")
 nk_isa_probe_(nk_target_smehalf "" "-march=armv8-a+sme+sme-f16f16" "probes/arm_sme_half.c")
-nk_isa_probe_(nk_target_smebf16 "" "-march=armv8-a+sme2+b16b16" "probes/arm_sme_bf16.c")
-nk_isa_probe_(nk_target_smebi32 "" "-march=armv8-a+sme2+sme-i16i32" "probes/arm_sme_bi32.c")
+nk_isa_probe_(nk_target_smebf16 "" "-march=armv8-a+sme2+sme-b16b16" "probes/arm_sme_bf16.c")
+nk_isa_probe_(nk_target_smebi32 "" "-march=armv8-a+sme2" "probes/arm_sme_bi32.c")
 nk_isa_probe_(nk_target_smelut2 "" "-march=armv8-a+sme2+lut" "probes/arm_sme_lut2.c")
 nk_isa_probe_(nk_target_smefa64 "" "-march=armv8-a+sme+sme-fa64" "probes/arm_sme_fa64.c")
 

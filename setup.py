@@ -75,6 +75,45 @@ def is_64bit_power() -> bool:
     return (arch in ("ppc64le", "ppc64", "powerpc64le", "powerpc64")) and (sys.maxsize > 2**32)
 
 
+def march_baseline_args() -> list[str]:
+    """TU-level baseline: ISA floor + auto-vectorizer lockdown.
+
+    Keeps serial kernels serial — auto-vec would otherwise promote fallbacks to
+    NEON/SSE2/VSX. SIMD kernels use explicit intrinsics; unaffected. MSVC has no
+    command-line vectorizer toggle. `NK_MARCH_NATIVE=1` opts out (non-MSVC).
+    """
+    msvc = sys.platform == "win32"
+    if msvc:
+        if is_64bit_x86():
+            return ["/arch:SSE2"]
+        if is_64bit_arm():
+            return ["/arch:armv8.0"]
+        return []
+    if os.environ.get("NK_MARCH_NATIVE") in ("1", "true", "TRUE"):
+        print("[NumKong] NK_MARCH_NATIVE=1: building -march=native, result will not run on older CPUs")
+        return ["-march=native"]
+    no_vectorize = ["-fno-tree-vectorize", "-fno-tree-slp-vectorize"]
+    # On macOS, `-arch arm64`/`-arch x86_64` already pins the ABI floor, and
+    # universal2 wheels pass both `-arch` flags to a single clang invocation —
+    # a per-arch `-march=` would then conflict with the other slice (e.g.
+    # `-march=armv8-a` is rejected by the x86_64 compile). Let Apple's `-arch`
+    # drive the baseline and keep only the auto-vectorizer lockdown.
+    if sys.platform == "darwin":
+        return no_vectorize
+    if is_64bit_arm():
+        return ["-march=armv8-a"] + no_vectorize
+    if is_64bit_x86():
+        return ["-march=x86-64"] + no_vectorize
+    if is_64bit_riscv():
+        return ["-march=rv64gc"] + no_vectorize
+    if is_64bit_power():
+        return ["-mcpu=power8"] + no_vectorize
+    if is_64bit_loongarch():
+        # LASX needs TU-level `-mlasx` until GCC >= 15 / Clang >= 22 ship per-function support.
+        return ["-march=loongarch64", "-mlasx"] + no_vectorize
+    return no_vectorize
+
+
 def is_wasm() -> bool:
     """Detect WASM/Emscripten target."""
     host = os.environ.get("_PYTHON_HOST_PLATFORM", "")
@@ -162,8 +201,8 @@ PROBE_TABLE_ARM: ProbeTable = [
     ("SME2P1", "probes/arm_sme2p1.c", ["-march=armv8-a+sme2p1"], []),
     ("SMEF64", "probes/arm_sme_f64.c", ["-march=armv8-a+sme+sme-f64f64"], []),
     ("SMEHALF", "probes/arm_sme_half.c", ["-march=armv8-a+sme+sme-f16f16"], []),
-    ("SMEBF16", "probes/arm_sme_bf16.c", ["-march=armv8-a+sme2+b16b16"], []),
-    ("SMEBI32", "probes/arm_sme_bi32.c", ["-march=armv8-a+sme2+sme-i16i32"], []),
+    ("SMEBF16", "probes/arm_sme_bf16.c", ["-march=armv8-a+sme2+sme-b16b16"], []),
+    ("SMEBI32", "probes/arm_sme_bi32.c", ["-march=armv8-a+sme2"], []),
     ("SMELUT2", "probes/arm_sme_lut2.c", ["-march=armv8-a+sme2+lut"], []),
     ("SMEFA64", "probes/arm_sme_fa64.c", ["-march=armv8-a+sme+sme-fa64"], []),
 ]
@@ -205,10 +244,15 @@ def probe_all_isas() -> list[tuple[str, str]]:
     for arch_match, table in tables:
         for name, probe_file, gcc_flags, msvc_flags in table:
             if arch_match and os.path.isfile(probe_file):
-                # Allow env-var override: NK_TARGET_FOO=0 forces off
-                env_val = os.environ.get(f"NK_TARGET_{name}")
-                if env_val == "0":
+                # Allow env-var override: NK_TARGET_FOO=1/true forces on, =0/false forces off
+                env_val = os.environ.get(f"NK_TARGET_{name}", "").lower()
+                if env_val in ("1", "true"):
+                    macros.append((f"NK_TARGET_{name}", "1"))
+                    print(f"[NumKong] NK_TARGET_{name}: force-enabled via environment")
+                    continue
+                if env_val in ("0", "false"):
                     macros.append((f"NK_TARGET_{name}", "0"))
+                    print(f"[NumKong] NK_TARGET_{name}: force-disabled via environment")
                     continue
                 flags = msvc_flags if is_msvc else gcc_flags
                 ok = probe_isa(cc, probe_file, flags, is_msvc)
@@ -228,25 +272,21 @@ def linux_settings() -> tuple[list[str], list[str], list[tuple[str, str]]]:
     compile_args = [
         "-std=c11",
         "-O3",
+        "-fopenmp",
         "-fdiagnostics-color=always",
         "-fvisibility=default",
         "-fPIC",
         "-w",  # Hush warnings
+        *march_baseline_args(),
     ]
-    # On RISC-V, GCC needs `-march` with the V extension for vector types to be
-    # available at translation-unit scope (`#pragma GCC target` only affects
-    # codegen, not type declarations).
-    # Keep the module-wide baseline portable (`rv64gcv`) so wheels can import on
-    # weaker emulated CPUs. Richer kernels still compile through the explicit
-    # NK_TARGET_* defines below plus per-function target attributes.
-    if is_64bit_riscv():
-        compile_args.append("-march=rv64gcv")
     link_args = [
         "-shared",
+        "-fopenmp",
         "-lm",  # Add vectorized `logf` implementation from the `glibc`
     ]
     macros: list[tuple[str, str]] = [
         ("NK_DYNAMIC_DISPATCH", "1"),
+        ("NK_USE_OPENMP", "1"),
         ("NK_NATIVE_F16", "0"),
         ("NK_NATIVE_BF16", "0"),
     ]
@@ -259,11 +299,30 @@ def darwin_settings() -> tuple[list[str], list[str], list[tuple[str, str]]]:
     compile_args = [
         "-std=c11",
         "-O3",
+        "-Xpreprocessor",
+        "-fopenmp",
         "-w",  # Hush warnings
+        *march_baseline_args(),
     ]
-    link_args: list[str] = []
+    link_args: list[str] = ["-lomp"]
+    # Apple Clang ships no `omp.h` / `libomp`; point at the Homebrew-installed
+    # libomp so `#include <omp.h>` resolves and the linker finds `-lomp`.
+    # `delocate` bundles `libomp.dylib` into the wheel; at import time we set
+    # `KMP_DUPLICATE_LIB_OK=TRUE` (see `python/numkong/__init__.py`) so the
+    # bundled runtime coexists with any libomp that NumPy/SciPy already loaded.
+    try:
+        libomp_prefix = subprocess.run(
+            ["brew", "--prefix", "libomp"],
+            capture_output=True, text=True, timeout=10, check=True,
+        ).stdout.strip()
+    except (subprocess.SubprocessError, FileNotFoundError):
+        libomp_prefix = ""
+    if libomp_prefix and Path(libomp_prefix).exists():
+        compile_args.append(f"-I{libomp_prefix}/include")
+        link_args.append(f"-L{libomp_prefix}/lib")
     macros: list[tuple[str, str]] = [
         ("NK_DYNAMIC_DISPATCH", "1"),
+        ("NK_USE_OPENMP", "1"),
         ("NK_NATIVE_F16", "0"),
         ("NK_NATIVE_BF16", "0"),
     ]
@@ -276,17 +335,21 @@ def freebsd_settings() -> tuple[list[str], list[str], list[tuple[str, str]]]:
     compile_args = [
         "-std=c11",
         "-O3",
+        "-fopenmp",
         "-fdiagnostics-color=always",
         "-fvisibility=default",
         "-fPIC",
         "-w",  # Hush warnings
+        *march_baseline_args(),
     ]
     link_args = [
         "-shared",
+        "-fopenmp",
         "-lm",  # Math library
     ]
     macros: list[tuple[str, str]] = [
         ("NK_DYNAMIC_DISPATCH", "1"),
+        ("NK_USE_OPENMP", "1"),
         ("NK_NATIVE_F16", "0"),
         ("NK_NATIVE_BF16", "0"),
     ]
@@ -299,14 +362,20 @@ def windows_settings() -> tuple[list[str], list[str], list[tuple[str, str]]]:
     compile_args = [
         "/std:c11",
         "/O2",
+        # `/openmp:llvm` enables OpenMP 3.1+ on MSVC 2019 16.9+ so `size_t`
+        # (unsigned) parallel-for counters compile — the legacy `/openmp` is
+        # frozen at OpenMP 2.0 and rejects them with C3015.
+        "/openmp:llvm",
         # Dealing with MinGW linking errors
         # https://cibuildwheel.readthedocs.io/en/stable/faq/#windows-importerror-dll-load-failed-the-specific-module-could-not-be-found
         "/d2FH4-",
         "/w",
+        *march_baseline_args(),  # MSVC: matches default; documents the contract
     ]
     link_args: list[str] = []
     macros: list[tuple[str, str]] = [
         ("NK_DYNAMIC_DISPATCH", "1"),
+        ("NK_USE_OPENMP", "1"),
         ("NK_NATIVE_F16", "0"),
         ("NK_NATIVE_BF16", "0"),
     ]
@@ -363,24 +432,11 @@ else:
     compile_args, link_args, macros = [], [], []
 
 
-def _is_editable_install() -> bool:
-    if "develop" in sys.argv or ("install" in sys.argv and "-e" in sys.argv):
-        return True
-    return any(Path(p, f"{__lib_name__}.egg-link").exists() for p in sys.path)
-
-
-SETUP_KWARGS = (
-    {
-        "packages": ["numkong"],
-        "package_dir": {"numkong": "python/numkong"},
-        "package_data": {"numkong": ["__init__.pyi", "py.typed"]},
-    }
-    if not _is_editable_install()
-    else {}
-)
-
-if _is_editable_install():
-    print("[NumKong] Editable install detected - skipping bundled type stubs.")
+SETUP_KWARGS = {
+    "packages": ["numkong"],
+    "package_dir": {"numkong": "python/numkong"},
+    "package_data": {"numkong": ["__init__.pyi", "py.typed"]},
+}
 
 
 # Use glob to find all dispatch files
@@ -401,7 +457,10 @@ dispatch_sources = sorted(glob.glob("c/dispatch_*.c"))
 
 ext_modules = [
     Extension(
-        "numkong",
+        # Lives under the `numkong` package so `numkong/__init__.py` runs first
+        # — it sets `KMP_DUPLICATE_LIB_OK=TRUE` before the dynamic linker
+        # initializes the bundled libomp.
+        "numkong._numkong",
         sources=base_sources + dispatch_sources,
         include_dirs=["include", "python"],
         language="c",

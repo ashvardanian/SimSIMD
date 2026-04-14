@@ -3936,6 +3936,35 @@ NK_PUBLIC void nk_reduce_moments_f16_neon(                             //
     else nk_reduce_moments_f16_serial(data_ptr, count, stride_bytes, sum_ptr, sumsq_ptr);
 }
 
+NK_INTERNAL void nk_reduce_moments_u1_neon_contiguous_( //
+    nk_u1x8_t const *data_ptr, nk_size_t count,         //
+    nk_u64_t *sum_ptr, nk_u64_t *sumsq_ptr) {
+    nk_size_t byte_count = nk_size_divide_round_up_(count, NK_BITS_PER_BYTE);
+    nk_u64_t sum = 0;
+    nk_size_t idx = 0;
+    // Each vcntq_u8 produces values 0-8 per lane; accumulate at u8 level
+    // for up to 31 iterations (31 × 8 = 248, fits in u8) before widening.
+    while (idx + 16 <= byte_count) {
+        uint8x16_t popcount_u8x16 = vdupq_n_u8(0);
+        for (nk_size_t cycle = 0; cycle < 31 && idx + 16 <= byte_count; ++cycle, idx += 16) {
+            uint8x16_t data_u8x16 = vld1q_u8((nk_u8_t const *)data_ptr + idx);
+            popcount_u8x16 = vaddq_u8(popcount_u8x16, vcntq_u8(data_u8x16));
+        }
+        sum += (nk_u64_t)vaddlvq_u8(popcount_u8x16);
+    }
+    for (; idx < byte_count; ++idx) sum += nk_u1x8_popcount_(((nk_u8_t const *)data_ptr)[idx]);
+    *sum_ptr = sum, *sumsq_ptr = sum;
+}
+
+NK_PUBLIC void nk_reduce_moments_u1_neon(                               //
+    nk_u1x8_t const *data_ptr, nk_size_t count, nk_size_t stride_bytes, //
+    nk_u64_t *sum_ptr, nk_u64_t *sumsq_ptr) {
+    count = nk_size_round_up_to_multiple_(count, 8);
+    if (count == 0) *sum_ptr = 0, *sumsq_ptr = 0;
+    else if (stride_bytes == 1) nk_reduce_moments_u1_neon_contiguous_(data_ptr, count, sum_ptr, sumsq_ptr);
+    else nk_reduce_moments_u1_serial(data_ptr, count, stride_bytes, sum_ptr, sumsq_ptr);
+}
+
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)

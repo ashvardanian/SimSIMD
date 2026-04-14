@@ -23,7 +23,7 @@
 #if NK_TARGET_RVVHALF
 
 #include "numkong/types.h"
-#include "numkong/cast/rvv.h" // `nk_e4m3m1_to_f16m2_rvv_`, `nk_e2m3m1_to_f16m2_rvv_`, etc.
+#include "numkong/cast/rvv.h" // `nk_e4m3m1_to_f16m2_rvv_`, `nk_e2m3m1_to_f16m2_rvv_`
 
 #if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("arch=+v,+zvfh"))), apply_to = function)

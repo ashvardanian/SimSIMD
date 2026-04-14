@@ -1251,6 +1251,40 @@ def test_dots_symmetric_row_range():
     assert_allclose(np.array(output)[mask], reference[mask], err_msg="Full-range dots_symmetric differs from default")
 
 
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.parametrize("height", [63, 64, 129])
+def test_dots_packed_threads(height):
+    """Verify OpenMP-parallel dots_packed matches the serial path across tile boundaries.
+
+    The packed row tile is 64, so sizes straddling one and two tiles exercise
+    both the whole-tile and tail-chunk branches of the parallel loop.
+    """
+    depth, width = 64, 32
+    left_matrix = np.random.randn(height, depth).astype(np.float32)
+    right_matrix = np.ascontiguousarray(np.random.randn(width, depth).astype(np.float32))
+    right_packed = nk.dots_pack(right_matrix, dtype="float32")
+
+    serial = np.array(nk.dots_packed(left_matrix, right_packed, threads=1))
+    parallel = np.array(nk.dots_packed(left_matrix, right_packed, threads=4))
+    assert_allclose(parallel, serial, err_msg=f"threads=4 diverges from threads=1 at height={height}")
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.parametrize("count", [31, 32, 65])
+def test_dots_symmetric_threads(count):
+    """Verify OpenMP-parallel dots_symmetric matches the serial path across tile boundaries.
+
+    The symmetric row tile is 32; only the upper triangle is guaranteed written.
+    """
+    depth = 32
+    vectors = np.random.randn(count, depth).astype(np.float32)
+    mask = np.triu(np.ones((count, count), dtype=bool))
+
+    serial = np.array(nk.dots_symmetric(vectors, threads=1))
+    parallel = np.array(nk.dots_symmetric(vectors, threads=4))
+    assert_allclose(parallel[mask], serial[mask], err_msg=f"threads=4 diverges from threads=1 at count={count}")
+
+
 def _skip_unless_free_threaded():
     version = sys.version_info
     if version.major == 3 and version.minor >= 13:

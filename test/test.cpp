@@ -4,6 +4,10 @@
  *  @author Ash Vardanian
  *  @date December 28, 2025
  */
+#if defined(_MSC_VER)
+#define _CRT_SECURE_NO_WARNINGS
+#include <io.h> // `_write`
+#endif
 
 #if __has_include(<regex.h>)
 #include <regex.h>
@@ -15,6 +19,13 @@
 #endif
 
 #include "numkong/capabilities.h" // nk_capabilities, nk_configure_thread
+
+#if !NK_TARGET_WASM_
+#include <csignal> // `std::signal`, `SIGILL`
+#define NK_HAS_SIGNAL_ 1
+#else
+#define NK_HAS_SIGNAL_ 0
+#endif
 
 #include "test.hpp"
 #include "test_cross.hpp"
@@ -63,10 +74,29 @@ static void print_indicator(bool on) {
     else std::printf(colors_enabled() ? "\033[2m\xe2\x97\x8b\033[0m" : "\xe2\x97\x8b");
 }
 
-static void print_isa(char const *name, int compiled, nk_capability_t cap, nk_capability_t runtime) {
-    if (!compiled) return;
+/**
+ *  Tri-state glyph for "compiled in" vs "runtime supports":
+ *    ● compiled & runtime usable kernel    — green
+ *    ◐ compiled but runtime lacks it       — red (invoking this kernel will SIGILL)
+ *    ◑ runtime has it but not compiled in  — yellow (perf left on the table)
+ *    ○ neither                             — dim
+ */
+static void print_indicator_dual(bool compiled, bool runtime) {
+    char const *glyph;
+    char const *color;
+    if (compiled && runtime) glyph = "\xe2\x97\x8f", color = "\033[32m";
+    else if (compiled && !runtime) glyph = "\xe2\x97\x90", color = "\033[31m";
+    else if (!compiled && runtime) glyph = "\xe2\x97\x91", color = "\033[33m";
+    else glyph = "\xe2\x97\x8b", color = "\033[2m";
+    if (colors_enabled()) std::printf("%s%s\033[0m", color, glyph);
+    else std::printf("%s", glyph);
+}
+
+static void print_isa(char const *name, int compiled, nk_capability_t cap, nk_capability_t runtime_caps) {
+    bool const runtime = (runtime_caps & cap) != 0;
+    if (!compiled && !runtime) return;
     std::printf("  %s ", name);
-    print_indicator((runtime & cap) != 0);
+    print_indicator_dual(compiled != 0, runtime);
 }
 
 test_config_t global_config;
@@ -98,7 +128,49 @@ void print_stats_header(comparison_family_t family) noexcept {
     std::printf("\n");
 }
 
+#if NK_HAS_SIGNAL_
+/** @brief  Fatal signal handler that logs the signal and faulting kernel before exiting. */
+static void crash_handler(int sig) {
+    // Only async-signal-safe calls allowed: write(2) and _exit(2).
+    char const *sig_name = "unknown signal";
+    switch (sig) {
+    case SIGILL: sig_name = "SIGILL (illegal instruction)"; break;
+    case SIGSEGV: sig_name = "SIGSEGV (segmentation fault)"; break;
+#if defined(SIGBUS)
+    case SIGBUS: sig_name = "SIGBUS (bus error)"; break;
+#endif
+    case SIGFPE: sig_name = "SIGFPE (arithmetic exception)"; break;
+    case SIGABRT: sig_name = "SIGABRT (abort)"; break;
+    }
+    char const *name = nk_test_current_kernel_ ? nk_test_current_kernel_ : "(unknown)";
+    char buf[512];
+    std::size_t len = 0;
+    for (std::size_t i = 0; sig_name[i] && len < sizeof(buf); ++i) buf[len++] = sig_name[i];
+    char const mid[] = " in kernel '";
+    for (std::size_t i = 0; mid[i] && len < sizeof(buf); ++i) buf[len++] = mid[i];
+    for (std::size_t i = 0; name[i] && len + 2 < sizeof(buf); ++i) buf[len++] = name[i];
+    buf[len++] = '\'';
+    buf[len++] = '\n';
+#if defined(_WIN32)
+    _write(2, buf, (unsigned)len);
+#else
+    (void)!write(2, buf, len);
+#endif
+    _exit(128 + sig);
+}
+#endif // NK_HAS_SIGNAL_
+
 int main(int argc, char **argv) {
+
+#if NK_HAS_SIGNAL_
+    std::signal(SIGILL, crash_handler);
+    std::signal(SIGSEGV, crash_handler);
+#if defined(SIGBUS)
+    std::signal(SIGBUS, crash_handler);
+#endif
+    std::signal(SIGFPE, crash_handler);
+    std::signal(SIGABRT, crash_handler);
+#endif // NK_HAS_SIGNAL_
 
     // Parse CLI arguments
     for (int i = 1; i < argc; ++i) {
@@ -239,8 +311,12 @@ int main(int argc, char **argv) {
         global_config.mesh_points = std::max<std::size_t>(1, global_config.mesh_points / 4);
     }
 
+    // Breadcrumbs for crash_handler: if SIGILL fires here, the log shows which call faulted.
+    nk_test_current_kernel_ = "nk_capabilities()";
     nk_capability_t runtime_caps = nk_capabilities();
+    nk_test_current_kernel_ = "nk_configure_thread()";
     nk_configure_thread(runtime_caps); // Also enables AMX if available
+    nk_test_current_kernel_ = nullptr;
 
     std::printf(colors_enabled() ? "\033[1mNumKong Precision Testing Suite v%d.%d.%d\033[0m\n"
                                  : "NumKong Precision Testing Suite v%d.%d.%d\n",

@@ -169,10 +169,10 @@ pub use capabilities::{available, configure_thread, uses_dynamic_dispatch};
 pub use tensor::{
     AllCloseOps, Allocator, AxisIterator, AxisIteratorMut, BlendOps, CastOps, FmaOps, Global,
     Matrix, MatrixSpan, MatrixView, MinMaxOps, MinMaxResult, MomentsOps, RangeStep, ScaleOps,
-    SliceArg, SliceRange, SliceSpec, SumOps, Tensor, TensorDims, TensorError,
-    TensorIterator, TensorMut, TensorRef, TensorSpan, TensorSpanDims, TensorSpanIterator,
-    TensorView, TensorViewDims, TensorViewIterator, TrigAtanOps, TrigCosOps, TrigSinOps,
-    DEFAULT_MAX_RANK, SIMD_ALIGNMENT,
+    SliceArg, SliceRange, SliceSpec, SumOps, Tensor, TensorDims, TensorError, TensorIterator,
+    TensorMut, TensorRef, TensorSpan, TensorSpanDims, TensorSpanIterator, TensorView,
+    TensorViewDims, TensorViewIterator, TrigAtanOps, TrigCosOps, TrigSinOps, DEFAULT_MAX_RANK,
+    SIMD_ALIGNMENT,
 };
 
 // Re-export matrix types

@@ -11,10 +11,10 @@
 #ifndef NK_TEST_CROSS_HPP
 #define NK_TEST_CROSS_HPP
 
-#include "numkong/spatials.h" // `nk_angulars_packed_*`, `nk_euclideans_packed_*`, etc.
+#include "numkong/spatials.h" // `nk_angulars_packed_*`, `nk_euclideans_packed_*`
 
-#include "numkong/dots.hpp"   // `nk::dots_packed`, `nk::dots_symmetric`, etc.
-#include "numkong/matrix.hpp" // `nk::dots_packed_size`, `nk::dots_pack`, etc.
+#include "numkong/dots.hpp"   // `nk::dots_packed`, `nk::dots_symmetric`
+#include "numkong/matrix.hpp" // `nk::dots_packed_size`, `nk::dots_pack`
 #include "numkong/reduce.hpp" // `nk::reduce_moments`
 
 #include "test.hpp"

@@ -39,11 +39,13 @@
             "defines": [
                 "NK_NATIVE_F16=0",
                 "NK_NATIVE_BF16=0",
-                "NK_DYNAMIC_DISPATCH=1"
+                "NK_DYNAMIC_DISPATCH=1",
+                "NK_USE_OPENMP=1"
             ],
             "cflags": [
                 "-std=c11",
                 "-O3",
+                "-fopenmp",
                 "-Wno-unknown-pragmas",
                 "-Wno-maybe-uninitialized",
                 "-Wno-cast-function-type",
@@ -52,31 +54,98 @@
                 "-include",
                 "<(module_root_dir)/nk_probes.h",
             ],
+            "ldflags": [
+                "-fopenmp"
+            ],
             "msvs_settings": {
                 "VCCLCompilerTool": {
                     "ForcedIncludeFiles": [
                         "<(module_root_dir)/nk_probes.h"
                     ],
                     "AdditionalOptions": [
-                        "/Zc:preprocessor"
+                        "/Zc:preprocessor",
+                        "/openmp:llvm"
                     ],
                 },
             },
             "conditions": [
+                # Pin TU baseline to each arch's ABI floor; SIMD kernels use per-function pragmas.
+                [
+                    "OS!='win' and target_arch=='arm64'",
+                    {
+                        "cflags": [
+                            "-march=armv8-a"
+                        ]
+                    }
+                ],
+                [
+                    "OS!='win' and target_arch=='x64'",
+                    {
+                        "cflags": [
+                            "-march=x86-64"
+                        ]
+                    }
+                ],
+                [
+                    "OS!='win' and target_arch=='riscv64'",
+                    {
+                        "cflags": [
+                            "-march=rv64gc"
+                        ]
+                    }
+                ],
+                # Forbid auto-vectorization so serial fallbacks don't get silently
+                # promoted to NEON/SSE2/VSX. SIMD kernels use explicit intrinsics
+                # and per-function `target` pragmas; unaffected. MSVC has no
+                # command-line vectorizer toggle.
+                [
+                    "OS!='win'",
+                    {
+                        "cflags": [
+                            "-fno-tree-vectorize",
+                            "-fno-tree-slp-vectorize"
+                        ]
+                    }
+                ],
                 [
                     "OS=='mac'",
                     {
                         "xcode_settings": {
-                            "MACOSX_DEPLOYMENT_TARGET": "11.0"
+                            "MACOSX_DEPLOYMENT_TARGET": "11.0",
+                            # Apple Clang ships no `omp.h`; the CI step
+                            # `brew install libomp` makes it keg-only under
+                            # `/opt/homebrew/opt/libomp` (arm64) or
+                            # `/usr/local/opt/libomp` (x86_64). Clang silently
+                            # ignores `-I` / `-L` dirs that don't exist, so
+                            # listing both keeps the file arch-agnostic.
+                            "OTHER_CFLAGS": [
+                                "-Xpreprocessor",
+                                "-fopenmp",
+                                "-I/opt/homebrew/opt/libomp/include",
+                                "-I/usr/local/opt/libomp/include"
+                            ],
+                            "OTHER_LDFLAGS": [
+                                "-lomp",
+                                "-L/opt/homebrew/opt/libomp/lib",
+                                "-L/usr/local/opt/libomp/lib"
+                            ]
                         }
                     }
                 ],
+                # MSVC: no per-function target pragma; these match defaults.
                 [
                     "OS=='win' and target_arch=='arm64'",
                     {
                         "defines": [
                             "_ARM64_"
-                        ]
+                        ],
+                        "msvs_settings": {
+                            "VCCLCompilerTool": {
+                                "AdditionalOptions": [
+                                    "/arch:armv8.0"
+                                ]
+                            }
+                        }
                     }
                 ],
                 [
@@ -84,7 +153,14 @@
                     {
                         "defines": [
                             "_AMD64_"
-                        ]
+                        ],
+                        "msvs_settings": {
+                            "VCCLCompilerTool": {
+                                "AdditionalOptions": [
+                                    "/arch:SSE2"
+                                ]
+                            }
+                        }
                     }
                 ],
             ],

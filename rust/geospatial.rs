@@ -5,6 +5,19 @@
 //! - [`Haversine`]: Great-circle distance on a sphere
 //! - [`Vincenty`]: Geodesic distance on an ellipsoid
 //! - [`Geospatial`]: Blanket trait combining `Haversine + Vincenty`
+//!
+//! # Units
+//!
+//! Both kernels use a fixed input / output unit convention. Callers holding degree
+//! values must convert with `.to_radians()` first:
+//!
+//! - **Input latitudes and longitudes**: radians (not degrees)
+//! - **Output distance**: meters
+//! - **Earth radius** for Haversine: `6 335 439 m` (WGS-84 mean meridional radius)
+//! - **Ellipsoid** for Vincenty: WGS-84 (`a = 6 378 137 m`, `f = 1/298.257223563`)
+//!
+//! The four latitude/longitude slices must be equal length; the output slice
+//! must have the same length and is filled with per-pair distances in meters.
 
 #[link(name = "numkong")]
 extern "C" {
@@ -53,6 +66,26 @@ extern "C" {
 /// Where φ = latitude, λ = longitude, R = Earth's radius (6335 km).
 /// Inputs are in radians, outputs in meters.
 pub trait Haversine: Sized {
+    /// Compute the great-circle distance for paired coordinates.
+    ///
+    /// All four coordinate slices must be the same length, matching the output
+    /// slice. Returns `None` on length mismatch. Inputs are in **radians** and
+    /// results are written in **meters**.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use numkong::Haversine;
+    /// // New York (40.7128°, -74.0060°) → Los Angeles (34.0522°, -118.2437°)
+    /// let a_lat = [40.7128_f64.to_radians()];
+    /// let a_lon = [(-74.0060_f64).to_radians()];
+    /// let b_lat = [34.0522_f64.to_radians()];
+    /// let b_lon = [(-118.2437_f64).to_radians()];
+    /// let mut distance_meters = [0.0_f64];
+    /// f64::haversine(&a_lat, &a_lon, &b_lat, &b_lon, &mut distance_meters).unwrap();
+    /// // Approximate NY→LA great-circle distance ≈ 3 914 km.
+    /// assert!((distance_meters[0] - 3_914_000.0).abs() < 30_000.0);
+    /// ```
     fn haversine(
         a_lat: &[Self],
         a_lon: &[Self],
@@ -96,8 +129,12 @@ impl Haversine for f64 {
         b_lon: &[Self],
         result: &mut [Self],
     ) -> Option<()> {
-        let n = a_lat.len();
-        if a_lon.len() != n || b_lat.len() != n || b_lon.len() != n || result.len() != n {
+        let coordinate_count = a_lat.len();
+        if a_lon.len() != coordinate_count
+            || b_lat.len() != coordinate_count
+            || b_lon.len() != coordinate_count
+            || result.len() != coordinate_count
+        {
             return None;
         }
         unsafe {
@@ -106,7 +143,7 @@ impl Haversine for f64 {
                 a_lon.as_ptr(),
                 b_lat.as_ptr(),
                 b_lon.as_ptr(),
-                n,
+                coordinate_count,
                 result.as_mut_ptr(),
             )
         };
@@ -122,8 +159,12 @@ impl Vincenty for f64 {
         b_lon: &[Self],
         result: &mut [Self],
     ) -> Option<()> {
-        let n = a_lat.len();
-        if a_lon.len() != n || b_lat.len() != n || b_lon.len() != n || result.len() != n {
+        let coordinate_count = a_lat.len();
+        if a_lon.len() != coordinate_count
+            || b_lat.len() != coordinate_count
+            || b_lon.len() != coordinate_count
+            || result.len() != coordinate_count
+        {
             return None;
         }
         unsafe {
@@ -132,7 +173,7 @@ impl Vincenty for f64 {
                 a_lon.as_ptr(),
                 b_lat.as_ptr(),
                 b_lon.as_ptr(),
-                n,
+                coordinate_count,
                 result.as_mut_ptr(),
             )
         };
@@ -150,8 +191,12 @@ impl Haversine for f32 {
         b_lon: &[Self],
         result: &mut [Self],
     ) -> Option<()> {
-        let n = a_lat.len();
-        if a_lon.len() != n || b_lat.len() != n || b_lon.len() != n || result.len() != n {
+        let coordinate_count = a_lat.len();
+        if a_lon.len() != coordinate_count
+            || b_lat.len() != coordinate_count
+            || b_lon.len() != coordinate_count
+            || result.len() != coordinate_count
+        {
             return None;
         }
         unsafe {
@@ -160,7 +205,7 @@ impl Haversine for f32 {
                 a_lon.as_ptr(),
                 b_lat.as_ptr(),
                 b_lon.as_ptr(),
-                n,
+                coordinate_count,
                 result.as_mut_ptr(),
             )
         };
@@ -176,8 +221,12 @@ impl Vincenty for f32 {
         b_lon: &[Self],
         result: &mut [Self],
     ) -> Option<()> {
-        let n = a_lat.len();
-        if a_lon.len() != n || b_lat.len() != n || b_lon.len() != n || result.len() != n {
+        let coordinate_count = a_lat.len();
+        if a_lon.len() != coordinate_count
+            || b_lat.len() != coordinate_count
+            || b_lon.len() != coordinate_count
+            || result.len() != coordinate_count
+        {
             return None;
         }
         unsafe {
@@ -186,7 +235,7 @@ impl Vincenty for f32 {
                 a_lon.as_ptr(),
                 b_lat.as_ptr(),
                 b_lon.as_ptr(),
-                n,
+                coordinate_count,
                 result.as_mut_ptr(),
             )
         };
@@ -201,7 +250,7 @@ mod tests {
     use super::*;
     use crate::types::{assert_close, FloatLike, TestableType};
 
-    fn check_haversine<T>(
+    fn check_haversine<Scalar>(
         a_lat_deg: f64,
         a_lon_deg: f64,
         b_lat_deg: f64,
@@ -209,24 +258,24 @@ mod tests {
         expected_meters: f64,
         tolerance: f64,
     ) where
-        T: FloatLike + TestableType + Haversine,
+        Scalar: FloatLike + TestableType + Haversine,
     {
-        let a_lat = [T::from_f32(a_lat_deg.to_radians() as f32)];
-        let a_lon = [T::from_f32(a_lon_deg.to_radians() as f32)];
-        let b_lat = [T::from_f32(b_lat_deg.to_radians() as f32)];
-        let b_lon = [T::from_f32(b_lon_deg.to_radians() as f32)];
-        let mut result = [T::zero()];
-        T::haversine(&a_lat, &a_lon, &b_lat, &b_lon, &mut result).unwrap();
+        let a_lat = [Scalar::from_f32(a_lat_deg.to_radians() as f32)];
+        let a_lon = [Scalar::from_f32(a_lon_deg.to_radians() as f32)];
+        let b_lat = [Scalar::from_f32(b_lat_deg.to_radians() as f32)];
+        let b_lon = [Scalar::from_f32(b_lon_deg.to_radians() as f32)];
+        let mut result = [Scalar::zero()];
+        Scalar::haversine(&a_lat, &a_lon, &b_lat, &b_lon, &mut result).unwrap();
         assert_close(
             result[0].to_f64(),
             expected_meters,
             tolerance,
             0.0,
-            &format!("haversine<{}>", core::any::type_name::<T>()),
+            &format!("haversine<{}>", core::any::type_name::<Scalar>()),
         );
     }
 
-    fn check_vincenty<T>(
+    fn check_vincenty<Scalar>(
         a_lat_deg: f64,
         a_lon_deg: f64,
         b_lat_deg: f64,
@@ -234,20 +283,20 @@ mod tests {
         expected_meters: f64,
         tolerance: f64,
     ) where
-        T: FloatLike + TestableType + Vincenty,
+        Scalar: FloatLike + TestableType + Vincenty,
     {
-        let a_lat = [T::from_f32(a_lat_deg.to_radians() as f32)];
-        let a_lon = [T::from_f32(a_lon_deg.to_radians() as f32)];
-        let b_lat = [T::from_f32(b_lat_deg.to_radians() as f32)];
-        let b_lon = [T::from_f32(b_lon_deg.to_radians() as f32)];
-        let mut result = [T::zero()];
-        T::vincenty(&a_lat, &a_lon, &b_lat, &b_lon, &mut result).unwrap();
+        let a_lat = [Scalar::from_f32(a_lat_deg.to_radians() as f32)];
+        let a_lon = [Scalar::from_f32(a_lon_deg.to_radians() as f32)];
+        let b_lat = [Scalar::from_f32(b_lat_deg.to_radians() as f32)];
+        let b_lon = [Scalar::from_f32(b_lon_deg.to_radians() as f32)];
+        let mut result = [Scalar::zero()];
+        Scalar::vincenty(&a_lat, &a_lon, &b_lat, &b_lon, &mut result).unwrap();
         assert_close(
             result[0].to_f64(),
             expected_meters,
             tolerance,
             0.0,
-            &format!("vincenty<{}>", core::any::type_name::<T>()),
+            &format!("vincenty<{}>", core::any::type_name::<Scalar>()),
         );
     }
 

@@ -34,6 +34,7 @@
 #if NK_TARGET_SVESDOT
 
 #include "numkong/types.h"
+#include "numkong/reduce/sve.h" // `nk_svaddv_f64_`
 
 #if defined(__cplusplus)
 extern "C" {
@@ -57,7 +58,7 @@ NK_PUBLIC void nk_dot_i8_svesdot(nk_i8_t const *a_scalars, nk_i8_t const *b_scal
         sum_i32x = svdot_s32(sum_i32x, a_i8x, b_i8x);
         idx_scalars += svcntb();
     } while (idx_scalars < count_scalars);
-    *result = (nk_i32_t)svaddv_s32(svptrue_b32(), sum_i32x);
+    *result = (nk_i32_t)nk_svaddv_s32_(svptrue_b32(), sum_i32x);
 }
 
 NK_PUBLIC void nk_dot_u8_svesdot(nk_u8_t const *a_scalars, nk_u8_t const *b_scalars, nk_size_t count_scalars,
@@ -71,7 +72,7 @@ NK_PUBLIC void nk_dot_u8_svesdot(nk_u8_t const *a_scalars, nk_u8_t const *b_scal
         sum_u32x = svdot_u32(sum_u32x, a_u8x, b_u8x);
         idx_scalars += svcntb();
     } while (idx_scalars < count_scalars);
-    *result = (nk_u32_t)svaddv_u32(svptrue_b32(), sum_u32x);
+    *result = (nk_u32_t)nk_svaddv_u32_(svptrue_b32(), sum_u32x);
 }
 
 #if defined(__clang__)

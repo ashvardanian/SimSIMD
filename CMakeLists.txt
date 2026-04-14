@@ -100,6 +100,8 @@ option(NK_BUILD_TEST "Compile precision tests with ULP-based error analysis" OFF
 option(NK_BUILD_BENCH "Compile micro-benchmarks for current ISA" OFF)
 option(NK_WASI_HOSTED "Import capability probes from WASI host environment" OFF)
 
+option(NK_MARCH_NATIVE "Build with -march=native (host-tuned, not portable)" OFF)
+
 # `add_test()` entries are only generated when testing is enabled.
 if (NK_BUILD_TEST OR NK_BUILD_SHARED_TEST)
     enable_testing()
@@ -193,18 +195,43 @@ else ()
 endif ()
 
 if (MSVC)
-    set(CMAKE_CXX_FLAGS_RELEASE "/O2 /DNDEBUG")
-    set(CMAKE_C_FLAGS_RELEASE "/O2 /DNDEBUG")
+    set(CMAKE_CXX_FLAGS_RELEASE "/O2 /Gw /DNDEBUG")
+    set(CMAKE_C_FLAGS_RELEASE "/O2 /Gw /DNDEBUG")
 else ()
-    set(CMAKE_CXX_FLAGS_RELEASE "-O3")
-    set(CMAKE_C_FLAGS_RELEASE "-O3")
+    set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG")
+    set(CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG")
 endif ()
 
 # Compiler-specific flags
 if (CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$" OR CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    # Enable -march=native for native builds on Linux/FreeBSD (not macOS or cross-compilation)
-    if ((NK_IS_LINUX_ OR NK_IS_FREEBSD_) AND NOT CMAKE_CROSSCOMPILING)
-        add_compile_options(-march=native)
+    # Portable baseline: pin TU ISA floor + forbid auto-vectorization so serial
+    # fallbacks don't get silently promoted to NEON/SSE2/VSX. SIMD kernels use
+    # explicit intrinsics and per-function `target` pragmas; unaffected.
+    # `NK_MARCH_NATIVE=ON` opts out for host-tuned builds.
+    if (NK_MARCH_NATIVE AND NOT MSVC AND NOT CMAKE_CROSSCOMPILING)
+        message(WARNING "NK_MARCH_NATIVE=ON: baking host-specific instructions; result will not run on older CPUs")
+        # Apple Clang's `-march=native` only advertises a subset of host features
+        # (no SME/SME2/FP16_FML); `-mcpu=native` is the complete knob on macOS.
+        # GCC/Clang on Linux/FreeBSD use `-march=native` as usual.
+        if (APPLE)
+            add_compile_options(-mcpu=native)
+        else ()
+            add_compile_options(-march=native)
+        endif ()
+    else ()
+        add_compile_options(-fno-tree-vectorize -fno-tree-slp-vectorize)
+        if (NK_IS_64BIT_ARM_)
+            add_compile_options(-march=armv8-a)
+        elseif (NK_IS_64BIT_X86_)
+            add_compile_options(-march=x86-64)
+        elseif (NK_IS_64BIT_RISCV_)
+            add_compile_options(-march=rv64gc)
+        elseif (NK_IS_64BIT_POWER_)
+            add_compile_options(-mcpu=power8)
+        elseif (NK_IS_64BIT_LOONGARCH_)
+            # LASX needs TU-level `-mlasx` until GCC >= 15 / Clang >= 22 ship per-function support.
+            add_compile_options(-march=loongarch64 -mlasx)
+        endif ()
     endif ()
 
     add_compile_options(-pedantic)
@@ -215,7 +242,14 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$" OR CMAKE_CXX_COMPILER_ID STR
         add_compile_options(-fmax-errors=1 -Wno-tautological-constant-compare -Wno-psabi)
     endif ()
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
-    add_compile_options(-w -ferror-limit=1)
+    add_compile_options(-w -ferror-limit=1 -fno-tree-vectorize -fno-tree-slp-vectorize)
+elseif (MSVC)
+    # MSVC: no per-function target pragma; these match defaults.
+    if (NK_IS_64BIT_X86_)
+        add_compile_options(/arch:SSE2)
+    elseif (NK_IS_64BIT_ARM_)
+        add_compile_options(/arch:armv8.0)
+    endif ()
 endif ()
 
 # Define the header-only library
@@ -619,7 +653,13 @@ if (NK_BUILD_SHARED)
         # Hide all symbols by default; only NK_DYNAMIC-annotated API functions are exported.
         # Strip unwind tables from this pure-C library (saves ~78 KB).
         if (NOT MSVC)
-            target_compile_options(nk_shared PRIVATE -fvisibility=hidden -fno-asynchronous-unwind-tables)
+            target_compile_options(
+                nk_shared PRIVATE -fvisibility=hidden -fno-asynchronous-unwind-tables -fno-builtin-memset
+                                  -fno-builtin-memcpy -fno-builtin-memmove
+            )
+            if (CMAKE_C_COMPILER_ID STREQUAL "GNU")
+                target_compile_options(nk_shared PRIVATE -fno-tree-loop-distribute-patterns)
+            endif ()
         endif ()
 
         # MSVC ARM64 cross-compilation: <intrin.h> pulls in <winnt.h> which
@@ -695,6 +735,23 @@ if (NK_BUILD_SHARED_TEST)
     target_include_directories(nk_shared_test PRIVATE "${PROJECT_SOURCE_DIR}/include")
     target_compile_definitions(nk_shared_test PRIVATE NK_DYNAMIC_DISPATCH=1)
     target_link_libraries(nk_shared_test nk_shared ${NK_CXX_MATH_LIB_})
+
+    # The shared-library test must exercise only the DLL dispatch path, so compile
+    # the test binary at the platform baseline (no SIMD extensions).  This prevents
+    # types.h auto-detection (e.g. MSVC _MSC_VER >= 1920 → NK_TARGET_SKYLAKE=1) from
+    # pulling in inline AVX-512 code the CPU may not support.  All ISA-specific
+    # kernel coverage comes from nk_test (header-only, with native probe defs).
+    target_compile_definitions(
+        nk_shared_test
+        PRIVATE NK_TARGET_HASWELL=0 NK_TARGET_SKYLAKE=0 NK_TARGET_ICELAKE=0 NK_TARGET_GENOA=0 NK_TARGET_SAPPHIRE=0
+                NK_TARGET_SAPPHIREAMX=0 NK_TARGET_GRANITEAMX=0 NK_TARGET_DIAMOND=0 NK_TARGET_TURIN=0 NK_TARGET_ALDER=0
+                NK_TARGET_SIERRA=0 NK_TARGET_NEON=0 NK_TARGET_NEONHALF=0 NK_TARGET_NEONSDOT=0 NK_TARGET_NEONBFDOT=0
+                NK_TARGET_NEONFHM=0 NK_TARGET_NEONFP8=0 NK_TARGET_SVE=0 NK_TARGET_SVEHALF=0 NK_TARGET_SVEBFDOT=0
+                NK_TARGET_SVESDOT=0 NK_TARGET_SVE2=0 NK_TARGET_SVE2P1=0 NK_TARGET_SME=0 NK_TARGET_SME2=0
+                NK_TARGET_SME2P1=0 NK_TARGET_SMEF64=0 NK_TARGET_SMEHALF=0 NK_TARGET_SMEBF16=0 NK_TARGET_SMEBI32=0
+                NK_TARGET_SMELUT2=0 NK_TARGET_SMEFA64=0 NK_TARGET_RVV=0 NK_TARGET_RVVHALF=0 NK_TARGET_RVVBF16=0
+                NK_TARGET_RVVBB=0 NK_TARGET_LOONGSONASX=0 NK_TARGET_POWERVSX=0 NK_TARGET_V128RELAXED=0
+    )
 
     add_test(NAME nk_shared_test COMMAND nk_shared_test)
 endif ()

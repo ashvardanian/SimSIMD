@@ -2,7 +2,9 @@ use std::collections::HashMap;
 use std::env;
 use std::path::Path;
 
-fn main() { build_numkong().expect("Failed to build NumKong"); }
+fn main() {
+    build_numkong().expect("Failed to build NumKong");
+}
 
 /// Try to compile a single probe .c file with the given flags.
 /// Uses `flag()` (hard error) instead of `flag_if_supported()` to avoid
@@ -226,13 +228,13 @@ const ARM_PROBES: &[IsaProbe] = &[
     IsaProbe {
         name: "NK_TARGET_SMEBF16",
         probe_file: "probes/arm_sme_bf16.c",
-        gcc_flags: &["-march=armv8-a+sme2+b16b16"],
+        gcc_flags: &["-march=armv8-a+sme2+sme-b16b16"],
         msvc_flags: &[],
     },
     IsaProbe {
         name: "NK_TARGET_SMEBI32",
         probe_file: "probes/arm_sme_bi32.c",
-        gcc_flags: &["-march=armv8-a+sme2+sme-i16i32"],
+        gcc_flags: &["-march=armv8-a+sme2"],
         msvc_flags: &[],
     },
     IsaProbe {
@@ -372,6 +374,41 @@ fn build_numkong() -> Result<HashMap<String, bool>, String> {
         build.flag_if_supported("-mpreferred-stack-boundary=4");
     }
 
+    // Pin TU baseline to each arch's ABI floor; SIMD kernels carry per-function pragmas.
+    // `NK_MARCH_NATIVE=1` opts into a host-tuned, non-portable build (ignored on MSVC).
+    let march_native = env::var("NK_MARCH_NATIVE").is_ok_and(|v| v == "1" || v == "true");
+    // Portable baseline: pin TU ISA floor + forbid auto-vectorization so serial
+    // fallbacks don't get silently promoted to NEON/SSE2/VSX. SIMD kernels use
+    // explicit intrinsics; unaffected. MSVC has no command-line vectorizer
+    // toggle; `NK_MARCH_NATIVE=1` opts out for host-tuned builds.
+    if march_native && !is_msvc {
+        println!("cargo:warning=NK_MARCH_NATIVE=1: building -march=native, result will not run on older CPUs");
+        build.flag_if_supported("-march=native");
+    } else if is_msvc {
+        match target_arch.as_str() {
+            "x86_64"  => { build.flag_if_supported("/arch:SSE2"); }
+            "aarch64" => { build.flag_if_supported("/arch:armv8.0"); }
+            _ => {}
+        }
+    } else {
+        build.flag_if_supported("-fno-tree-vectorize");
+        build.flag_if_supported("-fno-tree-slp-vectorize");
+        match target_arch.as_str() {
+            "x86_64"      => { build.flag_if_supported("-march=x86-64"); }
+            "aarch64"     => { build.flag_if_supported("-march=armv8-a"); }
+            "riscv64"     => { build.flag_if_supported("-march=rv64gc"); }
+            "powerpc64"   => { build.flag_if_supported("-mcpu=power8"); }
+            "loongarch64" => {
+                // LASX must be enabled at TU level: GCC's LoongArch backend
+                // doesn't support per-function `target` attribute / pragma
+                // until GCC 15 (Feb 2025), and Clang until 22.1 (May 2025).
+                build.flag_if_supported("-march=loongarch64");
+                build.flag_if_supported("-mlasx");
+            }
+            _ => {}
+        }
+    }
+
     // Select probe tables for this architecture
     let probe_tables: &[&[IsaProbe]] = match target_arch.as_str() {
         "x86_64" => &[X86_PROBES],
@@ -386,19 +423,20 @@ fn build_numkong() -> Result<HashMap<String, bool>, String> {
     // Probe each ISA — uniform for all architectures including NEON and WASM
     for table in probe_tables {
         for probe in table.iter() {
-            let enabled = match env::var(probe.name) {
-                Ok(val) => val != "0" && val.to_lowercase() != "false",
-                Err(_) => true,
-            };
-
-            if !enabled {
-                build.define(probe.name, "0");
-                flags.insert(probe.name.to_string(), false);
-                println!(
-                    "cargo:warning=Disabled {} via environment variable",
-                    probe.name
-                );
-                continue;
+            // Allow env-var override: NK_TARGET_FOO=0 forces off, NK_TARGET_FOO=1 forces on
+            if let Ok(val) = env::var(probe.name) {
+                let forced = match val.as_str() {
+                    "1" | "true" | "TRUE" => Some(true),
+                    "0" | "false" | "FALSE" => Some(false),
+                    _ => None,
+                };
+                if let Some(on) = forced {
+                    build.define(probe.name, if on { "1" } else { "0" });
+                    flags.insert(probe.name.to_string(), on);
+                    let verb = if on { "enabled" } else { "disabled" };
+                    println!("cargo:warning={}: force-{verb} via environment", probe.name);
+                    continue;
+                }
             }
 
             let probe_flags = if is_msvc {
@@ -428,6 +466,7 @@ fn build_numkong() -> Result<HashMap<String, bool>, String> {
     watch_dir("probes");
 
     // Rerun on env var changes
+    println!("cargo:rerun-if-env-changed=NK_MARCH_NATIVE");
     for table in [
         X86_PROBES,
         ARM_PROBES,

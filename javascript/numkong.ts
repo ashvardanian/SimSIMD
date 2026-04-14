@@ -33,6 +33,19 @@ import { getFileName, getRoot } from "bindings";
 import { setConversionFunctions, Float16Array, BFloat16Array, E4M3Array, E5M2Array, BinaryArray, TensorBase, VectorBase, VectorView, Vector, MatrixBase, Matrix, PackedMatrix, DType, dtypeToString, outputDtype, KernelFamily } from "./types.js";
 
 function loadNativeAddon(): any {
+  // Duplicate-libomp guard. We ship our own `libomp.dylib` next to
+  // `numkong.node` in each `@numkong/darwin-*` package, but another OpenMP
+  // runtime (e.g. one loaded by another native addon) may already be
+  // resident. `KMP_DUPLICATE_LIB_OK=TRUE` tells LLVM libomp / Intel
+  // libiomp5 to coexist; it must be in `process.env` before the `require()`
+  // below triggers the addon's `dlopen`, since libomp's constructor reads
+  // the env during dependency resolution and is too late to influence
+  // afterwards. Left unguarded because the variable is harmless on
+  // platforms / runtimes (GCC libgomp) that don't recognize it, and a user
+  // who set it to something else is respected by `??=`. See
+  // `python/numkong/__init__.py` for the Python analog.
+  process.env.KMP_DUPLICATE_LIB_OK ??= "TRUE";
+
   // Tier 1: platform-specific optional dependency (@numkong/<os>-<arch>)
   try {
     const req = createRequire(path.join(getDirName(), "noop.js"));

@@ -24,7 +24,7 @@
 #if NK_TARGET_SKYLAKE
 
 #include "numkong/types.h"
-#include "numkong/trigonometry/skylake.h" // `nk_sin_f64x8_skylake_`, `nk_cos_f64x8_skylake_`, `nk_atan2_f64x8_skylake_`, etc.
+#include "numkong/trigonometry/skylake.h" // `nk_sin_f64x8_skylake_`, `nk_cos_f64x8_skylake_`, `nk_atan2_f64x8_skylake_`
 
 #if defined(__cplusplus)
 extern "C" {
