@@ -669,6 +669,12 @@ if (NK_BUILD_SHARED)
         if (NK_WASM64_)
             target_link_options(nk_shared PRIVATE "SHELL:-s MEMORY64=1")
         endif ()
+
+        # Under Emscripten nk_shared is an executable (.js/.wasm), not a shared
+        # library. CMake refuses target_link_libraries against an imported
+        # executable unless it exports its symbol table. Upstream projects that
+        # add_subdirectory(numkong) and link to nk_shared need this.
+        set_target_properties(nk_shared PROPERTIES ENABLE_EXPORTS ON)
     else ()
         add_library(nk_shared SHARED ${NK_SOURCES})
         target_include_directories(nk_shared PUBLIC "${PROJECT_SOURCE_DIR}/include")
