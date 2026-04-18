@@ -452,6 +452,7 @@ base_sources = [
     "python/mesh.c",
     "python/maxsim.c",
     "python/numpy_interop.c",
+    "python/dlpack_interop.c",
     "c/numkong.c",
 ]
 

@@ -15,6 +15,7 @@
  */
 #include "tensor.h"
 #include "matrix.h"
+#include "dlpack_interop.h"
 
 #include <float.h>
 #include <math.h>
@@ -2053,6 +2054,8 @@ static PyMethodDef Tensor_methods[] = {
     {"flatten", Tensor_flatten, METH_NOARGS, doc_method_flatten},
     {"squeeze", (PyCFunction)Tensor_squeeze, METH_FASTCALL, doc_method_squeeze},
     {"__array__", (PyCFunction)Tensor___array__, METH_FASTCALL | METH_KEYWORDS, doc_method___array__},
+    {"__dlpack__", (PyCFunction)Tensor_dlpack, METH_VARARGS | METH_KEYWORDS, doc_dlpack},
+    {"__dlpack_device__", (PyCFunction)Tensor_dlpack_device, METH_NOARGS, doc_dlpack_device},
     {NULL, NULL, 0, NULL},
 };
 
