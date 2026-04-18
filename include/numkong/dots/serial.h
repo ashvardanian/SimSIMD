@@ -522,7 +522,7 @@ NK_INTERNAL nk_i32_t nk_dots_reduce_sum_i4_(nk_i4x2_t const *data, nk_size_t cou
                                 load_a_vec_fn, partial_load_a_vec_fn, load_b_vec_fn, partial_load_b_vec_fn,            \
                                 inner_product_fn, reduce_accumulators_fn, store_fn, partial_store_fn,                  \
                                 depth_simd_dimensions, dimensions_per_value)                                           \
-    NK_PUBLIC void nk_##api_name##_packed_##input_type_name##_##isa_suffix##_aligned_(                                 \
+    NK_INTERNAL void nk_##api_name##_packed_##input_type_name##_##isa_suffix##_aligned_(                               \
         nk_##input_value_type##_t const *a_matrix, void const *b_packed_buffer, nk_##result_value_type##_t *c_matrix,  \
         nk_size_t row_count, nk_size_t column_count, nk_size_t depth, nk_size_t a_stride_in_bytes,                     \
         nk_size_t c_stride_in_bytes) {                                                                                 \
@@ -698,7 +698,7 @@ NK_INTERNAL nk_i32_t nk_dots_reduce_sum_i4_(nk_i4x2_t const *data, nk_size_t cou
             }                                                                                                          \
         }                                                                                                              \
     }                                                                                                                  \
-    NK_PUBLIC void nk_##api_name##_packed_##input_type_name##_##isa_suffix##_1x8_aligned_(                             \
+    NK_INTERNAL void nk_##api_name##_packed_##input_type_name##_##isa_suffix##_1x8_aligned_(                           \
         nk_##input_value_type##_t const *a_matrix, void const *b_packed_buffer, nk_##result_value_type##_t *c_matrix,  \
         nk_size_t row_count, nk_size_t column_count, nk_size_t depth, nk_size_t a_stride_in_bytes,                     \
         nk_size_t c_stride_in_bytes) {                                                                                 \
@@ -1090,7 +1090,7 @@ NK_INTERNAL nk_i32_t nk_dots_reduce_sum_i4_(nk_i4x2_t const *data, nk_size_t cou
     norm_value_type, vec_type, state_type, result_vec_type, init_accumulator_fn, load_a_vec_fn, partial_load_a_vec_fn, \
     load_b_vec_fn, partial_load_b_vec_fn, inner_product_fn, compensated_finalize_fn, store_fn, partial_store_fn,       \
     load_sum_fn, partial_load_sum_fn, compute_a_sum_fn, depth_simd_dimensions, dimensions_per_value)                   \
-    NK_PUBLIC void nk_##api_name##_packed_##input_type_name##_##isa_suffix##_aligned_(                                 \
+    NK_INTERNAL void nk_##api_name##_packed_##input_type_name##_##isa_suffix##_aligned_(                               \
         nk_##input_value_type##_t const *a_matrix, void const *b_packed_buffer, nk_##result_value_type##_t *c_matrix,  \
         nk_size_t row_count, nk_size_t column_count, nk_size_t depth, nk_size_t a_stride_in_bytes,                     \
         nk_size_t c_stride_in_bytes) {                                                                                 \
@@ -1200,7 +1200,7 @@ NK_INTERNAL nk_i32_t nk_dots_reduce_sum_i4_(nk_i4x2_t const *data, nk_size_t cou
             }                                                                                                          \
         }                                                                                                              \
     }                                                                                                                  \
-    NK_PUBLIC void nk_##api_name##_packed_##input_type_name##_##isa_suffix##_1x8_aligned_(                             \
+    NK_INTERNAL void nk_##api_name##_packed_##input_type_name##_##isa_suffix##_1x8_aligned_(                           \
         nk_##input_value_type##_t const *a_matrix, void const *b_packed_buffer, nk_##result_value_type##_t *c_matrix,  \
         nk_size_t row_count, nk_size_t column_count, nk_size_t depth, nk_size_t a_stride_in_bytes,                     \
         nk_size_t c_stride_in_bytes) {                                                                                 \
@@ -2431,10 +2431,19 @@ NK_INTERNAL nk_i32_t nk_dots_reduce_sum_i4_(nk_i4x2_t const *data, nk_size_t cou
         }                                                                                                              \
     }
 
-/* Optimize serial GEMM instantiations for size rather than speed.
- * These fallback kernels are only used when no SIMD backend is available, so aggressive inlining/unrolling from -O3
- * wastes over 1 MB of binary space with negligible performance benefit on the serial path.
- */
+/*  Keep the serial instantiations below actually scalar, regardless of build type.
+ *  Without this, -O3 + LTO can vectorize or clone the serial kernels under AVX-512
+ *  callers in dispatch_*.c, which wastes ~1 MB of binary and — more importantly —
+ *  breaks the nk_*_serial-as-scalar-oracle contract that tests and the numerical-
+ *  stability docs in this header rely on. */
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((noinline)), apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC optimize("no-tree-vectorize", "no-tree-slp-vectorize", "no-ipa-cp-clone", "no-inline")
+#endif
+
+/*  Size bias for release. Gated on NDEBUG so Debug builds keep -O0 for stepping. */
 #if defined(NDEBUG)
 #if defined(_MSC_VER)
 #pragma optimize("s", on)
@@ -2687,6 +2696,12 @@ nk_define_cross_packed_(dots, u1, serial, u1x8, u1x8, u32, nk_b128_vec_t, nk_dot
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
+#endif
+
+#if defined(__clang__)
+#pragma clang attribute pop
+#elif defined(__GNUC__)
+#pragma GCC pop_options
 #endif
 
 /*  BF16 compact: truncate F32 → BF16 in-place.

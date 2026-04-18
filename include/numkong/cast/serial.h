@@ -13,6 +13,17 @@
 extern "C" {
 #endif
 
+/*  Keep the serial conversions below actually scalar, regardless of build type.
+ *  Without this, -O3 + LTO can vectorize or clone the serial kernels under AVX-512
+ *  callers in dispatch_*.c, which wastes binary and breaks the nk_*_serial-as-scalar-oracle
+ *  contract. See dots/serial.h. */
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((noinline)), apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC optimize("no-tree-vectorize", "no-tree-slp-vectorize", "no-ipa-cp-clone", "no-inline")
+#endif
+
 #pragma region Type Punned Loads and Stores
 
 /** @brief Type-agnostic 32-bit full load (scalar). */
@@ -2328,6 +2339,12 @@ NK_PUBLIC void nk_e3m2_to_bf16(nk_e3m2_t const *src, nk_bf16_t *dest) {
 }
 
 #pragma endregion Public API
+
+#if defined(__clang__)
+#pragma clang attribute pop
+#elif defined(__GNUC__)
+#pragma GCC pop_options
+#endif
 
 #if defined(__cplusplus)
 } // extern "C"

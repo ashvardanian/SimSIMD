@@ -71,6 +71,15 @@ NK_STATIC_ASSERT(sizeof(nk_maxsim_vector_metadata_t) == 12, nk_maxsim_vector_met
  */
 typedef void (*nk_maxsim_to_f32_t)(void const *source, nk_f32_t *destination);
 
+/*  Keep the serial instantiations below actually scalar, regardless of build type.
+ *  See dots/serial.h for rationale. */
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((noinline)), apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC optimize("no-tree-vectorize", "no-tree-slp-vectorize", "no-ipa-cp-clone", "no-inline")
+#endif
+
 /** @brief Identity conversion for f32 sources — just a typed memcpy. */
 NK_INTERNAL void nk_f32_to_f32_(void const *source, nk_f32_t *destination) { *destination = *(nk_f32_t const *)source; }
 
@@ -482,6 +491,12 @@ NK_PUBLIC void nk_maxsim_packed_f16_serial( //
 
     *result = (nk_f32_t)total_angular_distance;
 }
+
+#if defined(__clang__)
+#pragma clang attribute pop
+#elif defined(__GNUC__)
+#pragma GCC pop_options
+#endif
 
 #if defined(__cplusplus)
 } // extern "C"

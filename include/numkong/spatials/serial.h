@@ -15,7 +15,18 @@
 extern "C" {
 #endif
 
-/* Optimize serial fallbacks for size — see dots/serial.h for rationale. */
+/*  Keep the serial instantiations below actually scalar, regardless of build type.
+ *  Without this, -O3 + LTO can vectorize or clone the serial kernels under AVX-512
+ *  callers in dispatch_*.c, which wastes binary and breaks the nk_*_serial-as-scalar-oracle
+ *  contract that tests and numerical-stability docs rely on. See dots/serial.h. */
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((noinline)), apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC optimize("no-tree-vectorize", "no-tree-slp-vectorize", "no-ipa-cp-clone", "no-inline")
+#endif
+
+/* Size bias for release. Gated on NDEBUG so Debug builds keep -O0 for stepping. */
 #if defined(NDEBUG)
 #if defined(_MSC_VER)
 #pragma optimize("s", on)
@@ -239,6 +250,12 @@ nk_define_cross_normalized_symmetric_(euclidean, u4, serial, u4x2, u32, /*norm_v
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
+#endif
+
+#if defined(__clang__)
+#pragma clang attribute pop
+#elif defined(__GNUC__)
+#pragma GCC pop_options
 #endif
 
 #if defined(__cplusplus)

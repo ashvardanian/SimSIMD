@@ -14,12 +14,20 @@
 #define NK_REDUCE_SERIAL_H
 
 #include "numkong/types.h"
-#include "numkong/scalar/serial.h"
 #include "numkong/cast/serial.h"
 #include "numkong/scalar/serial.h"
 
 #if defined(__cplusplus)
 extern "C" {
+#endif
+
+/*  Keep the serial instantiations below actually scalar, regardless of build type.
+ *  See dots/serial.h for rationale. */
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((noinline)), apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC optimize("no-tree-vectorize", "no-tree-slp-vectorize", "no-ipa-cp-clone", "no-inline")
 #endif
 
 NK_INTERNAL nk_f64_t nk_reduce_sum_f64_serial_(nk_f64_t const *values, nk_f64_t const *compensations, int count) {
@@ -745,6 +753,12 @@ NK_PUBLIC void nk_reduce_minmax_u1_serial(                          //
     *min_value_ptr = min_value, *min_index_ptr = min_idx;
     *max_value_ptr = max_value, *max_index_ptr = max_idx;
 }
+
+#if defined(__clang__)
+#pragma clang attribute pop
+#elif defined(__GNUC__)
+#pragma GCC pop_options
+#endif
 
 #if defined(__cplusplus)
 } // extern "C"

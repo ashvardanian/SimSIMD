@@ -17,9 +17,14 @@
 extern "C" {
 #endif
 
-/*  Serial implementations of geospatial distance functions.
- *  These use the trigonometric functions from trigonometry.h for sin, cos, and atan2.
- */
+/*  Keep the serial instantiations below actually scalar, regardless of build type.
+ *  See dots/serial.h for rationale. */
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((noinline)), apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC optimize("no-tree-vectorize", "no-tree-slp-vectorize", "no-ipa-cp-clone", "no-inline")
+#endif
 
 NK_PUBLIC void nk_haversine_f64_serial(             //
     nk_f64_t const *a_lats, nk_f64_t const *a_lons, //
@@ -301,6 +306,12 @@ NK_PUBLIC void nk_vincenty_f32_serial(              //
         results[i] = polar_radius * series_a * (angular_distance - angular_correction);
     }
 }
+
+#if defined(__clang__)
+#pragma clang attribute pop
+#elif defined(__GNUC__)
+#pragma GCC pop_options
+#endif
 
 #if defined(__cplusplus)
 } // extern "C"

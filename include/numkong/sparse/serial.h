@@ -17,7 +17,7 @@ extern "C" {
 #endif
 
 #define nk_define_sparse_intersect_(input_type)                                                                      \
-    NK_PUBLIC nk_size_t nk_sparse_intersect_##input_type##_galloping_search_(                                        \
+    NK_INTERNAL nk_size_t nk_sparse_intersect_##input_type##_galloping_search_(                                      \
         nk_##input_type##_t const *array, nk_size_t start, nk_size_t length, nk_##input_type##_t val) {              \
         nk_size_t low = start;                                                                                       \
         nk_size_t high = start + 1;                                                                                  \
@@ -32,7 +32,7 @@ extern "C" {
         }                                                                                                            \
         return low;                                                                                                  \
     }                                                                                                                \
-    NK_PUBLIC nk_size_t nk_sparse_intersect_##input_type##_linear_scan_(                                             \
+    NK_INTERNAL nk_size_t nk_sparse_intersect_##input_type##_linear_scan_(                                           \
         nk_##input_type##_t const *a, nk_##input_type##_t const *b, nk_size_t a_length, nk_size_t b_length,          \
         nk_##input_type##_t *result) {                                                                               \
         nk_size_t intersection_size = 0;                                                                             \
@@ -103,12 +103,27 @@ extern "C" {
         *product = weights_product;                                                                        \
     }
 
+/*  Keep the serial instantiations below actually scalar, regardless of build type.
+ *  See dots/serial.h for rationale. */
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((noinline)), apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC optimize("no-tree-vectorize", "no-tree-slp-vectorize", "no-ipa-cp-clone", "no-inline")
+#endif
+
 nk_define_sparse_intersect_(u16) // nk_sparse_intersect_u16_serial
 nk_define_sparse_intersect_(u32) // nk_sparse_intersect_u32_serial
 nk_define_sparse_intersect_(u64) // nk_sparse_intersect_u64_serial
 
 nk_define_sparse_dot_(u16, bf16, f32, nk_bf16_to_f32_serial) // nk_sparse_dot_u16bf16_serial
 nk_define_sparse_dot_(u32, f32, f64, nk_assign_from_to_)     // nk_sparse_dot_u32f32_serial
+
+#if defined(__clang__)
+#pragma clang attribute pop
+#elif defined(__GNUC__)
+#pragma GCC pop_options
+#endif
 
 #if defined(__cplusplus)
 } // extern "C"
