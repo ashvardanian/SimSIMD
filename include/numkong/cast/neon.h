@@ -1157,6 +1157,114 @@ NK_PUBLIC void nk_cast_neon(void const *from, nk_dtype_t from_type, nk_size_t n,
     if (tail) nk_cast_serial(from_ptr, from_type, tail, to_ptr, to_type);
 }
 
+/** @brief Reduce `block_count` f32s to `max(|x|)` via NEON (f32x4 horizontal max). */
+NK_INTERNAL nk_f32_t nk_block_amax_f32_neon_(nk_f32_t const *block, nk_size_t block_count) {
+    float32x4_t running_max_vec = vdupq_n_f32(0.0f);
+    nk_size_t i = 0;
+    for (; i + 4 <= block_count; i += 4) {
+        float32x4_t values_vec = vld1q_f32(block + i);
+        running_max_vec = vmaxq_f32(running_max_vec, vabsq_f32(values_vec));
+    }
+    nk_f32_t result = vmaxvq_f32(running_max_vec);
+    for (; i < block_count; ++i) {
+        nk_f32_t absolute = block[i] < 0 ? -block[i] : block[i];
+        if (absolute > result) result = absolute;
+    }
+    return result;
+}
+
+/** @brief NEON block-scaled cast. Uses f32x4 amax reduction + broadcast reciprocal multiply around
+ *  the NEON element codec hub. `nk_cast_neon` already handles E2M1 / E4M3 / etc. element packing. */
+NK_PUBLIC void nk_cast_block_scaled_neon(                                                                //
+    void const *from, void const *from_scales, nk_scalar_buffer_t const *from_global,                    //
+    nk_block_scaled_format_t const *from_format,                                                         //
+    void *to, void *to_scales, nk_scalar_buffer_t *to_global, nk_block_scaled_format_t const *to_format, //
+    nk_size_t count) {
+
+    int from_plain = (from_format->scale_dtype == nk_dtype_unknown_k || from_format->block_size == 0);
+    int to_plain = (to_format->scale_dtype == nk_dtype_unknown_k || to_format->block_size == 0);
+
+    if (from_plain && to_plain) {
+        nk_cast_neon(from, from_format->element_dtype, count, to, to_format->element_dtype);
+        return;
+    }
+
+    nk_size_t from_block = from_plain ? 1u : from_format->block_size;
+    nk_size_t to_block = to_plain ? 1u : to_format->block_size;
+    nk_size_t chunk = from_block > to_block ? from_block : to_block;
+
+    nk_f32_t from_global_f32 = 1.0f;
+    if (from_global != NULL && !from_plain && from_format->global_dtype == nk_f32_k) from_global_f32 = from_global->f32;
+
+    nk_f32_t to_global_f32 = 1.0f;
+    int to_has_global = (!to_plain && to_global != NULL && to_format->global_dtype == nk_f32_k);
+    if (to_has_global) {
+        to_global_f32 = to_global->f32;
+        if (to_global_f32 == 0.0f) {
+            nk_cast_block_scaled_serial(from, from_scales, from_global, from_format, to, to_scales, to_global,
+                                        to_format, count);
+            return;
+        }
+    }
+
+    nk_f32_t scratch[32];
+    nk_size_t from_bits_per_element = nk_dtype_bits(from_format->element_dtype);
+    nk_size_t to_bits_per_element = nk_dtype_bits(to_format->element_dtype);
+    nk_u8_t const *from_scales_bytes = (nk_u8_t const *)from_scales;
+    nk_u8_t *to_scales_bytes = (nk_u8_t *)to_scales;
+
+    for (nk_size_t chunk_start = 0; chunk_start < count; chunk_start += chunk) {
+        nk_size_t chunk_count = (chunk_start + chunk <= count) ? chunk : (count - chunk_start);
+
+        if (from_plain) {
+            void const *src = (nk_u8_t const *)from + (chunk_start * from_bits_per_element / NK_BITS_PER_BYTE);
+            nk_cast_neon(src, from_format->element_dtype, chunk_count, scratch, nk_f32_k);
+        }
+        else {
+            for (nk_size_t b = 0; b < chunk_count; b += from_block) {
+                nk_size_t block_idx = (chunk_start + b) / from_block;
+                nk_u8_t raw = from_scales_bytes[block_idx];
+                nk_f32_t scale_f32 = nk_block_scaled_decode_scale_serial_(raw, from_format->scale_dtype) *
+                                     from_global_f32;
+                void const *src = (nk_u8_t const *)from +
+                                  ((chunk_start + b) * from_bits_per_element / NK_BITS_PER_BYTE);
+                nk_cast_neon(src, from_format->element_dtype, from_block, scratch + b, nk_f32_k);
+                float32x4_t scale_bcast_vec = vdupq_n_f32(scale_f32);
+                for (nk_size_t k = 0; k < from_block; k += 4) {
+                    float32x4_t values_vec = vld1q_f32(scratch + b + k);
+                    vst1q_f32(scratch + b + k, vmulq_f32(values_vec, scale_bcast_vec));
+                }
+            }
+        }
+
+        if (to_plain) {
+            void *dst = (nk_u8_t *)to + (chunk_start * to_bits_per_element / NK_BITS_PER_BYTE);
+            nk_cast_neon(scratch, nk_f32_k, chunk_count, dst, to_format->element_dtype);
+        }
+        else {
+            nk_f32_t element_max = nk_element_max_representable_(to_format->element_dtype);
+            for (nk_size_t b = 0; b < chunk_count; b += to_block) {
+                nk_f32_t block_amax = nk_block_amax_f32_neon_(scratch + b, to_block);
+                nk_f32_t scale_target = block_amax / element_max / to_global_f32;
+                nk_u8_t raw = nk_block_scaled_encode_scale_serial_(scale_target, to_format->scale_dtype);
+                nk_size_t block_idx = (chunk_start + b) / to_block;
+                to_scales_bytes[block_idx] = raw;
+                nk_f32_t effective_scale = nk_block_scaled_decode_scale_serial_(raw, to_format->scale_dtype) *
+                                           to_global_f32;
+                nk_f32_t reciprocal = effective_scale > 0 ? (1.0f / effective_scale) : 0.0f;
+                float32x4_t reciprocal_bcast_vec = vdupq_n_f32(reciprocal);
+                nk_f32_t encoded_scratch[32];
+                for (nk_size_t k = 0; k < to_block; k += 4) {
+                    float32x4_t values_vec = vld1q_f32(scratch + b + k);
+                    vst1q_f32(encoded_scratch + k, vmulq_f32(values_vec, reciprocal_bcast_vec));
+                }
+                void *dst = (nk_u8_t *)to + ((chunk_start + b) * to_bits_per_element / NK_BITS_PER_BYTE);
+                nk_cast_neon(encoded_scratch, nk_f32_k, to_block, dst, to_format->element_dtype);
+            }
+        }
+    }
+}
+
 #pragma endregion Public API
 
 #if defined(__clang__)

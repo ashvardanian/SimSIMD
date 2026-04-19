@@ -129,6 +129,9 @@ struct e5m2_t;
 struct e4m3_t;
 struct e3m2_t;
 struct e2m3_t;
+struct e2m1x2_t;
+struct ue8m0_t;
+struct ue4m3_t;
 
 struct i64_t;
 struct i32_t;
@@ -2760,6 +2763,127 @@ struct e3m2_t {
 };
 
 /**
+ *  @brief Unsigned 8-bit power-of-two scale (OCP MX v1.0): biased exponent only, no sign or mantissa.
+ *
+ *  Encoding: v=0 → zero; v=0xFF → NaN-block sentinel; otherwise 2^(v − 127).
+ *  Used as the per-block scale byte for MXFP4 / MXFP6 / MXFP8 / MXINT8.
+ */
+struct ue8m0_t {
+    using raw_t = nk_ue8m0_t;
+    using uint_t = nk_u8_t;
+    using component_t = ue8m0_t;
+
+    static constexpr nk_dtype_t dtype() noexcept { return nk_ue8m0_k; }
+    static constexpr char const *dtype_name() noexcept { return "ue8m0"; }
+    static constexpr unsigned bits_per_word() noexcept { return 8; }
+    static constexpr unsigned bits_per_dimension() noexcept { return 8; }
+    static constexpr unsigned bits_per_value() noexcept { return 8; }
+    static constexpr unsigned mantissa_bits() noexcept { return 0; }
+    static constexpr unsigned exponent_bits() noexcept { return 8; }
+    static constexpr bool is_integer() noexcept { return false; }
+    static constexpr bool is_signed() noexcept { return false; }
+    static constexpr bool is_complex() noexcept { return false; }
+    static constexpr bool is_exact() noexcept { return false; }
+    static constexpr bool has_infinity() noexcept { return false; }
+    static constexpr bool has_nan() noexcept { return true; }
+
+    raw_t raw_;
+
+    inline float to_f32() const noexcept {
+        float result;
+        nk_ue8m0_to_f32_serial(&raw_, &result);
+        return result;
+    }
+    static inline ue8m0_t from_f32(float value) noexcept {
+        ue8m0_t result;
+        nk_f32_to_ue8m0_serial(&value, &result.raw_);
+        return result;
+    }
+
+    constexpr ue8m0_t() noexcept : raw_(0) {}
+    inline ue8m0_t(float value) noexcept { nk_f32_to_ue8m0_serial(&value, &raw_); }
+    explicit ue8m0_t(double value) noexcept {
+        float narrowed = static_cast<float>(value);
+        nk_f32_to_ue8m0_serial(&narrowed, &raw_);
+    }
+    template <std::integral integral_type_>
+    ue8m0_t(integral_type_ value) noexcept {
+        float as_float = static_cast<float>(value);
+        nk_f32_to_ue8m0_serial(&as_float, &raw_);
+    }
+    inline operator float() const noexcept { return to_f32(); }
+
+    static constexpr ue8m0_t from_raw(raw_t r) noexcept {
+        ue8m0_t v;
+        v.raw_ = r;
+        return v;
+    }
+    static constexpr ue8m0_t zero() noexcept { return from_raw(0x00); }
+    static constexpr ue8m0_t finite_max() noexcept { return from_raw(0xFE); } // 2^127
+    static constexpr ue8m0_t finite_min() noexcept { return from_raw(0x00); } // 0
+};
+
+/**
+ *  @brief Unsigned 8-bit E4M3 scale (NVFP4): sign-bit forced to 0, otherwise identical to E4M3.
+ *
+ *  Range: [0, +448]. Paired with an f32 global multiplier in NVFP4 (block=16) block-scaled format.
+ */
+struct ue4m3_t {
+    using raw_t = nk_ue4m3_t;
+    using uint_t = nk_u8_t;
+    using component_t = ue4m3_t;
+
+    static constexpr nk_dtype_t dtype() noexcept { return nk_ue4m3_k; }
+    static constexpr char const *dtype_name() noexcept { return "ue4m3"; }
+    static constexpr unsigned bits_per_word() noexcept { return 8; }
+    static constexpr unsigned bits_per_dimension() noexcept { return 8; }
+    static constexpr unsigned bits_per_value() noexcept { return 8; }
+    static constexpr unsigned mantissa_bits() noexcept { return 3; }
+    static constexpr unsigned exponent_bits() noexcept { return 4; }
+    static constexpr bool is_integer() noexcept { return false; }
+    static constexpr bool is_signed() noexcept { return false; }
+    static constexpr bool is_complex() noexcept { return false; }
+    static constexpr bool is_exact() noexcept { return false; }
+    static constexpr bool has_infinity() noexcept { return false; }
+    static constexpr bool has_nan() noexcept { return true; }
+
+    raw_t raw_;
+
+    inline float to_f32() const noexcept {
+        float result;
+        nk_ue4m3_to_f32_serial(&raw_, &result);
+        return result;
+    }
+    static inline ue4m3_t from_f32(float value) noexcept {
+        ue4m3_t result;
+        nk_f32_to_ue4m3_serial(&value, &result.raw_);
+        return result;
+    }
+
+    constexpr ue4m3_t() noexcept : raw_(0) {}
+    inline ue4m3_t(float value) noexcept { nk_f32_to_ue4m3_serial(&value, &raw_); }
+    explicit ue4m3_t(double value) noexcept {
+        float narrowed = static_cast<float>(value);
+        nk_f32_to_ue4m3_serial(&narrowed, &raw_);
+    }
+    template <std::integral integral_type_>
+    ue4m3_t(integral_type_ value) noexcept {
+        float as_float = static_cast<float>(value);
+        nk_f32_to_ue4m3_serial(&as_float, &raw_);
+    }
+    inline operator float() const noexcept { return to_f32(); }
+
+    static constexpr ue4m3_t from_raw(raw_t r) noexcept {
+        ue4m3_t v;
+        v.raw_ = r;
+        return v;
+    }
+    static constexpr ue4m3_t zero() noexcept { return from_raw(0x00); }
+    static constexpr ue4m3_t finite_max() noexcept { return from_raw(0x7E); } // +448
+    static constexpr ue4m3_t finite_min() noexcept { return from_raw(0x00); } // 0
+};
+
+/**
  *  @brief Hardware-friendly @b "double-double" arithmetic with ~106-bit mantissa.
  *
  *  Uses Knuth two-sum + FMA for error-free transformations. Provides ~106 bits of
@@ -4967,6 +5091,25 @@ struct sub_byte_ref<u4x2_t> {
     }
 };
 
+/** @brief Raw-nibble access for e2m1x2_t vectors (2 nibbles packed per byte). */
+template <>
+struct sub_byte_ref<e2m1x2_t> {
+    nk_e2m1x2_t *raw_ptr_;
+    bool high_nibble_;
+
+    constexpr sub_byte_ref(nk_e2m1x2_t *data, std::size_t scalar_index) noexcept
+        : raw_ptr_(data + scalar_index / 2), high_nibble_((scalar_index & 1) != 0) {}
+
+    constexpr std::uint8_t get() const noexcept { return high_nibble_ ? (*raw_ptr_ >> 4) : (*raw_ptr_ & 0x0F); }
+    constexpr operator std::uint8_t() const noexcept { return get(); }
+
+    constexpr sub_byte_ref &operator=(std::uint8_t value) noexcept {
+        if (high_nibble_) *raw_ptr_ = static_cast<nk_e2m1x2_t>((*raw_ptr_ & 0x0F) | ((value & 0x0F) << 4));
+        else *raw_ptr_ = static_cast<nk_e2m1x2_t>((*raw_ptr_ & 0xF0) | (value & 0x0F));
+        return *this;
+    }
+};
+
 /**
  *  @brief Packed 8-bit bit-vector (8 booleans in one byte).
  *
@@ -5315,6 +5458,52 @@ struct u4x2_t {
     constexpr std::strong_ordering operator<=>(u4x2_t const &o) const noexcept = default;
 };
 
+/**
+ *  @brief Packed 4-bit E2M1 micro-float pair (2 × e2m1 in one byte).
+ *
+ *  Layout: [high nibble : low nibble]. Each nibble: sign(1) + exponent(2) + mantissa(1), bias=1.
+ *  8 magnitudes {0, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 6.0} × 2 signs. Range: ±6.0, no Inf/NaN.
+ *  Element of MXFP4 (block=32, UE8M0 scales) and NVFP4 (block=16, UE4M3 scales).
+ */
+struct e2m1x2_t {
+    using raw_t = nk_e2m1x2_t;
+    using component_t = f32_t;
+
+    static constexpr nk_dtype_t dtype() noexcept { return nk_e2m1_k; }
+    static constexpr char const *dtype_name() noexcept { return "e2m1x2"; }
+    static constexpr unsigned bits_per_word() noexcept { return 8; }
+    static constexpr unsigned bits_per_dimension() noexcept { return 4; }
+    static constexpr unsigned bits_per_value() noexcept { return 8; }
+    static constexpr unsigned elements() noexcept { return 2; }
+    static constexpr unsigned element_bits() noexcept { return 4; }
+    static constexpr unsigned mantissa_bits() noexcept { return 1; }
+    static constexpr unsigned exponent_bits() noexcept { return 2; }
+    static constexpr bool is_integer() noexcept { return false; }
+    static constexpr bool is_signed() noexcept { return true; }
+    static constexpr bool is_complex() noexcept { return false; }
+    static constexpr bool is_exact() noexcept { return false; }
+    static constexpr bool has_infinity() noexcept { return false; }
+    static constexpr bool has_nan() noexcept { return false; }
+
+    static constexpr component_t component_min() noexcept { return component_t(-6.0f); }
+    static constexpr component_t component_max() noexcept { return component_t(6.0f); }
+
+    raw_t raw_;
+
+    constexpr e2m1x2_t() noexcept : raw_(0) {}
+    constexpr explicit e2m1x2_t(raw_t v) noexcept : raw_(v) {}
+    constexpr raw_t raw() const noexcept { return raw_; }
+    static constexpr e2m1x2_t from_raw(raw_t r) noexcept { return e2m1x2_t {r}; }
+
+    static constexpr e2m1x2_t zero() noexcept { return e2m1x2_t {}; }
+    static constexpr e2m1x2_t finite_max() noexcept { return e2m1x2_t {raw_t(0x77)}; } // (+6, +6)
+    static constexpr e2m1x2_t finite_min() noexcept { return e2m1x2_t {raw_t(0xFF)}; } // (−6, −6)
+
+    constexpr sub_byte_ref<e2m1x2_t> operator[](unsigned i) & noexcept { return {&raw_, i}; }
+
+    constexpr std::strong_ordering operator<=>(e2m1x2_t const &o) const noexcept = default;
+};
+
 #pragma region Enum Conversion
 
 /**
@@ -5348,6 +5537,9 @@ template <> struct type_for<nk_u64_k> { using type = u64_t; };
 template <> struct type_for<nk_u1_k> { using type = u1x8_t; };
 template <> struct type_for<nk_i4_k> { using type = i4x2_t; };
 template <> struct type_for<nk_u4_k> { using type = u4x2_t; };
+template <> struct type_for<nk_e2m1_k> { using type = e2m1x2_t; };
+template <> struct type_for<nk_ue8m0_k> { using type = ue8m0_t; };
+template <> struct type_for<nk_ue4m3_k> { using type = ue4m3_t; };
 // clang-format on
 
 #pragma endregion Enum Conversion

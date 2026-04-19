@@ -812,6 +812,19 @@ typedef unsigned char nk_e2m3_t;
  *  26 of 64 values (40.6%) fall in [−1, +1]. Subnormal values span [±0.0625, ±0.1875].
  *  Losslessly promotable to E5M2 by rebiasing exponent +12 (normals) or normalizing (subnormals). */
 typedef unsigned char nk_e3m2_t;
+/** @brief Packed 4-bit E2M1 micro-float pair (2 × e2m1 in one byte), [high nibble : low nibble].
+ *  OCP MX v1.0 sub-format: sign(1) + exponent(2) + mantissa(1), bias=1. Range: ±6.0, no Inf or NaN.
+ *  16 total codes: 8 magnitudes {0, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 6.0} × 2 signs (two zeros).
+ *  Used as the element type of MXFP4 (block=32, UE8M0 scales) and NVFP4 (block=16, UE4M3 scales).
+ *  Dimension count must be a multiple of 2; unused nibbles in the final byte must be zeroed. */
+typedef unsigned char nk_e2m1x2_t;
+/** @brief Unsigned 8-bit power-of-two scale (OCP MX v1.0): 8-bit biased exponent, no sign or mantissa.
+ *  Encodes 2^(v - 127) for v ∈ [1, 254]; v = 0 is zero; v = 255 is the NaN-block sentinel.
+ *  Used as the per-block scale byte for MXFP4, MXFP6, MXFP8, MXINT8. */
+typedef unsigned char nk_ue8m0_t;
+/** @brief Unsigned 8-bit E4M3 scale (NVFP4): sign-bit forced to 0, otherwise identical to E4M3.
+ *  Range: [0, +448]. Used as the per-block scale byte for NVFP4 (block=16) alongside an f32 global. */
+typedef unsigned char nk_ue4m3_t;
 
 /** @brief Signed 8-bit integer. Range: [−128, +127]. */
 typedef signed char nk_i8_t;
@@ -911,6 +924,12 @@ typedef nk_f64_t nk_fmax_t;
 #define NK_E3M2_MAX 0x1F // FP6 E3M2: +28.0
 #define NK_E3M2_MIN 0x3F // FP6 E3M2: -28.0
 
+#define NK_E2M1_MAX 0x7 // FP4 E2M1: +6.0 (nibble)
+#define NK_E2M1_MIN 0xF // FP4 E2M1: -6.0 (nibble)
+
+#define NK_UE8M0_MAX 0xFE // UE8M0: 2^127 (0xFF is the NaN-block sentinel)
+#define NK_UE4M3_MAX 0x7E // UE4M3: +448.0 (matches NK_E4M3_MAX with sign bit forced to 0)
+
 #define NK_BITS_PER_BYTE 8
 
 /**
@@ -950,7 +969,28 @@ typedef enum {
     nk_f32c_k = 1 << 21,  ///< Complex single precision floating point
     nk_f16c_k = 1 << 22,  ///< Complex half precision floating point
     nk_bf16c_k = 1 << 23, ///< Complex brain floating point
+
+    nk_e2m1_k = 1 << 24,  ///< FP4 E2M1 floating point (element of MXFP4 and NVFP4)
+    nk_ue8m0_k = 1 << 25, ///< UE8M0 unsigned pow-2 scale byte (MX family block scale)
+    nk_ue4m3_k = 1 << 26, ///< UE4M3 unsigned E4M3 scale byte (NVFP4 block scale)
 } nk_dtype_t;
+
+/**
+ *  @brief  Descriptor for a block-scaled tensor layout (OCP MX family + NVIDIA NVFP4).
+ *
+ *  Elements are grouped in fixed-size contiguous blocks; each block has its own @p scale_dtype
+ *  scale byte stored in a separate scales buffer. An optional @p global_dtype scalar multiplier
+ *  applies to the whole tensor (NVFP4's per-tensor FP32 factor; absent for the MX family).
+ *
+ *  Plain (non-block-scaled) buffers are described by `scale_dtype = nk_dtype_unknown_k`,
+ *  `global_dtype = nk_dtype_unknown_k`, and `block_size = 0` — use the `nk_plain()` factory.
+ */
+typedef struct {
+    nk_dtype_t element_dtype; ///< Per-element dtype: e2m1/e4m3/e5m2/e2m3/e3m2/i8 (or any for plain)
+    nk_dtype_t scale_dtype;   ///< Per-block scale: ue8m0 (MX) or ue4m3 (NVFP4); unknown for plain
+    nk_dtype_t global_dtype;  ///< Per-tensor multiplier: f32 (NVFP4) or unknown (MX, plain)
+    nk_size_t block_size;     ///< Elements per block: 16 (NVFP4) or 32 (MX); 0 for plain
+} nk_block_scaled_format_t;
 
 typedef enum {
     nk_dtype_family_unknown_k = 0,
@@ -971,6 +1011,9 @@ NK_PUBLIC nk_dtype_family_t nk_dtype_family(nk_dtype_t dtype) {
     case nk_e5m2_k: return nk_dtype_family_float_k;
     case nk_e2m3_k: return nk_dtype_family_float_k;
     case nk_e3m2_k: return nk_dtype_family_float_k;
+    case nk_e2m1_k: return nk_dtype_family_float_k;
+    case nk_ue8m0_k: return nk_dtype_family_float_k;
+    case nk_ue4m3_k: return nk_dtype_family_float_k;
     case nk_f64c_k: return nk_dtype_family_complex_float_k;
     case nk_f32c_k: return nk_dtype_family_complex_float_k;
     case nk_f16c_k: return nk_dtype_family_complex_float_k;
@@ -1001,6 +1044,9 @@ NK_PUBLIC nk_size_t nk_dtype_bits(nk_dtype_t dtype) {
     case nk_e5m2_k: return 8;
     case nk_e2m3_k: return 8;
     case nk_e3m2_k: return 8;
+    case nk_e2m1_k: return 4;
+    case nk_ue8m0_k: return 8;
+    case nk_ue4m3_k: return 8;
     case nk_f64c_k: return 128;
     case nk_f32c_k: return 64;
     case nk_f16c_k: return 32;
@@ -1028,6 +1074,7 @@ NK_PUBLIC nk_size_t nk_dimensions_per_value(nk_dtype_t dtype) {
     case nk_u1_k: return 8;
     case nk_i4_k: return 2;
     case nk_u4_k: return 2;
+    case nk_e2m1_k: return 2;
     default: return 1;
     }
 }
@@ -1140,6 +1187,11 @@ NK_STATIC_ASSERT(sizeof(nk_i4x2_t) == 1, nk_i4_t_must_be_1_byte);
 NK_STATIC_ASSERT(sizeof(nk_u4x2_t) == 1, nk_u4_t_must_be_1_byte);
 NK_STATIC_ASSERT(sizeof(nk_e4m3_t) == 1, nk_e4m3_t_must_be_1_byte);
 NK_STATIC_ASSERT(sizeof(nk_e5m2_t) == 1, nk_e5m2_t_must_be_1_byte);
+NK_STATIC_ASSERT(sizeof(nk_e2m3_t) == 1, nk_e2m3_t_must_be_1_byte);
+NK_STATIC_ASSERT(sizeof(nk_e3m2_t) == 1, nk_e3m2_t_must_be_1_byte);
+NK_STATIC_ASSERT(sizeof(nk_e2m1x2_t) == 1, nk_e2m1x2_t_must_be_1_byte);
+NK_STATIC_ASSERT(sizeof(nk_ue8m0_t) == 1, nk_ue8m0_t_must_be_1_byte);
+NK_STATIC_ASSERT(sizeof(nk_ue4m3_t) == 1, nk_ue4m3_t_must_be_1_byte);
 NK_STATIC_ASSERT(sizeof(nk_i8_t) == 1, nk_i8_t_must_be_1_byte);
 NK_STATIC_ASSERT(sizeof(nk_u8_t) == 1, nk_u8_t_must_be_1_byte);
 NK_STATIC_ASSERT(sizeof(nk_i16_t) == 2, nk_i16_t_must_be_2_bytes);
@@ -1662,20 +1714,21 @@ NK_INTERNAL void nk_sme_stop_streaming_(void) { __asm__ __volatile__("smstop sm"
  */
 __attribute__((weak)) void __arm_tpidr2_save(void) {}
 __attribute__((weak)) void __arm_tpidr2_restore(void *blk) { nk_unused_(blk); }
-__attribute__((weak, target("+sme"))) void *__arm_sc_memset(void *d, int c, __SIZE_TYPE__ n) __arm_streaming_compatible {
+__attribute__((weak, target("+sme"))) void *__arm_sc_memset(void *d, int c,
+                                                            __SIZE_TYPE__ n) __arm_streaming_compatible {
     unsigned char *p = (unsigned char *)d;
     for (__SIZE_TYPE__ i = 0; i < n; i++) p[i] = (unsigned char)c;
     return d;
 }
 __attribute__((weak, target("+sme"))) void *__arm_sc_memcpy(void *d, void const *s,
-                                                           __SIZE_TYPE__ n) __arm_streaming_compatible {
+                                                            __SIZE_TYPE__ n) __arm_streaming_compatible {
     unsigned char *dp = (unsigned char *)d;
     unsigned char const *sp = (unsigned char const *)s;
     for (__SIZE_TYPE__ i = 0; i < n; i++) dp[i] = sp[i];
     return d;
 }
 __attribute__((weak, target("+sme"))) void *__arm_sc_memmove(void *d, void const *s,
-                                                            __SIZE_TYPE__ n) __arm_streaming_compatible {
+                                                             __SIZE_TYPE__ n) __arm_streaming_compatible {
     unsigned char *dp = (unsigned char *)d;
     unsigned char const *sp = (unsigned char const *)s;
     if (dp < sp) {
@@ -1687,6 +1740,33 @@ __attribute__((weak, target("+sme"))) void *__arm_sc_memmove(void *d, void const
     return d;
 }
 #endif
+
+/**
+ *  @brief Union for type-punned scalar values at language binding boundaries.
+ *
+ *  Bridges different type systems (Python, JavaScript, etc.) where scalars arrive as f64 but
+ *  need to be passed to kernels as typed pointers. Callers fill the appropriate union member
+ *  based on the target dtype, then pass the union address as `void const *`.
+ */
+typedef union NK_MAY_ALIAS_ nk_scalar_buffer_t {
+    nk_u8_t bytes[16];
+    nk_f64_t f64;
+    nk_f32_t f32;
+    nk_f16_t f16;
+    nk_bf16_t bf16;
+    nk_f64c_t f64c;
+    nk_f32c_t f32c;
+    nk_f16c_t f16c;
+    nk_bf16c_t bf16c;
+    nk_i64_t i64;
+    nk_u64_t u64;
+    nk_i32_t i32;
+    nk_u32_t u32;
+    nk_i16_t i16;
+    nk_u16_t u16;
+    nk_i8_t i8;
+    nk_u8_t u8;
+} nk_scalar_buffer_t;
 
 #ifdef __cplusplus
 } // extern "C"
