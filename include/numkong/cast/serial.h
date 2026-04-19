@@ -2515,6 +2515,193 @@ NK_INTERNAL nk_u8_t nk_block_scaled_encode_scale_serial_(nk_f32_t value, nk_dtyp
     return raw;
 }
 
+NK_PUBLIC void nk_nvfp4_to_f32x16_serial(nk_nvfp4_t const *src, nk_f32_t global, nk_f32_t *dest) {
+    nk_f32_t scale_f32;
+    nk_ue4m3_to_f32_serial(&src->scale_, &scale_f32);
+    nk_f32_t effective_scale = scale_f32 * global;
+    for (nk_size_t i = 0; i < 16; i += 2) {
+        nk_e2m1x2_to_f32x2_serial(&src->elements_[i / 2], dest + i);
+        dest[i] *= effective_scale;
+        dest[i + 1] *= effective_scale;
+    }
+}
+
+NK_PUBLIC void nk_f32x16_to_nvfp4_serial(nk_f32_t const *src, nk_f32_t global, nk_nvfp4_t *dest) {
+    nk_f32_t block_amax = 0.0f;
+    for (nk_size_t i = 0; i < 16; ++i) {
+        nk_f32_t absolute = src[i] < 0 ? -src[i] : src[i];
+        if (absolute > block_amax) block_amax = absolute;
+    }
+    nk_f32_t scale_target = block_amax / 6.0f / (global != 0.0f ? global : 1.0f);
+    nk_f32_to_ue4m3_serial(&scale_target, &dest->scale_);
+    nk_f32_t scale_f32;
+    nk_ue4m3_to_f32_serial(&dest->scale_, &scale_f32);
+    nk_f32_t effective_scale = scale_f32 * global;
+    nk_f32_t reciprocal = effective_scale > 0.0f ? 1.0f / effective_scale : 0.0f;
+    nk_f32_t scaled[2];
+    for (nk_size_t i = 0; i < 16; i += 2) {
+        scaled[0] = src[i] * reciprocal;
+        scaled[1] = src[i + 1] * reciprocal;
+        nk_f32x2_to_e2m1x2_serial(scaled, &dest->elements_[i / 2]);
+    }
+}
+
+NK_PUBLIC void nk_mxfp4_to_f32x32_serial(nk_mxfp4_t const *src, nk_f32_t *dest) {
+    nk_f32_t scale_f32;
+    nk_ue8m0_to_f32_serial(&src->scale_, &scale_f32);
+    for (nk_size_t i = 0; i < 32; i += 2) {
+        nk_e2m1x2_to_f32x2_serial(&src->elements_[i / 2], dest + i);
+        dest[i] *= scale_f32;
+        dest[i + 1] *= scale_f32;
+    }
+}
+
+NK_PUBLIC void nk_f32x32_to_mxfp4_serial(nk_f32_t const *src, nk_mxfp4_t *dest) {
+    nk_f32_t block_amax = 0.0f;
+    for (nk_size_t i = 0; i < 32; ++i) {
+        nk_f32_t absolute = src[i] < 0 ? -src[i] : src[i];
+        if (absolute > block_amax) block_amax = absolute;
+    }
+    nk_f32_t scale_target = block_amax / 6.0f;
+    nk_f32_to_ue8m0_serial(&scale_target, &dest->scale_);
+    nk_f32_t scale_f32;
+    nk_ue8m0_to_f32_serial(&dest->scale_, &scale_f32);
+    nk_f32_t reciprocal = scale_f32 > 0.0f ? 1.0f / scale_f32 : 0.0f;
+    nk_f32_t scaled[2];
+    for (nk_size_t i = 0; i < 32; i += 2) {
+        scaled[0] = src[i] * reciprocal;
+        scaled[1] = src[i + 1] * reciprocal;
+        nk_f32x2_to_e2m1x2_serial(scaled, &dest->elements_[i / 2]);
+    }
+}
+
+NK_PUBLIC void nk_mxfp6_e2m3_to_f32x32_serial(nk_mxfp6_e2m3_t const *src, nk_f32_t *dest) {
+    nk_f32_t scale_f32;
+    nk_ue8m0_to_f32_serial(&src->scale_, &scale_f32);
+    for (nk_size_t i = 0; i < 32; ++i) {
+        nk_e2m3_to_f32_serial(&src->elements_[i], &dest[i]);
+        dest[i] *= scale_f32;
+    }
+}
+
+NK_PUBLIC void nk_f32x32_to_mxfp6_e2m3_serial(nk_f32_t const *src, nk_mxfp6_e2m3_t *dest) {
+    nk_f32_t block_amax = 0.0f;
+    for (nk_size_t i = 0; i < 32; ++i) {
+        nk_f32_t absolute = src[i] < 0 ? -src[i] : src[i];
+        if (absolute > block_amax) block_amax = absolute;
+    }
+    nk_f32_t scale_target = block_amax / 7.5f;
+    nk_f32_to_ue8m0_serial(&scale_target, &dest->scale_);
+    nk_f32_t scale_f32;
+    nk_ue8m0_to_f32_serial(&dest->scale_, &scale_f32);
+    nk_f32_t reciprocal = scale_f32 > 0.0f ? 1.0f / scale_f32 : 0.0f;
+    for (nk_size_t i = 0; i < 32; ++i) {
+        nk_f32_t scaled = src[i] * reciprocal;
+        nk_f32_to_e2m3_serial(&scaled, &dest->elements_[i]);
+    }
+}
+
+NK_PUBLIC void nk_mxfp6_e3m2_to_f32x32_serial(nk_mxfp6_e3m2_t const *src, nk_f32_t *dest) {
+    nk_f32_t scale_f32;
+    nk_ue8m0_to_f32_serial(&src->scale_, &scale_f32);
+    for (nk_size_t i = 0; i < 32; ++i) {
+        nk_e3m2_to_f32_serial(&src->elements_[i], &dest[i]);
+        dest[i] *= scale_f32;
+    }
+}
+
+NK_PUBLIC void nk_f32x32_to_mxfp6_e3m2_serial(nk_f32_t const *src, nk_mxfp6_e3m2_t *dest) {
+    nk_f32_t block_amax = 0.0f;
+    for (nk_size_t i = 0; i < 32; ++i) {
+        nk_f32_t absolute = src[i] < 0 ? -src[i] : src[i];
+        if (absolute > block_amax) block_amax = absolute;
+    }
+    nk_f32_t scale_target = block_amax / 28.0f;
+    nk_f32_to_ue8m0_serial(&scale_target, &dest->scale_);
+    nk_f32_t scale_f32;
+    nk_ue8m0_to_f32_serial(&dest->scale_, &scale_f32);
+    nk_f32_t reciprocal = scale_f32 > 0.0f ? 1.0f / scale_f32 : 0.0f;
+    for (nk_size_t i = 0; i < 32; ++i) {
+        nk_f32_t scaled = src[i] * reciprocal;
+        nk_f32_to_e3m2_serial(&scaled, &dest->elements_[i]);
+    }
+}
+
+NK_PUBLIC void nk_mxfp8_e4m3_to_f32x32_serial(nk_mxfp8_e4m3_t const *src, nk_f32_t *dest) {
+    nk_f32_t scale_f32;
+    nk_ue8m0_to_f32_serial(&src->scale_, &scale_f32);
+    for (nk_size_t i = 0; i < 32; ++i) {
+        nk_e4m3_to_f32_serial(&src->elements_[i], &dest[i]);
+        dest[i] *= scale_f32;
+    }
+}
+
+NK_PUBLIC void nk_f32x32_to_mxfp8_e4m3_serial(nk_f32_t const *src, nk_mxfp8_e4m3_t *dest) {
+    nk_f32_t block_amax = 0.0f;
+    for (nk_size_t i = 0; i < 32; ++i) {
+        nk_f32_t absolute = src[i] < 0 ? -src[i] : src[i];
+        if (absolute > block_amax) block_amax = absolute;
+    }
+    nk_f32_t scale_target = block_amax / 448.0f;
+    nk_f32_to_ue8m0_serial(&scale_target, &dest->scale_);
+    nk_f32_t scale_f32;
+    nk_ue8m0_to_f32_serial(&dest->scale_, &scale_f32);
+    nk_f32_t reciprocal = scale_f32 > 0.0f ? 1.0f / scale_f32 : 0.0f;
+    for (nk_size_t i = 0; i < 32; ++i) {
+        nk_f32_t scaled = src[i] * reciprocal;
+        nk_f32_to_e4m3_serial(&scaled, &dest->elements_[i]);
+    }
+}
+
+NK_PUBLIC void nk_mxfp8_e5m2_to_f32x32_serial(nk_mxfp8_e5m2_t const *src, nk_f32_t *dest) {
+    nk_f32_t scale_f32;
+    nk_ue8m0_to_f32_serial(&src->scale_, &scale_f32);
+    for (nk_size_t i = 0; i < 32; ++i) {
+        nk_e5m2_to_f32_serial(&src->elements_[i], &dest[i]);
+        dest[i] *= scale_f32;
+    }
+}
+
+NK_PUBLIC void nk_f32x32_to_mxfp8_e5m2_serial(nk_f32_t const *src, nk_mxfp8_e5m2_t *dest) {
+    nk_f32_t block_amax = 0.0f;
+    for (nk_size_t i = 0; i < 32; ++i) {
+        nk_f32_t absolute = src[i] < 0 ? -src[i] : src[i];
+        if (absolute > block_amax) block_amax = absolute;
+    }
+    nk_f32_t scale_target = block_amax / 57344.0f;
+    nk_f32_to_ue8m0_serial(&scale_target, &dest->scale_);
+    nk_f32_t scale_f32;
+    nk_ue8m0_to_f32_serial(&dest->scale_, &scale_f32);
+    nk_f32_t reciprocal = scale_f32 > 0.0f ? 1.0f / scale_f32 : 0.0f;
+    for (nk_size_t i = 0; i < 32; ++i) {
+        nk_f32_t scaled = src[i] * reciprocal;
+        nk_f32_to_e5m2_serial(&scaled, &dest->elements_[i]);
+    }
+}
+
+NK_PUBLIC void nk_mxint8_to_f32x32_serial(nk_mxint8_t const *src, nk_f32_t *dest) {
+    nk_f32_t scale_f32;
+    nk_ue8m0_to_f32_serial(&src->scale_, &scale_f32);
+    for (nk_size_t i = 0; i < 32; ++i) dest[i] = (nk_f32_t)src->elements_[i] * scale_f32;
+}
+
+NK_PUBLIC void nk_f32x32_to_mxint8_serial(nk_f32_t const *src, nk_mxint8_t *dest) {
+    nk_f32_t block_amax = 0.0f;
+    for (nk_size_t i = 0; i < 32; ++i) {
+        nk_f32_t absolute = src[i] < 0 ? -src[i] : src[i];
+        if (absolute > block_amax) block_amax = absolute;
+    }
+    nk_f32_t scale_target = block_amax / 127.0f;
+    nk_f32_to_ue8m0_serial(&scale_target, &dest->scale_);
+    nk_f32_t scale_f32;
+    nk_ue8m0_to_f32_serial(&dest->scale_, &scale_f32);
+    nk_f32_t reciprocal = scale_f32 > 0.0f ? 1.0f / scale_f32 : 0.0f;
+    for (nk_size_t i = 0; i < 32; ++i) {
+        nk_f32_t scaled = src[i] * reciprocal;
+        nk_f32_to_i8_serial(&scaled, &dest->elements_[i]);
+    }
+}
+
 NK_PUBLIC nk_size_t nk_block_scaled_elements_size(nk_size_t count, nk_block_scaled_format_t format) {
     nk_size_t bits_per_element = nk_dtype_bits(format.element_dtype);
     return nk_size_divide_round_up_(count * bits_per_element, NK_BITS_PER_BYTE);
@@ -2556,6 +2743,19 @@ NK_PUBLIC nk_block_scaled_format_t nk_mxint8(void) {
 NK_PUBLIC nk_block_scaled_format_t nk_plain(nk_dtype_t element_dtype) {
     nk_block_scaled_format_t format = {element_dtype, nk_dtype_unknown_k, nk_dtype_unknown_k, 0};
     return format;
+}
+
+NK_PUBLIC nk_block_scaled_format_t nk_block_scaled_format_of_dtype(nk_dtype_t dtype) {
+    switch (dtype) {
+    case nk_nvfp4_k: return nk_nvfp4();
+    case nk_mxfp4_k: return nk_mxfp4();
+    case nk_mxfp6_e2m3_k: return nk_mxfp6_e2m3();
+    case nk_mxfp6_e3m2_k: return nk_mxfp6_e3m2();
+    case nk_mxfp8_e4m3_k: return nk_mxfp8_e4m3();
+    case nk_mxfp8_e5m2_k: return nk_mxfp8_e5m2();
+    case nk_mxint8_k: return nk_mxint8();
+    default: return nk_plain(dtype);
+    }
 }
 
 /**

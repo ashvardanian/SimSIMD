@@ -122,6 +122,41 @@ NK_PUBLIC void nk_ue4m3_to_f32_serial(nk_ue4m3_t const *src, nk_f32_t *dest);
 /** @brief Convert f32 magnitude to UE4M3 (takes absolute value). */
 NK_PUBLIC void nk_f32_to_ue4m3_serial(nk_f32_t const *src, nk_ue4m3_t *dest);
 
+/** @brief Decode one NVFP4 block (16 elements) to f32. `global` is the per-tensor multiplier. */
+NK_PUBLIC void nk_nvfp4_to_f32x16_serial(nk_nvfp4_t const *src, nk_f32_t global, nk_f32_t *dest);
+/** @brief Encode 16 f32 values into one NVFP4 block, deriving a UE4M3 scale via per-block amax. */
+NK_PUBLIC void nk_f32x16_to_nvfp4_serial(nk_f32_t const *src, nk_f32_t global, nk_nvfp4_t *dest);
+
+/** @brief Decode one MXFP4 block (32 elements) to f32. */
+NK_PUBLIC void nk_mxfp4_to_f32x32_serial(nk_mxfp4_t const *src, nk_f32_t *dest);
+/** @brief Encode 32 f32 values into one MXFP4 block, deriving a UE8M0 scale. */
+NK_PUBLIC void nk_f32x32_to_mxfp4_serial(nk_f32_t const *src, nk_mxfp4_t *dest);
+
+/** @brief Decode one MXFP6 E2M3 block (32 elements) to f32. */
+NK_PUBLIC void nk_mxfp6_e2m3_to_f32x32_serial(nk_mxfp6_e2m3_t const *src, nk_f32_t *dest);
+/** @brief Encode 32 f32 values into one MXFP6 E2M3 block. */
+NK_PUBLIC void nk_f32x32_to_mxfp6_e2m3_serial(nk_f32_t const *src, nk_mxfp6_e2m3_t *dest);
+
+/** @brief Decode one MXFP6 E3M2 block (32 elements) to f32. */
+NK_PUBLIC void nk_mxfp6_e3m2_to_f32x32_serial(nk_mxfp6_e3m2_t const *src, nk_f32_t *dest);
+/** @brief Encode 32 f32 values into one MXFP6 E3M2 block. */
+NK_PUBLIC void nk_f32x32_to_mxfp6_e3m2_serial(nk_f32_t const *src, nk_mxfp6_e3m2_t *dest);
+
+/** @brief Decode one MXFP8 E4M3 block (32 elements) to f32. */
+NK_PUBLIC void nk_mxfp8_e4m3_to_f32x32_serial(nk_mxfp8_e4m3_t const *src, nk_f32_t *dest);
+/** @brief Encode 32 f32 values into one MXFP8 E4M3 block. */
+NK_PUBLIC void nk_f32x32_to_mxfp8_e4m3_serial(nk_f32_t const *src, nk_mxfp8_e4m3_t *dest);
+
+/** @brief Decode one MXFP8 E5M2 block (32 elements) to f32. */
+NK_PUBLIC void nk_mxfp8_e5m2_to_f32x32_serial(nk_mxfp8_e5m2_t const *src, nk_f32_t *dest);
+/** @brief Encode 32 f32 values into one MXFP8 E5M2 block. */
+NK_PUBLIC void nk_f32x32_to_mxfp8_e5m2_serial(nk_f32_t const *src, nk_mxfp8_e5m2_t *dest);
+
+/** @brief Decode one MXINT8 block (32 elements) to f32. */
+NK_PUBLIC void nk_mxint8_to_f32x32_serial(nk_mxint8_t const *src, nk_f32_t *dest);
+/** @brief Encode 32 f32 values into one MXINT8 block. */
+NK_PUBLIC void nk_f32x32_to_mxint8_serial(nk_f32_t const *src, nk_mxint8_t *dest);
+
 /**
  *  @brief Unified block-scaled cast: plain↔block-scaled and block-scaled↔block-scaled.
  *
@@ -177,6 +212,10 @@ NK_PUBLIC nk_block_scaled_format_t nk_mxfp8_e5m2(void);
 NK_PUBLIC nk_block_scaled_format_t nk_mxint8(void);
 /** @brief `{element_dtype, unknown, unknown, 0}` — plain scalar buffer of @p element_dtype. */
 NK_PUBLIC nk_block_scaled_format_t nk_plain(nk_dtype_t element_dtype);
+
+/** @brief Build a block-scaled format descriptor from a composite @p dtype enum value.
+ *  Returns `nk_plain(dtype)` when @p dtype is not a composite. */
+NK_PUBLIC nk_block_scaled_format_t nk_block_scaled_format_of_dtype(nk_dtype_t dtype);
 
 #if NK_TARGET_NEON
 /** @copydoc nk_cast */

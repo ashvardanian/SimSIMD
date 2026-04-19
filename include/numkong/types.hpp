@@ -130,8 +130,16 @@ struct e4m3_t;
 struct e3m2_t;
 struct e2m3_t;
 struct e2m1x2_t;
+
 struct ue8m0_t;
 struct ue4m3_t;
+struct nvfp4_t;
+struct mxfp4_t;
+struct mxfp6_e2m3_t;
+struct mxfp6_e3m2_t;
+struct mxfp8_e4m3_t;
+struct mxfp8_e5m2_t;
+struct mxint8_t;
 
 struct i64_t;
 struct i32_t;
@@ -5110,6 +5118,142 @@ struct sub_byte_ref<e2m1x2_t> {
     }
 };
 
+/** @brief Raw-nibble access for NVFP4 blocks (16 nibbles packed 2/byte + scale byte). */
+template <>
+struct sub_byte_ref<nvfp4_t> {
+    nk_nvfp4_t *block_ptr_;
+    std::uint8_t index_in_block_;
+
+    constexpr sub_byte_ref(nk_nvfp4_t *data, std::size_t scalar_index) noexcept
+        : block_ptr_(data + scalar_index / 16), index_in_block_(static_cast<std::uint8_t>(scalar_index % 16)) {}
+
+    constexpr std::uint8_t get() const noexcept {
+        nk_u8_t byte = block_ptr_->elements_[index_in_block_ / 2];
+        return (index_in_block_ & 1) ? (byte & 0x0F) : (byte >> 4);
+    }
+    constexpr operator std::uint8_t() const noexcept { return get(); }
+
+    constexpr sub_byte_ref &operator=(std::uint8_t nibble) noexcept {
+        nk_u8_t *byte = &block_ptr_->elements_[index_in_block_ / 2];
+        if (index_in_block_ & 1) *byte = static_cast<nk_u8_t>((*byte & 0xF0) | (nibble & 0x0F));
+        else *byte = static_cast<nk_u8_t>((*byte & 0x0F) | ((nibble & 0x0F) << 4));
+        return *this;
+    }
+};
+
+/** @brief Raw-nibble access for MXFP4 blocks (32 nibbles packed 2/byte + scale byte). */
+template <>
+struct sub_byte_ref<mxfp4_t> {
+    nk_mxfp4_t *block_ptr_;
+    std::uint8_t index_in_block_;
+
+    constexpr sub_byte_ref(nk_mxfp4_t *data, std::size_t scalar_index) noexcept
+        : block_ptr_(data + scalar_index / 32), index_in_block_(static_cast<std::uint8_t>(scalar_index % 32)) {}
+
+    constexpr std::uint8_t get() const noexcept {
+        nk_u8_t byte = block_ptr_->elements_[index_in_block_ / 2];
+        return (index_in_block_ & 1) ? (byte & 0x0F) : (byte >> 4);
+    }
+    constexpr operator std::uint8_t() const noexcept { return get(); }
+
+    constexpr sub_byte_ref &operator=(std::uint8_t nibble) noexcept {
+        nk_u8_t *byte = &block_ptr_->elements_[index_in_block_ / 2];
+        if (index_in_block_ & 1) *byte = static_cast<nk_u8_t>((*byte & 0xF0) | (nibble & 0x0F));
+        else *byte = static_cast<nk_u8_t>((*byte & 0x0F) | ((nibble & 0x0F) << 4));
+        return *this;
+    }
+};
+
+/** @brief Raw-byte access for MXFP6 E2M3 blocks (32 byte-sized elements + scale byte). */
+template <>
+struct sub_byte_ref<mxfp6_e2m3_t> {
+    nk_mxfp6_e2m3_t *block_ptr_;
+    std::uint8_t index_in_block_;
+
+    constexpr sub_byte_ref(nk_mxfp6_e2m3_t *data, std::size_t scalar_index) noexcept
+        : block_ptr_(data + scalar_index / 32), index_in_block_(static_cast<std::uint8_t>(scalar_index % 32)) {}
+
+    constexpr std::uint8_t get() const noexcept { return block_ptr_->elements_[index_in_block_]; }
+    constexpr operator std::uint8_t() const noexcept { return get(); }
+
+    constexpr sub_byte_ref &operator=(std::uint8_t value) noexcept {
+        block_ptr_->elements_[index_in_block_] = static_cast<nk_e2m3_t>(value);
+        return *this;
+    }
+};
+
+/** @brief Raw-byte access for MXFP6 E3M2 blocks (32 byte-sized elements + scale byte). */
+template <>
+struct sub_byte_ref<mxfp6_e3m2_t> {
+    nk_mxfp6_e3m2_t *block_ptr_;
+    std::uint8_t index_in_block_;
+
+    constexpr sub_byte_ref(nk_mxfp6_e3m2_t *data, std::size_t scalar_index) noexcept
+        : block_ptr_(data + scalar_index / 32), index_in_block_(static_cast<std::uint8_t>(scalar_index % 32)) {}
+
+    constexpr std::uint8_t get() const noexcept { return block_ptr_->elements_[index_in_block_]; }
+    constexpr operator std::uint8_t() const noexcept { return get(); }
+
+    constexpr sub_byte_ref &operator=(std::uint8_t value) noexcept {
+        block_ptr_->elements_[index_in_block_] = static_cast<nk_e3m2_t>(value);
+        return *this;
+    }
+};
+
+/** @brief Raw-byte access for MXFP8 E4M3 blocks (32 byte-sized elements + scale byte). */
+template <>
+struct sub_byte_ref<mxfp8_e4m3_t> {
+    nk_mxfp8_e4m3_t *block_ptr_;
+    std::uint8_t index_in_block_;
+
+    constexpr sub_byte_ref(nk_mxfp8_e4m3_t *data, std::size_t scalar_index) noexcept
+        : block_ptr_(data + scalar_index / 32), index_in_block_(static_cast<std::uint8_t>(scalar_index % 32)) {}
+
+    constexpr std::uint8_t get() const noexcept { return block_ptr_->elements_[index_in_block_]; }
+    constexpr operator std::uint8_t() const noexcept { return get(); }
+
+    constexpr sub_byte_ref &operator=(std::uint8_t value) noexcept {
+        block_ptr_->elements_[index_in_block_] = static_cast<nk_e4m3_t>(value);
+        return *this;
+    }
+};
+
+/** @brief Raw-byte access for MXFP8 E5M2 blocks (32 byte-sized elements + scale byte). */
+template <>
+struct sub_byte_ref<mxfp8_e5m2_t> {
+    nk_mxfp8_e5m2_t *block_ptr_;
+    std::uint8_t index_in_block_;
+
+    constexpr sub_byte_ref(nk_mxfp8_e5m2_t *data, std::size_t scalar_index) noexcept
+        : block_ptr_(data + scalar_index / 32), index_in_block_(static_cast<std::uint8_t>(scalar_index % 32)) {}
+
+    constexpr std::uint8_t get() const noexcept { return block_ptr_->elements_[index_in_block_]; }
+    constexpr operator std::uint8_t() const noexcept { return get(); }
+
+    constexpr sub_byte_ref &operator=(std::uint8_t value) noexcept {
+        block_ptr_->elements_[index_in_block_] = static_cast<nk_e5m2_t>(value);
+        return *this;
+    }
+};
+
+/** @brief Raw-byte access for MXINT8 blocks (32 byte-sized elements + scale byte). */
+template <>
+struct sub_byte_ref<mxint8_t> {
+    nk_mxint8_t *block_ptr_;
+    std::uint8_t index_in_block_;
+
+    constexpr sub_byte_ref(nk_mxint8_t *data, std::size_t scalar_index) noexcept
+        : block_ptr_(data + scalar_index / 32), index_in_block_(static_cast<std::uint8_t>(scalar_index % 32)) {}
+
+    constexpr std::int8_t get() const noexcept { return block_ptr_->elements_[index_in_block_]; }
+    constexpr operator std::int8_t() const noexcept { return get(); }
+
+    constexpr sub_byte_ref &operator=(std::int8_t value) noexcept {
+        block_ptr_->elements_[index_in_block_] = static_cast<nk_i8_t>(value);
+        return *this;
+    }
+};
+
 /**
  *  @brief Packed 8-bit bit-vector (8 booleans in one byte).
  *
@@ -5504,6 +5648,318 @@ struct e2m1x2_t {
     constexpr std::strong_ordering operator<=>(e2m1x2_t const &o) const noexcept = default;
 };
 
+/**
+ *  @brief NVIDIA NVFP4 block value: 16 E2M1 nibbles + 1 UE4M3 scale byte per value.
+ *
+ *  Per-tensor f32 global multiplier lives on the enclosing tensor (not per block) and is
+ *  passed explicitly to `decode_to` / `encode_from`. `sizeof(nvfp4_t) == 9`, and one value
+ *  represents 16 logical elements — `nk::tensor<nvfp4_t>(n)` allocates `⌈n/16⌉ × 9` bytes.
+ */
+struct nvfp4_t {
+    using raw_t = nk_nvfp4_t;
+    using component_t = f32_t;
+    using scale_t = ue4m3_t;
+    using global_t = f32_t;
+    using sub_byte_ref_t = sub_byte_ref<nvfp4_t>;
+
+    static constexpr nk_dtype_t dtype() noexcept { return nk_nvfp4_k; }
+    static constexpr char const *dtype_name() noexcept { return "nvfp4"; }
+    static constexpr unsigned bits_per_word() noexcept { return 8; }
+    static constexpr unsigned bits_per_dimension() noexcept { return 4; }
+    static constexpr unsigned bits_per_value() noexcept { return sizeof(raw_t) * 8; }
+    static constexpr unsigned elements() noexcept { return 16; }
+    static constexpr unsigned element_bits() noexcept { return 4; }
+    static constexpr unsigned mantissa_bits() noexcept { return 1; }
+    static constexpr unsigned exponent_bits() noexcept { return 2; }
+    static constexpr bool is_integer() noexcept { return false; }
+    static constexpr bool is_signed() noexcept { return true; }
+    static constexpr bool is_complex() noexcept { return false; }
+    static constexpr bool is_exact() noexcept { return false; }
+    static constexpr bool has_infinity() noexcept { return false; }
+    static constexpr bool has_nan() noexcept { return false; }
+    static constexpr bool has_tensor_global() noexcept { return true; }
+
+    static constexpr component_t component_min() noexcept { return component_t(-6.0f); }
+    static constexpr component_t component_max() noexcept { return component_t(6.0f); }
+
+    raw_t raw_;
+
+    constexpr nvfp4_t() noexcept : raw_ {} {}
+    constexpr explicit nvfp4_t(raw_t v) noexcept : raw_(v) {}
+    static constexpr nvfp4_t from_raw(raw_t r) noexcept { return nvfp4_t {r}; }
+
+    inline void decode_to(float *dest, float global) const noexcept { nk_nvfp4_to_f32x16_serial(&raw_, global, dest); }
+    static inline nvfp4_t encode_from(float const *src, float global) noexcept {
+        nvfp4_t result;
+        nk_f32x16_to_nvfp4_serial(src, global, &result.raw_);
+        return result;
+    }
+
+    constexpr sub_byte_ref<nvfp4_t> operator[](unsigned i) & noexcept { return {&raw_, i}; }
+};
+
+/** @brief OCP MXFP4 block value: 32 E2M1 nibbles + 1 UE8M0 pow-2 scale byte per value. */
+struct mxfp4_t {
+    using raw_t = nk_mxfp4_t;
+    using component_t = f32_t;
+    using scale_t = ue8m0_t;
+    using global_t = void;
+    using sub_byte_ref_t = sub_byte_ref<mxfp4_t>;
+
+    static constexpr nk_dtype_t dtype() noexcept { return nk_mxfp4_k; }
+    static constexpr char const *dtype_name() noexcept { return "mxfp4"; }
+    static constexpr unsigned bits_per_word() noexcept { return 8; }
+    static constexpr unsigned bits_per_dimension() noexcept { return 4; }
+    static constexpr unsigned bits_per_value() noexcept { return sizeof(raw_t) * 8; }
+    static constexpr unsigned elements() noexcept { return 32; }
+    static constexpr unsigned element_bits() noexcept { return 4; }
+    static constexpr unsigned mantissa_bits() noexcept { return 1; }
+    static constexpr unsigned exponent_bits() noexcept { return 2; }
+    static constexpr bool is_integer() noexcept { return false; }
+    static constexpr bool is_signed() noexcept { return true; }
+    static constexpr bool is_complex() noexcept { return false; }
+    static constexpr bool is_exact() noexcept { return false; }
+    static constexpr bool has_infinity() noexcept { return false; }
+    static constexpr bool has_nan() noexcept { return false; }
+    static constexpr bool has_tensor_global() noexcept { return false; }
+
+    static constexpr component_t component_min() noexcept { return component_t(-6.0f); }
+    static constexpr component_t component_max() noexcept { return component_t(6.0f); }
+
+    raw_t raw_;
+
+    constexpr mxfp4_t() noexcept : raw_ {} {}
+    constexpr explicit mxfp4_t(raw_t v) noexcept : raw_(v) {}
+    static constexpr mxfp4_t from_raw(raw_t r) noexcept { return mxfp4_t {r}; }
+
+    inline void decode_to(float *dest) const noexcept { nk_mxfp4_to_f32x32_serial(&raw_, dest); }
+    static inline mxfp4_t encode_from(float const *src) noexcept {
+        mxfp4_t result;
+        nk_f32x32_to_mxfp4_serial(src, &result.raw_);
+        return result;
+    }
+
+    constexpr sub_byte_ref<mxfp4_t> operator[](unsigned i) & noexcept { return {&raw_, i}; }
+};
+
+/** @brief OCP MXFP6 E2M3 block value: 32 E2M3 elements + 1 UE8M0 scale byte per value. */
+struct mxfp6_e2m3_t {
+    using raw_t = nk_mxfp6_e2m3_t;
+    using component_t = f32_t;
+    using scale_t = ue8m0_t;
+    using global_t = void;
+    using sub_byte_ref_t = sub_byte_ref<mxfp6_e2m3_t>;
+
+    static constexpr nk_dtype_t dtype() noexcept { return nk_mxfp6_e2m3_k; }
+    static constexpr char const *dtype_name() noexcept { return "mxfp6_e2m3"; }
+    static constexpr unsigned bits_per_word() noexcept { return 8; }
+    static constexpr unsigned bits_per_dimension() noexcept { return 8; }
+    static constexpr unsigned bits_per_value() noexcept { return sizeof(raw_t) * 8; }
+    static constexpr unsigned elements() noexcept { return 32; }
+    static constexpr unsigned element_bits() noexcept { return 8; }
+    static constexpr unsigned mantissa_bits() noexcept { return 3; }
+    static constexpr unsigned exponent_bits() noexcept { return 2; }
+    static constexpr bool is_integer() noexcept { return false; }
+    static constexpr bool is_signed() noexcept { return true; }
+    static constexpr bool is_complex() noexcept { return false; }
+    static constexpr bool is_exact() noexcept { return false; }
+    static constexpr bool has_infinity() noexcept { return false; }
+    static constexpr bool has_nan() noexcept { return false; }
+    static constexpr bool has_tensor_global() noexcept { return false; }
+
+    static constexpr component_t component_min() noexcept { return component_t(-7.5f); }
+    static constexpr component_t component_max() noexcept { return component_t(7.5f); }
+
+    raw_t raw_;
+
+    constexpr mxfp6_e2m3_t() noexcept : raw_ {} {}
+    constexpr explicit mxfp6_e2m3_t(raw_t v) noexcept : raw_(v) {}
+    static constexpr mxfp6_e2m3_t from_raw(raw_t r) noexcept { return mxfp6_e2m3_t {r}; }
+
+    inline void decode_to(float *dest) const noexcept { nk_mxfp6_e2m3_to_f32x32_serial(&raw_, dest); }
+    static inline mxfp6_e2m3_t encode_from(float const *src) noexcept {
+        mxfp6_e2m3_t result;
+        nk_f32x32_to_mxfp6_e2m3_serial(src, &result.raw_);
+        return result;
+    }
+
+    constexpr sub_byte_ref<mxfp6_e2m3_t> operator[](unsigned i) & noexcept { return {&raw_, i}; }
+};
+
+/** @brief OCP MXFP6 E3M2 block value: 32 E3M2 elements + 1 UE8M0 scale byte per value. */
+struct mxfp6_e3m2_t {
+    using raw_t = nk_mxfp6_e3m2_t;
+    using component_t = f32_t;
+    using scale_t = ue8m0_t;
+    using global_t = void;
+    using sub_byte_ref_t = sub_byte_ref<mxfp6_e3m2_t>;
+
+    static constexpr nk_dtype_t dtype() noexcept { return nk_mxfp6_e3m2_k; }
+    static constexpr char const *dtype_name() noexcept { return "mxfp6_e3m2"; }
+    static constexpr unsigned bits_per_word() noexcept { return 8; }
+    static constexpr unsigned bits_per_dimension() noexcept { return 8; }
+    static constexpr unsigned bits_per_value() noexcept { return sizeof(raw_t) * 8; }
+    static constexpr unsigned elements() noexcept { return 32; }
+    static constexpr unsigned element_bits() noexcept { return 8; }
+    static constexpr unsigned mantissa_bits() noexcept { return 2; }
+    static constexpr unsigned exponent_bits() noexcept { return 3; }
+    static constexpr bool is_integer() noexcept { return false; }
+    static constexpr bool is_signed() noexcept { return true; }
+    static constexpr bool is_complex() noexcept { return false; }
+    static constexpr bool is_exact() noexcept { return false; }
+    static constexpr bool has_infinity() noexcept { return false; }
+    static constexpr bool has_nan() noexcept { return false; }
+    static constexpr bool has_tensor_global() noexcept { return false; }
+
+    static constexpr component_t component_min() noexcept { return component_t(-28.0f); }
+    static constexpr component_t component_max() noexcept { return component_t(28.0f); }
+
+    raw_t raw_;
+
+    constexpr mxfp6_e3m2_t() noexcept : raw_ {} {}
+    constexpr explicit mxfp6_e3m2_t(raw_t v) noexcept : raw_(v) {}
+    static constexpr mxfp6_e3m2_t from_raw(raw_t r) noexcept { return mxfp6_e3m2_t {r}; }
+
+    inline void decode_to(float *dest) const noexcept { nk_mxfp6_e3m2_to_f32x32_serial(&raw_, dest); }
+    static inline mxfp6_e3m2_t encode_from(float const *src) noexcept {
+        mxfp6_e3m2_t result;
+        nk_f32x32_to_mxfp6_e3m2_serial(src, &result.raw_);
+        return result;
+    }
+
+    constexpr sub_byte_ref<mxfp6_e3m2_t> operator[](unsigned i) & noexcept { return {&raw_, i}; }
+};
+
+/** @brief OCP MXFP8 E4M3 block value: 32 E4M3 elements + 1 UE8M0 scale byte per value. */
+struct mxfp8_e4m3_t {
+    using raw_t = nk_mxfp8_e4m3_t;
+    using component_t = f32_t;
+    using scale_t = ue8m0_t;
+    using global_t = void;
+    using sub_byte_ref_t = sub_byte_ref<mxfp8_e4m3_t>;
+
+    static constexpr nk_dtype_t dtype() noexcept { return nk_mxfp8_e4m3_k; }
+    static constexpr char const *dtype_name() noexcept { return "mxfp8_e4m3"; }
+    static constexpr unsigned bits_per_word() noexcept { return 8; }
+    static constexpr unsigned bits_per_dimension() noexcept { return 8; }
+    static constexpr unsigned bits_per_value() noexcept { return sizeof(raw_t) * 8; }
+    static constexpr unsigned elements() noexcept { return 32; }
+    static constexpr unsigned element_bits() noexcept { return 8; }
+    static constexpr unsigned mantissa_bits() noexcept { return 3; }
+    static constexpr unsigned exponent_bits() noexcept { return 4; }
+    static constexpr bool is_integer() noexcept { return false; }
+    static constexpr bool is_signed() noexcept { return true; }
+    static constexpr bool is_complex() noexcept { return false; }
+    static constexpr bool is_exact() noexcept { return false; }
+    static constexpr bool has_infinity() noexcept { return false; }
+    static constexpr bool has_nan() noexcept { return true; }
+    static constexpr bool has_tensor_global() noexcept { return false; }
+
+    static constexpr component_t component_min() noexcept { return component_t(-448.0f); }
+    static constexpr component_t component_max() noexcept { return component_t(448.0f); }
+
+    raw_t raw_;
+
+    constexpr mxfp8_e4m3_t() noexcept : raw_ {} {}
+    constexpr explicit mxfp8_e4m3_t(raw_t v) noexcept : raw_(v) {}
+    static constexpr mxfp8_e4m3_t from_raw(raw_t r) noexcept { return mxfp8_e4m3_t {r}; }
+
+    inline void decode_to(float *dest) const noexcept { nk_mxfp8_e4m3_to_f32x32_serial(&raw_, dest); }
+    static inline mxfp8_e4m3_t encode_from(float const *src) noexcept {
+        mxfp8_e4m3_t result;
+        nk_f32x32_to_mxfp8_e4m3_serial(src, &result.raw_);
+        return result;
+    }
+
+    constexpr sub_byte_ref<mxfp8_e4m3_t> operator[](unsigned i) & noexcept { return {&raw_, i}; }
+};
+
+/** @brief OCP MXFP8 E5M2 block value: 32 E5M2 elements + 1 UE8M0 scale byte per value. */
+struct mxfp8_e5m2_t {
+    using raw_t = nk_mxfp8_e5m2_t;
+    using component_t = f32_t;
+    using scale_t = ue8m0_t;
+    using global_t = void;
+    using sub_byte_ref_t = sub_byte_ref<mxfp8_e5m2_t>;
+
+    static constexpr nk_dtype_t dtype() noexcept { return nk_mxfp8_e5m2_k; }
+    static constexpr char const *dtype_name() noexcept { return "mxfp8_e5m2"; }
+    static constexpr unsigned bits_per_word() noexcept { return 8; }
+    static constexpr unsigned bits_per_dimension() noexcept { return 8; }
+    static constexpr unsigned bits_per_value() noexcept { return sizeof(raw_t) * 8; }
+    static constexpr unsigned elements() noexcept { return 32; }
+    static constexpr unsigned element_bits() noexcept { return 8; }
+    static constexpr unsigned mantissa_bits() noexcept { return 2; }
+    static constexpr unsigned exponent_bits() noexcept { return 5; }
+    static constexpr bool is_integer() noexcept { return false; }
+    static constexpr bool is_signed() noexcept { return true; }
+    static constexpr bool is_complex() noexcept { return false; }
+    static constexpr bool is_exact() noexcept { return false; }
+    static constexpr bool has_infinity() noexcept { return true; }
+    static constexpr bool has_nan() noexcept { return true; }
+    static constexpr bool has_tensor_global() noexcept { return false; }
+
+    static constexpr component_t component_min() noexcept { return component_t(-57344.0f); }
+    static constexpr component_t component_max() noexcept { return component_t(57344.0f); }
+
+    raw_t raw_;
+
+    constexpr mxfp8_e5m2_t() noexcept : raw_ {} {}
+    constexpr explicit mxfp8_e5m2_t(raw_t v) noexcept : raw_(v) {}
+    static constexpr mxfp8_e5m2_t from_raw(raw_t r) noexcept { return mxfp8_e5m2_t {r}; }
+
+    inline void decode_to(float *dest) const noexcept { nk_mxfp8_e5m2_to_f32x32_serial(&raw_, dest); }
+    static inline mxfp8_e5m2_t encode_from(float const *src) noexcept {
+        mxfp8_e5m2_t result;
+        nk_f32x32_to_mxfp8_e5m2_serial(src, &result.raw_);
+        return result;
+    }
+
+    constexpr sub_byte_ref<mxfp8_e5m2_t> operator[](unsigned i) & noexcept { return {&raw_, i}; }
+};
+
+/** @brief OCP MXINT8 block value: 32 signed i8 elements + 1 UE8M0 scale byte per value. */
+struct mxint8_t {
+    using raw_t = nk_mxint8_t;
+    using component_t = i8_t;
+    using scale_t = ue8m0_t;
+    using global_t = void;
+    using sub_byte_ref_t = sub_byte_ref<mxint8_t>;
+
+    static constexpr nk_dtype_t dtype() noexcept { return nk_mxint8_k; }
+    static constexpr char const *dtype_name() noexcept { return "mxint8"; }
+    static constexpr unsigned bits_per_word() noexcept { return 8; }
+    static constexpr unsigned bits_per_dimension() noexcept { return 8; }
+    static constexpr unsigned bits_per_value() noexcept { return sizeof(raw_t) * 8; }
+    static constexpr unsigned elements() noexcept { return 32; }
+    static constexpr unsigned element_bits() noexcept { return 8; }
+    static constexpr bool is_integer() noexcept { return true; }
+    static constexpr bool is_signed() noexcept { return true; }
+    static constexpr bool is_complex() noexcept { return false; }
+    static constexpr bool is_exact() noexcept { return true; }
+    static constexpr bool has_infinity() noexcept { return false; }
+    static constexpr bool has_nan() noexcept { return false; }
+    static constexpr bool has_tensor_global() noexcept { return false; }
+
+    static constexpr component_t component_min() noexcept { return component_t(-128); }
+    static constexpr component_t component_max() noexcept { return component_t(127); }
+
+    raw_t raw_;
+
+    constexpr mxint8_t() noexcept : raw_ {} {}
+    constexpr explicit mxint8_t(raw_t v) noexcept : raw_(v) {}
+    static constexpr mxint8_t from_raw(raw_t r) noexcept { return mxint8_t {r}; }
+
+    inline void decode_to(float *dest) const noexcept { nk_mxint8_to_f32x32_serial(&raw_, dest); }
+    static inline mxint8_t encode_from(float const *src) noexcept {
+        mxint8_t result;
+        nk_f32x32_to_mxint8_serial(src, &result.raw_);
+        return result;
+    }
+
+    constexpr sub_byte_ref<mxint8_t> operator[](unsigned i) & noexcept { return {&raw_, i}; }
+};
+
 #pragma region Enum Conversion
 
 /**
@@ -5540,6 +5996,13 @@ template <> struct type_for<nk_u4_k> { using type = u4x2_t; };
 template <> struct type_for<nk_e2m1_k> { using type = e2m1x2_t; };
 template <> struct type_for<nk_ue8m0_k> { using type = ue8m0_t; };
 template <> struct type_for<nk_ue4m3_k> { using type = ue4m3_t; };
+template <> struct type_for<nk_nvfp4_k> { using type = nvfp4_t; };
+template <> struct type_for<nk_mxfp4_k> { using type = mxfp4_t; };
+template <> struct type_for<nk_mxfp6_e2m3_k> { using type = mxfp6_e2m3_t; };
+template <> struct type_for<nk_mxfp6_e3m2_k> { using type = mxfp6_e3m2_t; };
+template <> struct type_for<nk_mxfp8_e4m3_k> { using type = mxfp8_e4m3_t; };
+template <> struct type_for<nk_mxfp8_e5m2_k> { using type = mxfp8_e5m2_t; };
+template <> struct type_for<nk_mxint8_k> { using type = mxint8_t; };
 // clang-format on
 
 #pragma endregion Enum Conversion

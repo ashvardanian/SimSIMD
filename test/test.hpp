@@ -125,6 +125,14 @@ using nk::u8_t;
 using nk::ue4m3_t;
 using nk::ue8m0_t;
 
+using nk::mxfp4_t;
+using nk::mxfp6_e2m3_t;
+using nk::mxfp6_e3m2_t;
+using nk::mxfp8_e4m3_t;
+using nk::mxfp8_e5m2_t;
+using nk::mxint8_t;
+using nk::nvfp4_t;
+
 using steady_clock = std::chrono::steady_clock;
 using time_point = steady_clock::time_point;
 

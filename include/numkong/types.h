@@ -973,6 +973,17 @@ typedef enum {
     nk_e2m1_k = 1 << 24,  ///< FP4 E2M1 floating point (element of MXFP4 and NVFP4)
     nk_ue8m0_k = 1 << 25, ///< UE8M0 unsigned pow-2 scale byte (MX family block scale)
     nk_ue4m3_k = 1 << 26, ///< UE4M3 unsigned E4M3 scale byte (NVFP4 block scale)
+
+    // Composite block-scaled formats encoded as `element_dtype | scale_dtype`. Each OR is unique
+    // (popcount = 2) and cannot collide with any singleton (popcount = 1). Block size is implicit
+    // from the scale dtype: `ue4m3` → 16 (NVFP4), `ue8m0` → 32 (MX family).
+    nk_nvfp4_k = nk_e2m1_k | nk_ue4m3_k,      ///< NVIDIA NVFP4 (block=16, f32 tensor-global)
+    nk_mxfp4_k = nk_e2m1_k | nk_ue8m0_k,      ///< OCP MXFP4 (block=32)
+    nk_mxfp6_e2m3_k = nk_e2m3_k | nk_ue8m0_k, ///< OCP MXFP6 (E2M3 variant, block=32)
+    nk_mxfp6_e3m2_k = nk_e3m2_k | nk_ue8m0_k, ///< OCP MXFP6 (E3M2 variant, block=32)
+    nk_mxfp8_e4m3_k = nk_e4m3_k | nk_ue8m0_k, ///< OCP MXFP8 (E4M3 variant, block=32)
+    nk_mxfp8_e5m2_k = nk_e5m2_k | nk_ue8m0_k, ///< OCP MXFP8 (E5M2 variant, block=32)
+    nk_mxint8_k = nk_i8_k | nk_ue8m0_k,       ///< OCP MXINT8 (block=32)
 } nk_dtype_t;
 
 /**
@@ -1000,6 +1011,62 @@ typedef enum {
     nk_dtype_family_uint_k,
 } nk_dtype_family_t;
 
+/** @brief True when @p dtype encodes a composite block-scaled format. */
+NK_PUBLIC int nk_dtype_is_block_scaled(nk_dtype_t dtype) {
+    switch (dtype) {
+    case nk_nvfp4_k: return 1;
+    case nk_mxfp4_k: return 1;
+    case nk_mxfp6_e2m3_k: return 1;
+    case nk_mxfp6_e3m2_k: return 1;
+    case nk_mxfp8_e4m3_k: return 1;
+    case nk_mxfp8_e5m2_k: return 1;
+    case nk_mxint8_k: return 1;
+    default: return 0;
+    }
+}
+
+/** @brief Extracts the element dtype from a composite; returns @p dtype unchanged for plain inputs. */
+NK_PUBLIC nk_dtype_t nk_dtype_element(nk_dtype_t dtype) {
+    switch (dtype) {
+    case nk_nvfp4_k: return nk_e2m1_k;
+    case nk_mxfp4_k: return nk_e2m1_k;
+    case nk_mxfp6_e2m3_k: return nk_e2m3_k;
+    case nk_mxfp6_e3m2_k: return nk_e3m2_k;
+    case nk_mxfp8_e4m3_k: return nk_e4m3_k;
+    case nk_mxfp8_e5m2_k: return nk_e5m2_k;
+    case nk_mxint8_k: return nk_i8_k;
+    default: return dtype;
+    }
+}
+
+/** @brief Extracts the scale dtype from a composite; returns `nk_dtype_unknown_k` for plain inputs. */
+NK_PUBLIC nk_dtype_t nk_dtype_scale(nk_dtype_t dtype) {
+    switch (dtype) {
+    case nk_nvfp4_k: return nk_ue4m3_k;
+    case nk_mxfp4_k: return nk_ue8m0_k;
+    case nk_mxfp6_e2m3_k: return nk_ue8m0_k;
+    case nk_mxfp6_e3m2_k: return nk_ue8m0_k;
+    case nk_mxfp8_e4m3_k: return nk_ue8m0_k;
+    case nk_mxfp8_e5m2_k: return nk_ue8m0_k;
+    case nk_mxint8_k: return nk_ue8m0_k;
+    default: return nk_dtype_unknown_k;
+    }
+}
+
+/** @brief Block size implied by a composite dtype; 0 for plain inputs. */
+NK_PUBLIC nk_size_t nk_dtype_block_size(nk_dtype_t dtype) {
+    switch (dtype) {
+    case nk_nvfp4_k: return 16;
+    case nk_mxfp4_k: return 32;
+    case nk_mxfp6_e2m3_k: return 32;
+    case nk_mxfp6_e3m2_k: return 32;
+    case nk_mxfp8_e4m3_k: return 32;
+    case nk_mxfp8_e5m2_k: return 32;
+    case nk_mxint8_k: return 32;
+    default: return 0;
+    }
+}
+
 /** @brief Classifies the family of the dtype. */
 NK_PUBLIC nk_dtype_family_t nk_dtype_family(nk_dtype_t dtype) {
     switch (dtype) {
@@ -1014,6 +1081,14 @@ NK_PUBLIC nk_dtype_family_t nk_dtype_family(nk_dtype_t dtype) {
     case nk_e2m1_k: return nk_dtype_family_float_k;
     case nk_ue8m0_k: return nk_dtype_family_float_k;
     case nk_ue4m3_k: return nk_dtype_family_float_k;
+    // Composite block-scaled dtypes — family of the logical element
+    case nk_nvfp4_k: return nk_dtype_family_float_k;
+    case nk_mxfp4_k: return nk_dtype_family_float_k;
+    case nk_mxfp6_e2m3_k: return nk_dtype_family_float_k;
+    case nk_mxfp6_e3m2_k: return nk_dtype_family_float_k;
+    case nk_mxfp8_e4m3_k: return nk_dtype_family_float_k;
+    case nk_mxfp8_e5m2_k: return nk_dtype_family_float_k;
+    case nk_mxint8_k: return nk_dtype_family_int_k;
     case nk_f64c_k: return nk_dtype_family_complex_float_k;
     case nk_f32c_k: return nk_dtype_family_complex_float_k;
     case nk_f16c_k: return nk_dtype_family_complex_float_k;
@@ -1062,6 +1137,16 @@ NK_PUBLIC nk_size_t nk_dtype_bits(nk_dtype_t dtype) {
     case nk_i16_k: return 16;
     case nk_i32_k: return 32;
     case nk_i64_k: return 64;
+    // Composite block-scaled dtypes — bits of the whole block value. One "storage value"
+    // is one block: `sizeof(nk_<composite>_t) * NK_BITS_PER_BYTE`. Pair with
+    // `nk_dimensions_per_value` to compute storage bytes via `size_values * (bits / 8)`.
+    case nk_nvfp4_k: return 9 * NK_BITS_PER_BYTE;       // 16 × E2M1 nibbles + 1 UE4M3 scale
+    case nk_mxfp4_k: return 17 * NK_BITS_PER_BYTE;      // 32 × E2M1 nibbles + 1 UE8M0 scale
+    case nk_mxfp6_e2m3_k: return 33 * NK_BITS_PER_BYTE; // 32 × E2M3 + 1 UE8M0 scale
+    case nk_mxfp6_e3m2_k: return 33 * NK_BITS_PER_BYTE; // 32 × E3M2 + 1 UE8M0 scale
+    case nk_mxfp8_e4m3_k: return 33 * NK_BITS_PER_BYTE; // 32 × E4M3 + 1 UE8M0 scale
+    case nk_mxfp8_e5m2_k: return 33 * NK_BITS_PER_BYTE; // 32 × E5M2 + 1 UE8M0 scale
+    case nk_mxint8_k: return 33 * NK_BITS_PER_BYTE;     // 32 × i8 + 1 UE8M0 scale
     default: return 0;
     }
 }
@@ -1075,6 +1160,14 @@ NK_PUBLIC nk_size_t nk_dimensions_per_value(nk_dtype_t dtype) {
     case nk_i4_k: return 2;
     case nk_u4_k: return 2;
     case nk_e2m1_k: return 2;
+    // Composite block-scaled dtypes — one value is one whole block of logical elements.
+    case nk_nvfp4_k: return 16;      // 16 nibbles per block
+    case nk_mxfp4_k: return 32;      // 32 nibbles per block
+    case nk_mxfp6_e2m3_k: return 32; // 32 E2M3 per block
+    case nk_mxfp6_e3m2_k: return 32; // 32 E3M2 per block
+    case nk_mxfp8_e4m3_k: return 32; // 32 E4M3 per block
+    case nk_mxfp8_e5m2_k: return 32; // 32 E5M2 per block
+    case nk_mxint8_k: return 32;     // 32 i8 per block
     default: return 1;
     }
 }
@@ -1177,6 +1270,52 @@ typedef unsigned short nk_bf16_t;
 #define nk_f16_for_rvv_intrinsics_t _Float16
 #endif
 
+/**
+ *  @brief Block-scaled composite POD types — one value is one whole block.
+ *
+ *  Each composite combines a packed element buffer with its per-block scale byte in a single
+ *  POD struct. The struct IS the value: `sizeof(nk_nvfp4_t) == 9` means one NVFP4 value, not
+ *  one element. Storage in containers strides by `sizeof(struct)`; logical element count per
+ *  value is reported by `nk_dimensions_per_value(composite_dtype)` (16 for NVFP4, 32 for MX).
+ *
+ *  The NVFP4 per-tensor f32 global multiplier is not part of the block value — it lives on the
+ *  enclosing tensor and is passed explicitly to encode/decode helpers.
+ */
+typedef struct NK_MAY_ALIAS_ {
+    nk_e2m1x2_t elements_[8]; ///< 16 E2M1 nibbles packed 2/byte
+    nk_ue4m3_t scale_;        ///< per-block UE4M3 scale
+} nk_nvfp4_t;
+
+typedef struct NK_MAY_ALIAS_ {
+    nk_e2m1x2_t elements_[16]; ///< 32 E2M1 nibbles packed 2/byte
+    nk_ue8m0_t scale_;         ///< per-block UE8M0 pow-2 scale
+} nk_mxfp4_t;
+
+typedef struct NK_MAY_ALIAS_ {
+    nk_e2m3_t elements_[32];
+    nk_ue8m0_t scale_;
+} nk_mxfp6_e2m3_t;
+
+typedef struct NK_MAY_ALIAS_ {
+    nk_e3m2_t elements_[32];
+    nk_ue8m0_t scale_;
+} nk_mxfp6_e3m2_t;
+
+typedef struct NK_MAY_ALIAS_ {
+    nk_e4m3_t elements_[32];
+    nk_ue8m0_t scale_;
+} nk_mxfp8_e4m3_t;
+
+typedef struct NK_MAY_ALIAS_ {
+    nk_e5m2_t elements_[32];
+    nk_ue8m0_t scale_;
+} nk_mxfp8_e5m2_t;
+
+typedef struct NK_MAY_ALIAS_ {
+    nk_i8_t elements_[32];
+    nk_ue8m0_t scale_;
+} nk_mxint8_t;
+
 /*
  *  Let's make sure the sizes of the types are as expected.
  *  In C the `_Static_assert` is only available with C11 and later.
@@ -1204,6 +1343,13 @@ NK_STATIC_ASSERT(sizeof(nk_f32_t) == 4, nk_f32_t_must_be_4_bytes);
 NK_STATIC_ASSERT(sizeof(nk_f64_t) == 8, nk_f64_t_must_be_8_bytes);
 NK_STATIC_ASSERT(sizeof(nk_f16_t) == 2, nk_f16_t_must_be_2_bytes);
 NK_STATIC_ASSERT(sizeof(nk_bf16_t) == 2, nk_bf16_t_must_be_2_bytes);
+NK_STATIC_ASSERT(sizeof(nk_nvfp4_t) == 9, nk_nvfp4_t_must_be_9_bytes);
+NK_STATIC_ASSERT(sizeof(nk_mxfp4_t) == 17, nk_mxfp4_t_must_be_17_bytes);
+NK_STATIC_ASSERT(sizeof(nk_mxfp6_e2m3_t) == 33, nk_mxfp6_e2m3_t_must_be_33_bytes);
+NK_STATIC_ASSERT(sizeof(nk_mxfp6_e3m2_t) == 33, nk_mxfp6_e3m2_t_must_be_33_bytes);
+NK_STATIC_ASSERT(sizeof(nk_mxfp8_e4m3_t) == 33, nk_mxfp8_e4m3_t_must_be_33_bytes);
+NK_STATIC_ASSERT(sizeof(nk_mxfp8_e5m2_t) == 33, nk_mxfp8_e5m2_t_must_be_33_bytes);
+NK_STATIC_ASSERT(sizeof(nk_mxint8_t) == 33, nk_mxint8_t_must_be_33_bytes);
 
 #define nk_assign_from_to_(src, dest) (*(dest) = *(src))
 
