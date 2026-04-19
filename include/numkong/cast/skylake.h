@@ -175,37 +175,27 @@ NK_INTERNAL __m256i nk_f32x16_to_bf16x16_skylake_(__m512 a) {
     return _mm512_cvtepi32_epi16(x);
 }
 
-/** @brief Convert 16x e4m3 → 16x f32 via bit manipulation (AVX-512).
- *  E4M3 format: S EEEE MMM (bias=7). F32: sign<<31, (exp+120)<<23, mantissa<<20.
- *  Subnormals (exp=0): value = mantissa × 2⁽¹⁻⁷⁾ × 2⁻³ = mantissa ÷ 512. */
+/** @brief Convert 16x e4m3 → 16x f32 via Giesen-style fake-F16 cast (AVX-512 + F16C).
+ *  E4M3 `byte = S EEEE MMM` (bias 7). Shifting the magnitude into F16 positions
+ *  `((byte & 0x7F) << 7) | ((byte & 0x80) << 8)` yields a fake F16 whose F16 value
+ *  differs from the true E4M3 magnitude by exactly 2⁸ (bias delta 15 − 7). The
+ *  fake F16 is widened via `vcvtph2ps` and corrected by ×256 in F32. Subnormal
+ *  handling falls out for free via F16 subnormal semantics. NaN (|byte|==0x7F) is
+ *  the sole E4M3 special value that would misinterpret as finite; blended
+ *  explicitly with F32 quiet NaN bits. */
 NK_INTERNAL __m512 nk_e4m3x16_to_f32x16_skylake_(__m128i e4m3_i8x16) {
-    __m512i e4m3_i32x16 = _mm512_cvtepu8_epi32(e4m3_i8x16);
-
-    // Extract fields
-    __m512i exp_i32x16 = _mm512_and_si512(_mm512_srli_epi32(e4m3_i32x16, 3), _mm512_set1_epi32(0x0F));
-    __m512i mantissa_i32x16 = _mm512_and_si512(e4m3_i32x16, _mm512_set1_epi32(0x07));
-    __m512i sign_i32x16 = _mm512_slli_epi32(_mm512_srli_epi32(e4m3_i32x16, 7), 31);
-
-    // Normal path: sign | ((exp+120)<<23) | (mantissa<<20)
-    __m512i f32_exp_i32x16 = _mm512_slli_epi32(_mm512_add_epi32(exp_i32x16, _mm512_set1_epi32(120)), 23);
-    __m512i f32_mantissa_i32x16 = _mm512_slli_epi32(mantissa_i32x16, 20);
-    __m512 result_f32x16 = _mm512_castsi512_ps(
-        _mm512_ternarylogic_epi32(sign_i32x16, f32_exp_i32x16, f32_mantissa_i32x16, 0xFE));
-
-    // Subnormal fix: vpermps from 8-entry LUT (repeated to fill 16 lanes)
-    __mmask16 is_subnormal = _mm512_testn_epi32_mask(e4m3_i32x16, _mm512_set1_epi32(0x78));
-    __m512 subnorm_lut_f32x16 = _mm512_setr_ps(                                                //
-        0, 1.0f / 512, 2.0f / 512, 3.0f / 512, 4.0f / 512, 5.0f / 512, 6.0f / 512, 7.0f / 512, //
-        0, 1.0f / 512, 2.0f / 512, 3.0f / 512, 4.0f / 512, 5.0f / 512, 6.0f / 512, 7.0f / 512);
-    __m512 subnorm_abs_f32x16 = _mm512_permutexvar_ps(mantissa_i32x16, subnorm_lut_f32x16);
-    result_f32x16 = _mm512_mask_or_ps(result_f32x16, is_subnormal, subnorm_abs_f32x16,
-                                      _mm512_castsi512_ps(sign_i32x16));
-
-    // NaN: E4M3FN has NaN only at magnitude 0x7F (single mask comparison)
-    __m512i lower7_i32x16 = _mm512_and_si512(e4m3_i32x16, _mm512_set1_epi32(0x7F));
-    __mmask16 is_nan = _mm512_cmpeq_epi32_mask(lower7_i32x16, _mm512_set1_epi32(0x7F));
-    __m512i nan_i32x16 = _mm512_or_si512(sign_i32x16, _mm512_set1_epi32(0x7FC00000));
-    return _mm512_mask_blend_ps(is_nan, result_f32x16, _mm512_castsi512_ps(nan_i32x16));
+    __m256i const magnitude_mask_u16x16 = _mm256_set1_epi16(0x7F);
+    __m256i const sign_mask_u16x16 = _mm256_set1_epi16((short)0x80);
+    __m256i const f16_nan_u16x16 = _mm256_set1_epi16(0x7E00);
+    __m256i word_u16x16 = _mm256_cvtepu8_epi16(e4m3_i8x16);
+    __m256i magnitude_u16x16 = _mm256_and_si256(word_u16x16, magnitude_mask_u16x16);
+    __mmask16 is_nan = _mm256_cmpeq_epi16_mask(magnitude_u16x16, magnitude_mask_u16x16);
+    __m256i shifted_magnitude_u16x16 = _mm256_slli_epi16(magnitude_u16x16, 7);
+    __m256i shifted_sign_u16x16 = _mm256_slli_epi16(_mm256_and_si256(word_u16x16, sign_mask_u16x16), 8);
+    __m256i f16_bits_u16x16 = _mm256_or_si256(shifted_magnitude_u16x16, shifted_sign_u16x16);
+    f16_bits_u16x16 = _mm256_mask_mov_epi16(f16_bits_u16x16, is_nan, f16_nan_u16x16);
+    __m512 fake_f32x16 = _mm512_cvtph_ps(f16_bits_u16x16);
+    return _mm512_mul_ps(fake_f32x16, _mm512_set1_ps(256.0f));
 }
 
 /** @brief Convert 16x e5m2 → 16x f32 via bit manipulation (AVX-512).
