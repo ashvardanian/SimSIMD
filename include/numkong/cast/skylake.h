@@ -198,27 +198,40 @@ NK_INTERNAL __m512 nk_e4m3x16_to_f32x16_skylake_(__m128i e4m3_i8x16) {
     return _mm512_mul_ps(fake_f32x16, _mm512_set1_ps(256.0f));
 }
 
-/** @brief Convert 16x e5m2 → 16x f32 via bit manipulation (AVX-512).
- *  E5M2 format: S EEEEE MM (bias=15). F32: sign<<31, (exp+112)<<23, mantissa<<21.
- *  Subnormals (exp=0): value = mantissa × 2⁽¹⁻¹⁵⁾ × 2⁻² = mantissa ÷ 65536. */
+/** @brief Convert 16x e4m3 → 16x f16 via arithmetic + 8-entry subnormal LUT (AVX-512BW + AVX-512VL).
+ *  E4M3: S EEEE MMM (bias=7). F16: S EEEEE MMMMMMMMMM (bias=15).
+ *  Normal (exp != 0): F16 = ((lower7 << 7) + 0x2000) | (sign << 8) — bias delta 8 added at the
+ *  exp-position (8 << 10 = 0x2000) after placing magnitude bits at F16 positions 13..7.
+ *  Subnormal (exp == 0): looked up from 8-entry F16 LUT — values 0, 1/512, 2/512, …, 7/512 encoded as
+ *  F16 normals (the smallest E4M3 subnormal 1/512 = 2⁻⁹ is well within F16 normal range).
+ *  NaN (|byte| == 0x7F): blended in as F16 quiet NaN with original sign. */
+NK_INTERNAL __m256i nk_e4m3x16_to_f16x16_skylake_(__m128i e4m3_u8x16) {
+    __m256i e4m3_i16x16 = _mm256_cvtepu8_epi16(e4m3_u8x16);
+    __m256i sign_i16x16 = _mm256_and_si256(e4m3_i16x16, _mm256_set1_epi16((short)0x80));
+    __m256i lower7_i16x16 = _mm256_and_si256(e4m3_i16x16, _mm256_set1_epi16(0x7F));
+    __m256i normal_abs_i16x16 = _mm256_add_epi16(_mm256_slli_epi16(lower7_i16x16, 7), _mm256_set1_epi16(0x2000));
+    __m256i subn_lut_i16x16 = _mm256_set_epi16( //
+        0x2300, 0x2200, 0x2100, 0x2000, 0x1E00, 0x1C00, 0x1800, 0x0000, 0x2300, 0x2200, 0x2100, 0x2000, 0x1E00, 0x1C00,
+        0x1800, 0x0000);
+    __m256i mant_idx_i16x16 = _mm256_and_si256(e4m3_i16x16, _mm256_set1_epi16(0x07));
+    __m256i subn_abs_i16x16 = _mm256_permutexvar_epi16(mant_idx_i16x16, subn_lut_i16x16);
+    __mmask16 is_subnormal = _mm256_testn_epi16_mask(e4m3_i16x16, _mm256_set1_epi16(0x78));
+    __m256i abs_i16x16 = _mm256_mask_blend_epi16(is_subnormal, normal_abs_i16x16, subn_abs_i16x16);
+    __m256i shifted_sign_i16x16 = _mm256_slli_epi16(sign_i16x16, 8);
+    __m256i result_i16x16 = _mm256_or_si256(abs_i16x16, shifted_sign_i16x16);
+    __mmask16 is_nan = _mm256_cmpeq_epi16_mask(lower7_i16x16, _mm256_set1_epi16(0x7F));
+    __m256i nan_i16x16 = _mm256_or_si256(shifted_sign_i16x16, _mm256_set1_epi16(0x7E00));
+    return _mm256_mask_blend_epi16(is_nan, result_i16x16, nan_i16x16);
+}
+
+/** @brief Convert 16x e5m2 → 16x f32 via free-shift widen (AVX-512 + F16C).
+ *  E5M2 shares F16's exponent bias (15): `(byte << 8)` is the matching F16 bit
+ *  pattern for every E5M2 value (normals, subnormals, zero, ±Inf, NaN — all
+ *  bit-exact). Widen u8 → u16, shift, then VCVTPH2PS to F32. Three ops total. */
 NK_INTERNAL __m512 nk_e5m2x16_to_f32x16_skylake_(__m128i e5m2_i8x16) {
-    __m512i e5m2_i32x16 = _mm512_cvtepu8_epi32(e5m2_i8x16);
-
-    // Extract fields
-    __m512i exp_i32x16 = _mm512_and_si512(_mm512_srli_epi32(e5m2_i32x16, 2), _mm512_set1_epi32(0x1F));
-    __m512i mantissa_i32x16 = _mm512_and_si512(e5m2_i32x16, _mm512_set1_epi32(0x03));
-    __m512i sign_i32x16 = _mm512_slli_epi32(_mm512_srli_epi32(e5m2_i32x16, 7), 31);
-
-    // Normal path: sign | ((exp+112)<<23) | (mantissa<<21)
-    __m512i f32_exp_i32x16 = _mm512_slli_epi32(_mm512_add_epi32(exp_i32x16, _mm512_set1_epi32(112)), 23);
-    __m512i f32_mantissa_i32x16 = _mm512_slli_epi32(mantissa_i32x16, 21);
-    __m512 result_f32x16 = _mm512_castsi512_ps(
-        _mm512_ternarylogic_epi32(sign_i32x16, f32_exp_i32x16, f32_mantissa_i32x16, 0xFE));
-
-    // Subnormal fix: for exp==0 lanes, replace with (mantissa / 65536) | sign using masked OR
-    __mmask16 is_subnormal = _mm512_testn_epi32_mask(e5m2_i32x16, _mm512_set1_epi32(0x7C));
-    __m512 subnorm_abs_f32x16 = _mm512_mul_ps(_mm512_cvtepi32_ps(mantissa_i32x16), _mm512_set1_ps(1.0f / 65536.0f));
-    return _mm512_mask_or_ps(result_f32x16, is_subnormal, subnorm_abs_f32x16, _mm512_castsi512_ps(sign_i32x16));
+    __m256i e5m2_u16x16 = _mm256_cvtepu8_epi16(e5m2_i8x16);
+    __m256i f16_bits_u16x16 = _mm256_slli_epi16(e5m2_u16x16, 8);
+    return _mm512_cvtph_ps(f16_bits_u16x16);
 }
 
 /** @brief Convert 16x e2m3 → 16x f32 via bit manipulation (AVX-512).
@@ -648,6 +661,18 @@ NK_INTERNAL void nk_partial_load_e4m3x16_to_f32x16_skylake_(void const *src, nk_
     nk_b128_vec_t e4m3_partial;
     nk_partial_load_b8x16_skylake_(src, &e4m3_partial, n);
     dst->zmm_ps = nk_e4m3x16_to_f32x16_skylake_(e4m3_partial.xmm);
+}
+
+/** @brief Load 16 e4m3 values and convert to 16 f16 (Skylake AVX-512BW). */
+NK_INTERNAL void nk_load_e4m3x16_to_f16x16_skylake_(void const *src, nk_b256_vec_t *dst) {
+    dst->ymm = nk_e4m3x16_to_f16x16_skylake_(_mm_loadu_si128((__m128i const *)src));
+}
+
+/** @brief Partial load of up to 16 e4m3 values with conversion to f16 (Skylake AVX-512BW). */
+NK_INTERNAL void nk_partial_load_e4m3x16_to_f16x16_skylake_(void const *src, nk_b256_vec_t *dst, nk_size_t n) {
+    nk_b128_vec_t e4m3_partial;
+    nk_partial_load_b8x16_skylake_(src, &e4m3_partial, n);
+    dst->ymm = nk_e4m3x16_to_f16x16_skylake_(e4m3_partial.xmm);
 }
 
 /** @brief Load 16 e5m2 values and convert to 16 f32 (Skylake AVX-512). */

@@ -194,31 +194,14 @@ NK_INTERNAL __m256 nk_e4m3x8_to_f32x8_haswell_(__m128i e4m3_i8x8) {
     return _mm256_mul_ps(fake_f32x8, _mm256_set1_ps(256.0f));
 }
 
-/** @brief Convert 8x e5m2 → 8x f32 via bit manipulation (AVX2).
- *  E5M2 format: S EEEEE MM (bias=15). F32: sign<<31, (exp+112)<<23, mant<<21.
- *  Subnormals (exp=0): value = mantissa × 2⁽¹⁻¹⁵⁾ × 2⁻² = mantissa ÷ 65536. */
+/** @brief Convert 8x e5m2 → 8x f32 via free-shift widen (AVX2 + F16C).
+ *  E5M2 shares F16's exponent bias (15): `(byte << 8)` is the matching F16 bit
+ *  pattern for every E5M2 value (normals, subnormals, zero, ±Inf, NaN — all
+ *  bit-exact). Widen u8 → u16, shift, then VCVTPH2PS to F32. Three ops total. */
 NK_INTERNAL __m256 nk_e5m2x8_to_f32x8_haswell_(__m128i e5m2_i8x8) {
-    __m256i e5m2_i32x8 = _mm256_cvtepu8_epi32(e5m2_i8x8);
-
-    // Extract fields
-    __m256i exp_i32x8 = _mm256_and_si256(_mm256_srli_epi32(e5m2_i32x8, 2), _mm256_set1_epi32(0x1F));
-    __m256i mant_i32x8 = _mm256_and_si256(e5m2_i32x8, _mm256_set1_epi32(0x03));
-
-    // Build F32 sign bit
-    __m256i f32_sign_i32x8 = _mm256_slli_epi32(_mm256_srli_epi32(e5m2_i32x8, 7), 31);
-
-    // Normal path: sign | ((exp+112)<<23) | (mant<<21)
-    __m256i f32_exp_i32x8 = _mm256_slli_epi32(_mm256_add_epi32(exp_i32x8, _mm256_set1_epi32(112)), 23);
-    __m256i f32_mant_i32x8 = _mm256_slli_epi32(mant_i32x8, 21);
-    __m256i normal_bits_i32x8 = _mm256_or_si256(f32_sign_i32x8, _mm256_or_si256(f32_exp_i32x8, f32_mant_i32x8));
-
-    // Subnormal path: value = mantissa / 65536.0f, then apply sign
-    __m256 subnorm_abs_f32x8 = _mm256_mul_ps(_mm256_cvtepi32_ps(mant_i32x8), _mm256_set1_ps(1.0f / 65536.0f));
-    __m256 subnorm_f32x8 = _mm256_or_ps(subnorm_abs_f32x8, _mm256_castsi256_ps(f32_sign_i32x8));
-
-    // Blend: if exp==0, use subnormal result; otherwise use normal bits
-    __m256i exp_zero_mask = _mm256_cmpeq_epi32(exp_i32x8, _mm256_setzero_si256());
-    return _mm256_blendv_ps(_mm256_castsi256_ps(normal_bits_i32x8), subnorm_f32x8, _mm256_castsi256_ps(exp_zero_mask));
+    __m128i e5m2_u16x8 = _mm_cvtepu8_epi16(e5m2_i8x8);
+    __m128i f16_bits_u16x8 = _mm_slli_epi16(e5m2_u16x8, 8);
+    return _mm256_cvtph_ps(f16_bits_u16x8);
 }
 
 /** @brief Convert 8x f32 → 8x e4m3 via bit manipulation (AVX2).
