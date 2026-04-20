@@ -139,6 +139,15 @@ extern "C" {
         result->imag = sum_imag;                                                                            \
     }
 
+/*  Keep the serial instantiations below actually scalar, regardless of build type.
+ *  See dots/serial.h for rationale. */
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((noinline)), apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC optimize("no-tree-vectorize", "no-tree-slp-vectorize", "no-ipa-cp-clone", "no-inline")
+#endif
+
 #pragma region F32 and F64 Floats
 
 nk_define_dot_(f32, f64, f64, nk_assign_from_to_)            // nk_dot_f32_serial
@@ -866,6 +875,12 @@ NK_INTERNAL nk_i32_t nk_sum_i4x32_finalize_serial(nk_sum_i4x32_state_serial_t co
 }
 
 #pragma endregion Stateful Element Sum Helpers
+
+#if defined(__clang__)
+#pragma clang attribute pop
+#elif defined(__GNUC__)
+#pragma GCC pop_options
+#endif
 
 #if defined(__cplusplus)
 } // extern "C"

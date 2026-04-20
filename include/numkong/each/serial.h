@@ -76,7 +76,18 @@ extern "C" {
         }                                                                                                             \
     }
 
-/* Optimize serial fallbacks for size — see dots/serial.h for rationale. */
+/*  Keep the serial instantiations below actually scalar, regardless of build type.
+ *  Without this, -O3 + LTO can vectorize or clone the serial kernels under AVX-512
+ *  callers in dispatch_*.c, which wastes binary and breaks the nk_*_serial-as-scalar-oracle
+ *  contract. See dots/serial.h. */
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((noinline)), apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC optimize("no-tree-vectorize", "no-tree-slp-vectorize", "no-ipa-cp-clone", "no-inline")
+#endif
+
+/* Size bias for release. Gated on NDEBUG so Debug builds keep -O0 for stepping. */
 #if defined(NDEBUG)
 #if defined(_MSC_VER)
 #pragma optimize("s", on)
@@ -273,6 +284,12 @@ NK_PUBLIC void nk_each_fma_f64c_serial(nk_f64c_t const *a, nk_f64c_t const *b, n
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
+#endif
+
+#if defined(__clang__)
+#pragma clang attribute pop
+#elif defined(__GNUC__)
+#pragma GCC pop_options
 #endif
 
 #if defined(__cplusplus)

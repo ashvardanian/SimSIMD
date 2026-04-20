@@ -287,6 +287,21 @@ class Tensor(memoryview):
         """NumPy array interface dict for legacy interoperability."""
         ...
 
+    def __dlpack__(
+        self,
+        *,
+        stream: Any | None = None,
+        max_version: tuple[int, int] | None = None,
+        dl_device: tuple[int, int] | None = None,
+        copy: bool | None = None,
+    ) -> Any:
+        """Return a DLPack capsule for zero-copy exchange with PyTorch, JAX, NumPy, etc."""
+        ...
+
+    def __dlpack_device__(self) -> tuple[int, int]:
+        """Return the DLPack device tuple. Always (1, 0) (kDLCPU)."""
+        ...
+
     @property
     def T(self) -> Tensor:
         """Transpose of the tensor."""
@@ -306,6 +321,10 @@ class Tensor(memoryview):
 
     def squeeze(self, axis: int | None = None) -> Tensor:
         """Remove dimensions of size 1."""
+        ...
+
+    def astype(self, dtype: _IntegralTypeName | _FloatTypeName | _ComplexTypeName | _MiniFloatType, /) -> Tensor:
+        """Return a copy cast to the given NumKong dtype."""
         ...
 
     @property
@@ -700,6 +719,14 @@ def from_pointer(
     strides: tuple[int, ...] | None = None,
     owner: Any = None,
 ) -> Tensor: ...
+def from_dlpack(obj: Any, /) -> Tensor:
+    """Zero-copy import a tensor from any DLPack-compatible producer.
+
+    Accepts a PyCapsule named 'dltensor' or 'dltensor_versioned', or any object
+    with a ``__dlpack__`` method (e.g. ``torch.Tensor``, ``numpy.ndarray``,
+    ``jax.Array``). Only CPU tensors are supported.
+    """
+    ...
 def empty(
     shape: int | tuple[int, ...],
     /,
@@ -725,6 +752,33 @@ def full(
     *,
     dtype: _IntegralTypeName | _FloatTypeName | _ComplexTypeName | _MiniFloatType = "float32",
 ) -> Tensor: ...
+def iota(
+    shape: int | tuple[int, ...],
+    seed: int | float = 0,
+    /,
+    *,
+    dtype: _IntegralTypeName | _FloatTypeName | _ComplexTypeName | _MiniFloatType = "float32",
+) -> Tensor:
+    """Tensor filled with ``seed, seed+1, seed+2, ...`` reshaped to ``shape``."""
+    ...
+def diagonal(
+    n: int,
+    seed: int | float = 1,
+    /,
+    *,
+    dtype: _IntegralTypeName | _FloatTypeName | _ComplexTypeName | _MiniFloatType = "float32",
+) -> Tensor:
+    """Square ``n x n`` tensor with ``seed`` on the main diagonal and zeros elsewhere."""
+    ...
+def hash(
+    shape: int | tuple[int, ...],
+    seed: int = 0,
+    /,
+    *,
+    dtype: _IntegralTypeName | _FloatTypeName | _ComplexTypeName | _MiniFloatType = "float32",
+) -> Tensor:
+    """Tensor filled with deterministic pseudo-random bits (shape, dtype, seed → reproducible bytes)."""
+    ...
 
 # endregion Tensor Constructors
 

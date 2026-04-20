@@ -72,6 +72,8 @@ Int8 data is quad-interleaved: [a₀, a₁, a₂, a₃, a₀, a₁, a₂, a₃, 
 Tile configuration via `LDTILECFG` sets row counts and column byte-widths per tile — allows undersized tiles at matrix edges without masking.
 Morton Z-curve ordering for tile traversal improves cache reuse when both A and B exceed L2.
 This eliminates the explicit M×N×K loop nesting and register file pressure of vector ISAs — the entire dot-product reduction happens inside the tile instruction.
+FP8 inputs on Sapphire AMX go through an on-the-fly E4M3/E5M2 → BF16 pack via the Ice Lake `VPERMI2W` LUT helpers — port-5-bound but the simplest correct route to feed `TDPBF16PS` tiles.
+Granite Rapids adds `TDPFP16PS` (same tile shape, FP16 operands); the E5M2 variant widens inputs with a single `VPUNPCK*BW` against zero into FP16 tiles at pack time and then reuses the native FP16 compute loop — keeps the intermediate at FP16 precision instead of truncating to BF16 like the Sapphire path.
 
 ### SME Outer-Product Streaming
 

@@ -99,6 +99,7 @@
 #include "mesh.h"
 #include "maxsim.h"
 #include "numpy_interop.h"
+#include "dlpack_interop.h"
 
 nk_capability_t static_capabilities = 0;
 
@@ -1094,6 +1095,7 @@ static PyMethodDef nk_methods[] = {
 
     // Tensor constructors
     {"from_pointer", (PyCFunction)api_from_pointer, METH_FASTCALL | METH_KEYWORDS, doc_from_pointer},
+    {"from_dlpack", (PyCFunction)api_from_dlpack, METH_O, doc_from_dlpack},
     {"empty", (PyCFunction)api_empty, METH_FASTCALL | METH_KEYWORDS, doc_empty},
     {"zeros", (PyCFunction)api_zeros, METH_FASTCALL | METH_KEYWORDS, doc_zeros},
     {"ones", (PyCFunction)api_ones, METH_FASTCALL | METH_KEYWORDS, doc_ones},
@@ -1193,6 +1195,11 @@ PyMODINIT_FUNC PyInit__numkong(void) {
 
     m = PyModule_Create(&nk_module);
     if (m == NULL) return NULL;
+
+    if (nk_dlpack_init(m) < 0) {
+        Py_DECREF(m);
+        return NULL;
+    }
 
 #ifdef Py_GIL_DISABLED
     PyUnstable_Module_SetGIL(m, Py_MOD_GIL_NOT_USED);

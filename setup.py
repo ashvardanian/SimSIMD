@@ -81,6 +81,8 @@ def march_baseline_args() -> list[str]:
     Keeps serial kernels serial — auto-vec would otherwise promote fallbacks to
     NEON/SSE2/VSX. SIMD kernels use explicit intrinsics; unaffected. MSVC has no
     command-line vectorizer toggle. `NK_MARCH_NATIVE=1` opts out (non-MSVC).
+
+    Keep per-arch table in sync with cmake/nk_compiler_flags.cmake, build.rs, binding.gyp.
     """
     msvc = sys.platform == "win32"
     if msvc:
@@ -450,6 +452,7 @@ base_sources = [
     "python/mesh.c",
     "python/maxsim.c",
     "python/numpy_interop.c",
+    "python/dlpack_interop.c",
     "c/numkong.c",
 ]
 
