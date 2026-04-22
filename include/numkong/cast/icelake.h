@@ -458,6 +458,17 @@ NK_PUBLIC void nk_cast_icelake(void const *from, nk_dtype_t from_type, nk_size_t
     else nk_cast_skylake(from, from_type, n, to, to_type);
 }
 
+/** @brief IceLake block-scaled cast. Currently forwards to the Skylake AVX-512 path; a BF16-hub
+ *  variant using VBMI2 32-wide LUT decodes is a follow-up optimisation. */
+NK_PUBLIC void nk_cast_block_scaled_icelake(                                                             //
+    void const *from, void const *from_scales, nk_scalar_buffer_t const *from_global,                    //
+    nk_block_scaled_format_t const *from_format,                                                         //
+    void *to, void *to_scales, nk_scalar_buffer_t *to_global, nk_block_scaled_format_t const *to_format, //
+    nk_size_t count) {
+    nk_cast_block_scaled_skylake(from, from_scales, from_global, from_format, to, to_scales, to_global, to_format,
+                                 count);
+}
+
 #pragma endregion Public API
 
 #if defined(__clang__)

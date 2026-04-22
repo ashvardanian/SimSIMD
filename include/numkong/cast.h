@@ -108,6 +108,115 @@ NK_PUBLIC void nk_e3m2_to_f32_serial(nk_e3m2_t const *src, nk_f32_t *dest);
 /** @copydoc nk_f32_to_e3m2 */
 NK_PUBLIC void nk_f32_to_e3m2_serial(nk_f32_t const *src, nk_e3m2_t *dest);
 
+/** @brief Unpack a byte of two E2M1 nibbles (high = even index) into two f32 values. */
+NK_PUBLIC void nk_e2m1x2_to_f32x2_serial(nk_e2m1x2_t const *src, nk_f32_t *dest);
+/** @brief Pack two f32 values into one byte of two E2M1 nibbles (src[0] = high nibble). */
+NK_PUBLIC void nk_f32x2_to_e2m1x2_serial(nk_f32_t const *src, nk_e2m1x2_t *dest);
+
+/** @brief Convert UE8M0 (OCP MX pow-2 scale byte) to f32. */
+NK_PUBLIC void nk_ue8m0_to_f32_serial(nk_ue8m0_t const *src, nk_f32_t *dest);
+/** @brief Convert f32 magnitude to UE8M0 (rounded UP to smallest pow-2 ≥ |x|). */
+NK_PUBLIC void nk_f32_to_ue8m0_serial(nk_f32_t const *src, nk_ue8m0_t *dest);
+/** @brief Convert UE4M3 (NVFP4 scale byte; E4M3 with sign forced to 0) to f32. */
+NK_PUBLIC void nk_ue4m3_to_f32_serial(nk_ue4m3_t const *src, nk_f32_t *dest);
+/** @brief Convert f32 magnitude to UE4M3 (takes absolute value). */
+NK_PUBLIC void nk_f32_to_ue4m3_serial(nk_f32_t const *src, nk_ue4m3_t *dest);
+
+/** @brief Decode one NVFP4 block (16 elements) to f32. `global` is the per-tensor multiplier. */
+NK_PUBLIC void nk_nvfp4_to_f32x16_serial(nk_nvfp4_t const *src, nk_f32_t global, nk_f32_t *dest);
+/** @brief Encode 16 f32 values into one NVFP4 block, deriving a UE4M3 scale via per-block amax. */
+NK_PUBLIC void nk_f32x16_to_nvfp4_serial(nk_f32_t const *src, nk_f32_t global, nk_nvfp4_t *dest);
+
+/** @brief Decode one MXFP4 block (32 elements) to f32. */
+NK_PUBLIC void nk_mxfp4_to_f32x32_serial(nk_mxfp4_t const *src, nk_f32_t *dest);
+/** @brief Encode 32 f32 values into one MXFP4 block, deriving a UE8M0 scale. */
+NK_PUBLIC void nk_f32x32_to_mxfp4_serial(nk_f32_t const *src, nk_mxfp4_t *dest);
+
+/** @brief Decode one MXFP6 E2M3 block (32 elements) to f32. */
+NK_PUBLIC void nk_mxfp6_e2m3_to_f32x32_serial(nk_mxfp6_e2m3_t const *src, nk_f32_t *dest);
+/** @brief Encode 32 f32 values into one MXFP6 E2M3 block. */
+NK_PUBLIC void nk_f32x32_to_mxfp6_e2m3_serial(nk_f32_t const *src, nk_mxfp6_e2m3_t *dest);
+
+/** @brief Decode one MXFP6 E3M2 block (32 elements) to f32. */
+NK_PUBLIC void nk_mxfp6_e3m2_to_f32x32_serial(nk_mxfp6_e3m2_t const *src, nk_f32_t *dest);
+/** @brief Encode 32 f32 values into one MXFP6 E3M2 block. */
+NK_PUBLIC void nk_f32x32_to_mxfp6_e3m2_serial(nk_f32_t const *src, nk_mxfp6_e3m2_t *dest);
+
+/** @brief Decode one MXFP8 E4M3 block (32 elements) to f32. */
+NK_PUBLIC void nk_mxfp8_e4m3_to_f32x32_serial(nk_mxfp8_e4m3_t const *src, nk_f32_t *dest);
+/** @brief Encode 32 f32 values into one MXFP8 E4M3 block. */
+NK_PUBLIC void nk_f32x32_to_mxfp8_e4m3_serial(nk_f32_t const *src, nk_mxfp8_e4m3_t *dest);
+
+/** @brief Decode one MXFP8 E5M2 block (32 elements) to f32. */
+NK_PUBLIC void nk_mxfp8_e5m2_to_f32x32_serial(nk_mxfp8_e5m2_t const *src, nk_f32_t *dest);
+/** @brief Encode 32 f32 values into one MXFP8 E5M2 block. */
+NK_PUBLIC void nk_f32x32_to_mxfp8_e5m2_serial(nk_f32_t const *src, nk_mxfp8_e5m2_t *dest);
+
+/** @brief Decode one MXINT8 block (32 elements) to f32. */
+NK_PUBLIC void nk_mxint8_to_f32x32_serial(nk_mxint8_t const *src, nk_f32_t *dest);
+/** @brief Encode 32 f32 values into one MXINT8 block. */
+NK_PUBLIC void nk_f32x32_to_mxint8_serial(nk_f32_t const *src, nk_mxint8_t *dest);
+
+/**
+ *  @brief Unified block-scaled cast: plain↔block-scaled and block-scaled↔block-scaled.
+ *
+ *  Direction is inferred from the format descriptors:
+ *      - both plain                      → delegates to `nk_cast`
+ *      - plain source, block-scaled dest → encode (compute per-block amax, derive scale, quantize)
+ *      - block-scaled source, plain dest → decode (read scale, dequantize to plain dtype)
+ *      - both block-scaled               → transcode (decode → encode)
+ *
+ *  @param from             Source element bytes.
+ *  @param from_scales      One scale byte per block (NULL when `from_format` is plain).
+ *  @param from_global      Per-tensor multiplier value (NULL when `from_format` has no global).
+ *  @param from_format      Source layout descriptor (`nk_plain(dtype)` for plain).
+ *  @param to               Destination element bytes.
+ *  @param to_scales        One scale byte per block (NULL when `to_format` is plain).
+ *  @param to_global        Per-tensor multiplier (NULL when `to_format` has no global).
+ *                          When non-NULL with a non-zero value, applies it. When non-NULL with
+ *                          a zero value on encode, kernel derives the global from the tensor.
+ *  @param to_format        Destination layout descriptor.
+ *  @param count            Logical element count. Must be a multiple of both block sizes.
+ */
+NK_DYNAMIC void nk_cast_block_scaled(                                                                    //
+    void const *from, void const *from_scales, nk_scalar_buffer_t const *from_global,                    //
+    nk_block_scaled_format_t const *from_format,                                                         //
+    void *to, void *to_scales, nk_scalar_buffer_t *to_global, nk_block_scaled_format_t const *to_format, //
+    nk_size_t count);
+
+/** @copydoc nk_cast_block_scaled */
+NK_PUBLIC void nk_cast_block_scaled_serial(                                                              //
+    void const *from, void const *from_scales, nk_scalar_buffer_t const *from_global,                    //
+    nk_block_scaled_format_t const *from_format,                                                         //
+    void *to, void *to_scales, nk_scalar_buffer_t *to_global, nk_block_scaled_format_t const *to_format, //
+    nk_size_t count);
+
+/** @brief Number of element storage bytes needed for @p count logical elements of @p format. */
+NK_PUBLIC nk_size_t nk_block_scaled_elements_size(nk_size_t count, nk_block_scaled_format_t format);
+/** @brief Number of scale storage bytes needed for @p count logical elements of @p format. */
+NK_PUBLIC nk_size_t nk_block_scaled_scales_size(nk_size_t count, nk_block_scaled_format_t format);
+
+/** @brief `{nk_e2m1_k, nk_ue4m3_k, nk_f32_k, 16}` — NVIDIA NVFP4 (Blackwell-native). */
+NK_PUBLIC nk_block_scaled_format_t nk_nvfp4(void);
+/** @brief `{nk_e2m1_k, nk_ue8m0_k, unknown, 32}` — OCP MXFP4. */
+NK_PUBLIC nk_block_scaled_format_t nk_mxfp4(void);
+/** @brief `{nk_e2m3_k, nk_ue8m0_k, unknown, 32}` — OCP MXFP6 (E2M3 variant). */
+NK_PUBLIC nk_block_scaled_format_t nk_mxfp6_e2m3(void);
+/** @brief `{nk_e3m2_k, nk_ue8m0_k, unknown, 32}` — OCP MXFP6 (E3M2 variant). */
+NK_PUBLIC nk_block_scaled_format_t nk_mxfp6_e3m2(void);
+/** @brief `{nk_e4m3_k, nk_ue8m0_k, unknown, 32}` — OCP MXFP8 (E4M3 variant). */
+NK_PUBLIC nk_block_scaled_format_t nk_mxfp8_e4m3(void);
+/** @brief `{nk_e5m2_k, nk_ue8m0_k, unknown, 32}` — OCP MXFP8 (E5M2 variant). */
+NK_PUBLIC nk_block_scaled_format_t nk_mxfp8_e5m2(void);
+/** @brief `{nk_i8_k, nk_ue8m0_k, unknown, 32}` — OCP MXINT8. */
+NK_PUBLIC nk_block_scaled_format_t nk_mxint8(void);
+/** @brief `{element_dtype, unknown, unknown, 0}` — plain scalar buffer of @p element_dtype. */
+NK_PUBLIC nk_block_scaled_format_t nk_plain(nk_dtype_t element_dtype);
+
+/** @brief Build a block-scaled format descriptor from a composite @p dtype enum value.
+ *  Returns `nk_plain(dtype)` when @p dtype is not a composite. */
+NK_PUBLIC nk_block_scaled_format_t nk_block_scaled_format_of_dtype(nk_dtype_t dtype);
+
 #if NK_TARGET_NEON
 /** @copydoc nk_cast */
 NK_PUBLIC void nk_cast_neon(void const *from, nk_dtype_t from_type, nk_size_t n, void *to, nk_dtype_t to_type);
@@ -115,6 +224,12 @@ NK_PUBLIC void nk_cast_neon(void const *from, nk_dtype_t from_type, nk_size_t n,
 NK_PUBLIC void nk_f16_to_f32_neon(nk_f16_t const *src, nk_f32_t *dest);
 /** @copydoc nk_f32_to_f16 */
 NK_PUBLIC void nk_f32_to_f16_neon(nk_f32_t const *src, nk_f16_t *dest);
+/** @copydoc nk_cast_block_scaled */
+NK_PUBLIC void nk_cast_block_scaled_neon(                                                                //
+    void const *from, void const *from_scales, nk_scalar_buffer_t const *from_global,                    //
+    nk_block_scaled_format_t const *from_format,                                                         //
+    void *to, void *to_scales, nk_scalar_buffer_t *to_global, nk_block_scaled_format_t const *to_format, //
+    nk_size_t count);
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_HASWELL
@@ -129,11 +244,23 @@ NK_PUBLIC void nk_f32_to_f16_haswell(nk_f32_t const *src, nk_f16_t *dest);
 #if NK_TARGET_SKYLAKE
 /** @copydoc nk_cast */
 NK_PUBLIC void nk_cast_skylake(void const *from, nk_dtype_t from_type, nk_size_t n, void *to, nk_dtype_t to_type);
+/** @copydoc nk_cast_block_scaled */
+NK_PUBLIC void nk_cast_block_scaled_skylake(                                                             //
+    void const *from, void const *from_scales, nk_scalar_buffer_t const *from_global,                    //
+    nk_block_scaled_format_t const *from_format,                                                         //
+    void *to, void *to_scales, nk_scalar_buffer_t *to_global, nk_block_scaled_format_t const *to_format, //
+    nk_size_t count);
 #endif // NK_TARGET_SKYLAKE
 
 #if NK_TARGET_ICELAKE
 /** @copydoc nk_cast */
 NK_PUBLIC void nk_cast_icelake(void const *from, nk_dtype_t from_type, nk_size_t n, void *to, nk_dtype_t to_type);
+/** @copydoc nk_cast_block_scaled */
+NK_PUBLIC void nk_cast_block_scaled_icelake(                                                             //
+    void const *from, void const *from_scales, nk_scalar_buffer_t const *from_global,                    //
+    nk_block_scaled_format_t const *from_format,                                                         //
+    void *to, void *to_scales, nk_scalar_buffer_t *to_global, nk_block_scaled_format_t const *to_format, //
+    nk_size_t count);
 #endif // NK_TARGET_ICELAKE
 
 #if NK_TARGET_SAPPHIRE
@@ -245,6 +372,25 @@ NK_PUBLIC void nk_e2m3_to_f32(nk_e2m3_t const *src, nk_f32_t *dest) { nk_e2m3_to
 NK_PUBLIC void nk_f32_to_e2m3(nk_f32_t const *src, nk_e2m3_t *dest) { nk_f32_to_e2m3_serial(src, dest); }
 NK_PUBLIC void nk_e3m2_to_f32(nk_e3m2_t const *src, nk_f32_t *dest) { nk_e3m2_to_f32_serial(src, dest); }
 NK_PUBLIC void nk_f32_to_e3m2(nk_f32_t const *src, nk_e3m2_t *dest) { nk_f32_to_e3m2_serial(src, dest); }
+
+NK_PUBLIC void nk_cast_block_scaled(                                                                     //
+    void const *from, void const *from_scales, nk_scalar_buffer_t const *from_global,                    //
+    nk_block_scaled_format_t const *from_format,                                                         //
+    void *to, void *to_scales, nk_scalar_buffer_t *to_global, nk_block_scaled_format_t const *to_format, //
+    nk_size_t count) {
+#if NK_TARGET_ICELAKE
+    nk_cast_block_scaled_icelake(from, from_scales, from_global, from_format, to, to_scales, to_global, to_format,
+                                 count);
+#elif NK_TARGET_SKYLAKE
+    nk_cast_block_scaled_skylake(from, from_scales, from_global, from_format, to, to_scales, to_global, to_format,
+                                 count);
+#elif NK_TARGET_NEON
+    nk_cast_block_scaled_neon(from, from_scales, from_global, from_format, to, to_scales, to_global, to_format, count);
+#else
+    nk_cast_block_scaled_serial(from, from_scales, from_global, from_format, to, to_scales, to_global, to_format,
+                                count);
+#endif
+}
 
 #endif // !NK_DYNAMIC_DISPATCH
 
