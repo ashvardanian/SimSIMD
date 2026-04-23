@@ -55,91 +55,99 @@ NK_INTERNAL __m128 nk_rsqrt_f32x4_haswell_(__m128 x) {
 NK_INTERNAL __m128 nk_sqrt_f32x4_haswell_(__m128 x) { return _mm_sqrt_ps(_mm_max_ps(x, _mm_setzero_ps())); }
 
 /** @brief Angular from_dot: computes 1 − dot × rsqrt(query_sumsq × target_sumsq) for 4 pairs. */
-NK_INTERNAL void nk_angular_through_f32_from_dot_haswell_(nk_b128_vec_t dots, nk_f32_t query_sumsq,
-                                                          nk_b128_vec_t target_sumsqs, nk_b128_vec_t *results) {
-    __m128 dots_f32x4 = dots.xmm_ps;
+NK_INTERNAL void nk_angular_through_f32_from_dot_haswell_(nk_b128_vec_t const *dots_vec, nk_f32_t query_sumsq,
+                                                          nk_b128_vec_t const *target_sumsqs_vec,
+                                                          nk_b128_vec_t *result_vec) {
+    __m128 dots_f32x4 = dots_vec->xmm_ps;
     __m128 query_sumsq_f32x4 = _mm_set1_ps(query_sumsq);
-    __m128 products_f32x4 = _mm_mul_ps(query_sumsq_f32x4, target_sumsqs.xmm_ps);
+    __m128 products_f32x4 = _mm_mul_ps(query_sumsq_f32x4, target_sumsqs_vec->xmm_ps);
     __m128 rsqrt_f32x4 = nk_rsqrt_f32x4_haswell_(products_f32x4);
     __m128 normalized_f32x4 = _mm_mul_ps(dots_f32x4, rsqrt_f32x4);
     __m128 angular_f32x4 = _mm_sub_ps(_mm_set1_ps(1.0f), normalized_f32x4);
-    results->xmm_ps = _mm_max_ps(angular_f32x4, _mm_setzero_ps());
+    result_vec->xmm_ps = _mm_max_ps(angular_f32x4, _mm_setzero_ps());
 }
 
 /** @brief Euclidean from_dot: computes √(query_sumsq + target_sumsq − 2 × dot) for 4 pairs. */
-NK_INTERNAL void nk_euclidean_through_f32_from_dot_haswell_(nk_b128_vec_t dots, nk_f32_t query_sumsq,
-                                                            nk_b128_vec_t target_sumsqs, nk_b128_vec_t *results) {
-    __m128 dots_f32x4 = dots.xmm_ps;
+NK_INTERNAL void nk_euclidean_through_f32_from_dot_haswell_(nk_b128_vec_t const *dots_vec, nk_f32_t query_sumsq,
+                                                            nk_b128_vec_t const *target_sumsqs_vec,
+                                                            nk_b128_vec_t *result_vec) {
+    __m128 dots_f32x4 = dots_vec->xmm_ps;
     __m128 query_sumsq_f32x4 = _mm_set1_ps(query_sumsq);
-    __m128 sum_sq_f32x4 = _mm_add_ps(query_sumsq_f32x4, target_sumsqs.xmm_ps);
+    __m128 sum_sq_f32x4 = _mm_add_ps(query_sumsq_f32x4, target_sumsqs_vec->xmm_ps);
     __m128 dist_sq_f32x4 = _mm_fnmadd_ps(_mm_set1_ps(2.0f), dots_f32x4, sum_sq_f32x4);
-    results->xmm_ps = nk_sqrt_f32x4_haswell_(dist_sq_f32x4);
+    result_vec->xmm_ps = nk_sqrt_f32x4_haswell_(dist_sq_f32x4);
 }
 
 /** @brief Angular from_dot for native f64: 1 − dot / √(query_sumsq × target_sumsq) for 4 pairs. */
-NK_INTERNAL void nk_angular_through_f64_from_dot_haswell_(nk_b256_vec_t dots, nk_f64_t query_sumsq,
-                                                          nk_b256_vec_t target_sumsqs, nk_b256_vec_t *results) {
-    __m256d dots_f64x4 = dots.ymm_pd;
+NK_INTERNAL void nk_angular_through_f64_from_dot_haswell_(nk_b256_vec_t const *dots_vec, nk_f64_t query_sumsq,
+                                                          nk_b256_vec_t const *target_sumsqs_vec,
+                                                          nk_b256_vec_t *result_vec) {
+    __m256d dots_f64x4 = dots_vec->ymm_pd;
     __m256d query_sumsq_f64x4 = _mm256_set1_pd(query_sumsq);
-    __m256d products_f64x4 = _mm256_mul_pd(query_sumsq_f64x4, target_sumsqs.ymm_pd);
+    __m256d products_f64x4 = _mm256_mul_pd(query_sumsq_f64x4, target_sumsqs_vec->ymm_pd);
     __m256d sqrt_products_f64x4 = _mm256_sqrt_pd(products_f64x4);
     __m256d normalized_f64x4 = _mm256_div_pd(dots_f64x4, sqrt_products_f64x4);
     __m256d angular_f64x4 = _mm256_sub_pd(_mm256_set1_pd(1.0), normalized_f64x4);
-    results->ymm_pd = _mm256_max_pd(angular_f64x4, _mm256_setzero_pd());
+    result_vec->ymm_pd = _mm256_max_pd(angular_f64x4, _mm256_setzero_pd());
 }
 
 /** @brief Euclidean from_dot for native f64: √(query_sumsq + target_sumsq − 2 × dot) for 4 pairs. */
-NK_INTERNAL void nk_euclidean_through_f64_from_dot_haswell_(nk_b256_vec_t dots, nk_f64_t query_sumsq,
-                                                            nk_b256_vec_t target_sumsqs, nk_b256_vec_t *results) {
-    __m256d dots_f64x4 = dots.ymm_pd;
+NK_INTERNAL void nk_euclidean_through_f64_from_dot_haswell_(nk_b256_vec_t const *dots_vec, nk_f64_t query_sumsq,
+                                                            nk_b256_vec_t const *target_sumsqs_vec,
+                                                            nk_b256_vec_t *result_vec) {
+    __m256d dots_f64x4 = dots_vec->ymm_pd;
     __m256d query_sumsq_f64x4 = _mm256_set1_pd(query_sumsq);
-    __m256d sum_sq_f64x4 = _mm256_add_pd(query_sumsq_f64x4, target_sumsqs.ymm_pd);
+    __m256d sum_sq_f64x4 = _mm256_add_pd(query_sumsq_f64x4, target_sumsqs_vec->ymm_pd);
     __m256d dist_sq_f64x4 = _mm256_fnmadd_pd(_mm256_set1_pd(2.0), dots_f64x4, sum_sq_f64x4);
-    results->ymm_pd = _mm256_sqrt_pd(_mm256_max_pd(dist_sq_f64x4, _mm256_setzero_pd()));
+    result_vec->ymm_pd = _mm256_sqrt_pd(_mm256_max_pd(dist_sq_f64x4, _mm256_setzero_pd()));
 }
 
 /** @brief Angular from_dot for i32 accumulators: cast to f32, rsqrt+NR, clamp. 4 pairs. */
-NK_INTERNAL void nk_angular_through_i32_from_dot_haswell_(nk_b128_vec_t dots, nk_i32_t query_sumsq,
-                                                          nk_b128_vec_t target_sumsqs, nk_b128_vec_t *results) {
-    __m128 dots_f32x4 = _mm_cvtepi32_ps(dots.xmm);
+NK_INTERNAL void nk_angular_through_i32_from_dot_haswell_(nk_b128_vec_t const *dots_vec, nk_i32_t query_sumsq,
+                                                          nk_b128_vec_t const *target_sumsqs_vec,
+                                                          nk_b128_vec_t *result_vec) {
+    __m128 dots_f32x4 = _mm_cvtepi32_ps(dots_vec->xmm);
     __m128 query_sumsq_f32x4 = _mm_set1_ps((nk_f32_t)query_sumsq);
-    __m128 products_f32x4 = _mm_mul_ps(query_sumsq_f32x4, _mm_cvtepi32_ps(target_sumsqs.xmm));
+    __m128 products_f32x4 = _mm_mul_ps(query_sumsq_f32x4, _mm_cvtepi32_ps(target_sumsqs_vec->xmm));
     __m128 rsqrt_f32x4 = nk_rsqrt_f32x4_haswell_(products_f32x4);
     __m128 normalized_f32x4 = _mm_mul_ps(dots_f32x4, rsqrt_f32x4);
     __m128 angular_f32x4 = _mm_sub_ps(_mm_set1_ps(1.0f), normalized_f32x4);
-    results->xmm_ps = _mm_max_ps(angular_f32x4, _mm_setzero_ps());
+    result_vec->xmm_ps = _mm_max_ps(angular_f32x4, _mm_setzero_ps());
 }
 
 /** @brief Euclidean from_dot for i32 accumulators: cast to f32, then √(a² + b² − 2ab). 4 pairs. */
-NK_INTERNAL void nk_euclidean_through_i32_from_dot_haswell_(nk_b128_vec_t dots, nk_i32_t query_sumsq,
-                                                            nk_b128_vec_t target_sumsqs, nk_b128_vec_t *results) {
-    __m128 dots_f32x4 = _mm_cvtepi32_ps(dots.xmm);
+NK_INTERNAL void nk_euclidean_through_i32_from_dot_haswell_(nk_b128_vec_t const *dots_vec, nk_i32_t query_sumsq,
+                                                            nk_b128_vec_t const *target_sumsqs_vec,
+                                                            nk_b128_vec_t *result_vec) {
+    __m128 dots_f32x4 = _mm_cvtepi32_ps(dots_vec->xmm);
     __m128 query_sumsq_f32x4 = _mm_set1_ps((nk_f32_t)query_sumsq);
-    __m128 sum_sq_f32x4 = _mm_add_ps(query_sumsq_f32x4, _mm_cvtepi32_ps(target_sumsqs.xmm));
+    __m128 sum_sq_f32x4 = _mm_add_ps(query_sumsq_f32x4, _mm_cvtepi32_ps(target_sumsqs_vec->xmm));
     __m128 dist_sq_f32x4 = _mm_fnmadd_ps(_mm_set1_ps(2.0f), dots_f32x4, sum_sq_f32x4);
-    results->xmm_ps = nk_sqrt_f32x4_haswell_(dist_sq_f32x4);
+    result_vec->xmm_ps = nk_sqrt_f32x4_haswell_(dist_sq_f32x4);
 }
 
 /** @brief Angular from_dot for u32 accumulators: cast to f32, rsqrt+NR, clamp. 4 pairs. */
-NK_INTERNAL void nk_angular_through_u32_from_dot_haswell_(nk_b128_vec_t dots, nk_u32_t query_sumsq,
-                                                          nk_b128_vec_t target_sumsqs, nk_b128_vec_t *results) {
-    __m128 dots_f32x4 = _mm_cvtepi32_ps(dots.xmm);
+NK_INTERNAL void nk_angular_through_u32_from_dot_haswell_(nk_b128_vec_t const *dots_vec, nk_u32_t query_sumsq,
+                                                          nk_b128_vec_t const *target_sumsqs_vec,
+                                                          nk_b128_vec_t *result_vec) {
+    __m128 dots_f32x4 = _mm_cvtepi32_ps(dots_vec->xmm);
     __m128 query_sumsq_f32x4 = _mm_set1_ps((nk_f32_t)query_sumsq);
-    __m128 products_f32x4 = _mm_mul_ps(query_sumsq_f32x4, _mm_cvtepi32_ps(target_sumsqs.xmm));
+    __m128 products_f32x4 = _mm_mul_ps(query_sumsq_f32x4, _mm_cvtepi32_ps(target_sumsqs_vec->xmm));
     __m128 rsqrt_f32x4 = nk_rsqrt_f32x4_haswell_(products_f32x4);
     __m128 normalized_f32x4 = _mm_mul_ps(dots_f32x4, rsqrt_f32x4);
     __m128 angular_f32x4 = _mm_sub_ps(_mm_set1_ps(1.0f), normalized_f32x4);
-    results->xmm_ps = _mm_max_ps(angular_f32x4, _mm_setzero_ps());
+    result_vec->xmm_ps = _mm_max_ps(angular_f32x4, _mm_setzero_ps());
 }
 
 /** @brief Euclidean from_dot for u32 accumulators: cast to f32, then √(a² + b² − 2ab). 4 pairs. */
-NK_INTERNAL void nk_euclidean_through_u32_from_dot_haswell_(nk_b128_vec_t dots, nk_u32_t query_sumsq,
-                                                            nk_b128_vec_t target_sumsqs, nk_b128_vec_t *results) {
-    __m128 dots_f32x4 = _mm_cvtepi32_ps(dots.xmm);
+NK_INTERNAL void nk_euclidean_through_u32_from_dot_haswell_(nk_b128_vec_t const *dots_vec, nk_u32_t query_sumsq,
+                                                            nk_b128_vec_t const *target_sumsqs_vec,
+                                                            nk_b128_vec_t *result_vec) {
+    __m128 dots_f32x4 = _mm_cvtepi32_ps(dots_vec->xmm);
     __m128 query_sumsq_f32x4 = _mm_set1_ps((nk_f32_t)query_sumsq);
-    __m128 sum_sq_f32x4 = _mm_add_ps(query_sumsq_f32x4, _mm_cvtepi32_ps(target_sumsqs.xmm));
+    __m128 sum_sq_f32x4 = _mm_add_ps(query_sumsq_f32x4, _mm_cvtepi32_ps(target_sumsqs_vec->xmm));
     __m128 dist_sq_f32x4 = _mm_fnmadd_ps(_mm_set1_ps(2.0f), dots_f32x4, sum_sq_f32x4);
-    results->xmm_ps = nk_sqrt_f32x4_haswell_(dist_sq_f32x4);
+    result_vec->xmm_ps = nk_sqrt_f32x4_haswell_(dist_sq_f32x4);
 }
 
 NK_INTERNAL nk_f64_t nk_angular_normalize_f64_haswell_(nk_f64_t ab, nk_f64_t a2, nk_f64_t b2) {
