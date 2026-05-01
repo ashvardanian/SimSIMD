@@ -329,6 +329,40 @@ void test_sub_byte_u1x8() {
     assert(v[7] == true && "u1x8_t dim 7 mismatch");
 }
 
+void test_block_scaled_composites() {
+    // NVFP4: 9 bytes per block × 7 blocks for 100 logical dims.
+    auto nvfp4_vec = make_vector<nk::nvfp4_t>(100);
+    assert(nvfp4_vec.size() == 100 && "nvfp4_t size mismatch");
+    assert(nvfp4_vec.size_values() == 7 && "nvfp4_t size_values mismatch (⌈100/16⌉)");
+    assert(nvfp4_vec.size_bytes() == 63 && "nvfp4_t size_bytes mismatch (7 × 9)");
+
+    // MXFP4: 17 bytes per block × 4 blocks for 100 logical dims.
+    auto mxfp4_vec = make_vector<nk::mxfp4_t>(100);
+    assert(mxfp4_vec.size() == 100 && "mxfp4_t size mismatch");
+    assert(mxfp4_vec.size_values() == 4 && "mxfp4_t size_values mismatch (⌈100/32⌉)");
+    assert(mxfp4_vec.size_bytes() == 68 && "mxfp4_t size_bytes mismatch (4 × 17)");
+
+    // MXFP8 E4M3: 33 bytes per block × 4 blocks for 100 logical dims.
+    auto mxfp8_vec = make_vector<nk::mxfp8_e4m3_t>(100);
+    assert(mxfp8_vec.size() == 100 && "mxfp8_e4m3_t size mismatch");
+    assert(mxfp8_vec.size_values() == 4 && "mxfp8_e4m3_t size_values mismatch");
+    assert(mxfp8_vec.size_bytes() == 132 && "mxfp8_e4m3_t size_bytes mismatch (4 × 33)");
+
+    // Round-trip: encode 16 random f32s into an NVFP4 block, decode back, check bounded error.
+    float const src[16] = {-5.3f, 2.1f,  0.5f, -0.1f, 3.7f,  -4.2f, 1.0f, 0.0f,
+                           6.0f,  -6.0f, 2.5f, 1.25f, -3.5f, 0.75f, 4.0f, -1.5f};
+    nk::nvfp4_t block = nk::nvfp4_t::encode_from(src, /*global=*/1.0f);
+    float decoded[16];
+    block.decode_to(decoded, /*global=*/1.0f);
+    float max_error = 0.0f;
+    for (unsigned i = 0; i < 16; ++i) {
+        float err = decoded[i] - src[i];
+        if (err < 0) err = -err;
+        if (err > max_error) max_error = err;
+    }
+    assert(max_error <= 1.67f && "nvfp4_t round-trip error exceeds quantisation bound");
+}
+
 void test_custom_allocator() {
     using custom_alloc_t = nk::aligned_allocator<nk::f32_t, 128>;
     auto v = nk::vector<nk::f32_t, custom_alloc_t>::try_zeros(256);
@@ -571,6 +605,9 @@ void test_vector_types() {
     test_sub_byte_i4x2();
     test_sub_byte_u1x8();
     std::printf("  sub-byte i4x2/u1x8:           OK\n");
+
+    test_block_scaled_composites();
+    std::printf("  block-scaled composites:      OK\n");
 
     test_custom_allocator();
     std::printf("  custom allocator:             OK\n");
