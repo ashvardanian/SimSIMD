@@ -3115,4 +3115,80 @@ mod tests {
     }
 
     // endregion
+
+    // region: tensor-shaped wrappers (ScaleOps / SumOps / TrigSinOps)
+
+    #[test]
+    fn tensor_add_tensor_via_sum_ops() {
+        use crate::tensor::{SliceRange, Tensor};
+        let data: Vec<f32> = (0..12).map(|i| i as f32).collect();
+        let left = Tensor::<f32>::try_from_slice(&data, &[3, 4]).unwrap();
+        let right = Tensor::<f32>::try_full(&[3, 4], 2.0).unwrap();
+
+        let left_even = left
+            .slice(&[SliceRange::full(), SliceRange::range_step(0, 4, 2)])
+            .unwrap();
+        let right_even = right
+            .slice(&[SliceRange::full(), SliceRange::range_step(0, 4, 2)])
+            .unwrap();
+
+        let added = left_even.try_add_tensor(&right_even).unwrap();
+        assert_eq!(added.shape(), &[3, 2]);
+        assert_eq!(added.as_slice(), &[2.0, 4.0, 6.0, 8.0, 10.0, 12.0]);
+    }
+
+    #[test]
+    fn tensor_add_tensor_into_owning_destination() {
+        use crate::tensor::Tensor;
+        let data: Vec<f32> = (0..12).map(|i| i as f32).collect();
+        let left = Tensor::<f32>::try_from_slice(&data, &[3, 4]).unwrap();
+        let right = Tensor::<f32>::try_full(&[3, 4], 2.0).unwrap();
+
+        let mut out = Tensor::<f32>::try_full(&[3, 4], 0.0).unwrap();
+        left.try_add_tensor_into(&right, &mut out).unwrap();
+        assert_eq!(out.as_slice()[0], 2.0);
+        assert_eq!(out.as_slice()[11], 13.0);
+    }
+
+    #[test]
+    fn tensor_mul_scalar_via_scale_ops() {
+        use crate::tensor::{SliceRange, Tensor};
+        let data: Vec<f32> = (0..12).map(|i| i as f32).collect();
+        let source = Tensor::<f32>::try_from_slice(&data, &[3, 4]).unwrap();
+        let even = source
+            .slice(&[SliceRange::full(), SliceRange::range_step(0, 4, 2)])
+            .unwrap();
+        let scaled = even.try_mul_scalar(0.5).unwrap();
+        assert_eq!(scaled.as_slice(), &[0.0, 1.0, 2.0, 3.0, 4.0, 5.0]);
+    }
+
+    #[test]
+    fn tensor_add_scalar_inplace_via_scale_ops() {
+        use crate::tensor::Tensor;
+        let data: Vec<f32> = (0..12).map(|i| i as f32).collect();
+        let mut tensor = Tensor::<f32>::try_from_slice(&data, &[3, 4]).unwrap();
+        tensor.try_add_scalar_inplace(1.0).unwrap();
+        assert_eq!(tensor.as_slice()[0], 1.0);
+        assert_eq!(tensor.as_slice()[11], 12.0);
+    }
+
+    #[test]
+    fn tensor_sin_into_via_trig_sin_ops() {
+        use crate::tensor::{SliceRange, Tensor};
+        let data: Vec<f32> = (0..12).map(|i| i as f32).collect();
+        let source = Tensor::<f32>::try_from_slice(&data, &[3, 4]).unwrap();
+        let even = source
+            .slice(&[SliceRange::full(), SliceRange::range_step(0, 4, 2)])
+            .unwrap();
+        let mut sin_out = Tensor::<f32>::try_full(&[3, 2], 0.0).unwrap();
+        {
+            let mut span = sin_out.span();
+            even.try_sin_into(&mut span).unwrap();
+        }
+        assert_eq!(sin_out.shape(), &[3, 2]);
+        // First element is sin(0) which is exactly 0.
+        assert!((sin_out.as_slice()[0] - 0.0).abs() < 1e-6);
+    }
+
+    // endregion
 }

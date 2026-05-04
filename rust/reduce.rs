@@ -1618,4 +1618,60 @@ mod tests {
     }
 
     // endregion: BitwiseReductions across containers
+
+    // region: tensor-shaped MomentsOps / MinMaxOps wrappers
+
+    #[test]
+    fn reductions_axis_and_strided_views() {
+        use crate::tensor::{MinMaxResult, SliceRange, Tensor};
+        let data: Vec<f32> = (0..12).map(|i| i as f32).collect();
+        let a = Tensor::<f32>::try_from_slice(&data, &[3, 4]).unwrap();
+        let a_even = a
+            .slice(&[SliceRange::full(), SliceRange::range_step(0, 4, 2)])
+            .unwrap();
+
+        let sum_all = a_even.try_sum_all().unwrap();
+        assert!((sum_all - 30.0).abs() < 1e-6);
+
+        let norm_all = a_even.try_norm_all().unwrap();
+        assert!((norm_all - 14.832396974191326).abs() < 1e-9);
+
+        let (sum_axis0, sumsq_axis0) = a_even.try_moments_axis(0, false).unwrap();
+        assert_eq!(sum_axis0.shape(), &[2]);
+        assert!((sum_axis0.as_slice()[0] - 12.0).abs() < 1e-6);
+        assert!((sum_axis0.as_slice()[1] - 18.0).abs() < 1e-6);
+        assert!((sumsq_axis0.as_slice()[0] - 80.0).abs() < 1e-6);
+        assert!((sumsq_axis0.as_slice()[1] - 140.0).abs() < 1e-6);
+
+        let sum_axis1_keep = a_even.try_sum_axis(-1_i32, true).unwrap();
+        assert_eq!(sum_axis1_keep.shape(), &[3, 1]);
+        assert!((sum_axis1_keep.as_slice()[0] - 2.0).abs() < 1e-6);
+        assert!((sum_axis1_keep.as_slice()[1] - 10.0).abs() < 1e-6);
+        assert!((sum_axis1_keep.as_slice()[2] - 18.0).abs() < 1e-6);
+
+        let MinMaxResult {
+            min_value: min_axis0,
+            min_index: argmin_axis0,
+            max_value: max_axis0,
+            max_index: argmax_axis0,
+        } = a_even.try_minmax_axis(0, false).unwrap();
+        assert_eq!(min_axis0.as_slice(), &[0.0, 2.0]);
+        assert_eq!(max_axis0.as_slice(), &[8.0, 10.0]);
+        assert_eq!(argmin_axis0.as_slice(), &[0, 0]);
+        assert_eq!(argmax_axis0.as_slice(), &[2, 2]);
+
+        let reversed = a
+            .slice(&[SliceRange::full(), SliceRange::range_step(3, 0, -1)])
+            .unwrap();
+        let reversed_sum = reversed.try_sum_axis(-1_i32, false).unwrap();
+        assert_eq!(reversed_sum.shape(), &[3]);
+        assert_eq!(reversed_sum.as_slice(), &[6.0, 18.0, 30.0]);
+
+        let reversed_argmin = reversed.try_argmin_axis(-1_i32, false).unwrap();
+        let reversed_argmax = reversed.try_argmax_axis(-1_i32, false).unwrap();
+        assert_eq!(reversed_argmin.as_slice(), &[2, 2, 2]);
+        assert_eq!(reversed_argmax.as_slice(), &[0, 0, 0]);
+    }
+
+    // endregion: tensor-shaped MomentsOps / MinMaxOps wrappers
 }

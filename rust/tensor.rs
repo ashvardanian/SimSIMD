@@ -6513,32 +6513,37 @@ impl<const MAX_RANK: usize> Tensor<f64, Global, MAX_RANK> {
 mod tests {
     use super::*;
     use crate::cast::CastOps;
-    use crate::each::{AllCloseOps, BlendOps, FmaOps, ScaleOps, SumOps, TrigAtanOps, TrigCosOps, TrigSinOps};
-    use crate::reduce::{MinMaxOps, MomentsOps};
+    use crate::each::{AllCloseOps, ScaleOps, SumOps, TrigSinOps};
+    use crate::reduce::MomentsOps;
     use crate::types::{bf16c, f16, f16c, f32c};
 
     #[test]
-    fn tensor_construction() {
-        // Creation
+    fn tensor_creation_from_factories() {
         let arr = Tensor::<f32>::try_full(&[3, 4], 1.0f32).unwrap();
         assert_eq!(arr.shape(), &[3, 4]);
         assert_eq!(arr.ndim(), 2);
         assert_eq!(arr.numel(), 12);
         assert!(!arr.is_empty());
+    }
 
-        // From slice
+    #[test]
+    fn tensor_from_slice() {
         let data: Vec<f32> = (0..12).map(|i| i as f32).collect();
         let arr = Tensor::<f32>::try_from_slice(&data, &[3, 4]).unwrap();
         assert_eq!(arr.shape(), &[3, 4]);
         assert_eq!(arr.as_slice(), &data[..]);
+    }
 
-        // Clone
+    #[test]
+    fn tensor_clone() {
         let arr = Tensor::<f32>::try_full(&[3, 4], 2.5f32).unwrap();
         let cloned = arr.clone();
         assert_eq!(cloned.shape(), arr.shape());
         assert_eq!(cloned.as_slice(), arr.as_slice());
+    }
 
-        // Error display
+    #[test]
+    fn tensor_error_display() {
         let err = TensorError::AllocationFailed;
         assert_eq!(format!("{}", err), "memory allocation failed");
         let err = TensorError::TooManyRanks { got: 10 };
@@ -6546,16 +6551,17 @@ mod tests {
     }
 
     #[test]
-    fn tensor_views() {
-        // Row access
+    fn tensor_row_access() {
         let data: Vec<f32> = (0..12).map(|i| i as f32).collect();
         let arr = Tensor::<f32>::try_from_slice(&data, &[3, 4]).unwrap();
         assert_eq!(arr.row(0), Some(&[0.0, 1.0, 2.0, 3.0][..]));
         assert_eq!(arr.row(1), Some(&[4.0, 5.0, 6.0, 7.0][..]));
         assert_eq!(arr.row(2), Some(&[8.0, 9.0, 10.0, 11.0][..]));
         assert_eq!(arr.row(3), None);
+    }
 
-        // Slicing
+    #[test]
+    fn tensor_slicing() {
         let arr = Tensor::<f32>::try_full(&[4, 5], 1.0f32).unwrap();
         let view = arr
             .slice(&[SliceRange::full(), SliceRange::full()])
@@ -6570,19 +6576,25 @@ mod tests {
             .unwrap();
         assert_eq!(view.shape(), &[5]);
         assert_eq!(view.ndim(), 1);
+    }
 
-        // Transpose
+    #[test]
+    fn tensor_transpose_2d() {
         let arr = Tensor::<f32>::try_full(&[3, 4], 1.0f32).unwrap();
         let transposed = arr.transpose().unwrap();
         assert_eq!(transposed.shape(), &[4, 3]);
+    }
 
-        // Contiguous check
+    #[test]
+    fn tensor_is_contiguous() {
         let arr = Tensor::<f32>::try_full(&[3, 4], 1.0f32).unwrap();
         let view = arr.view();
         assert!(view.is_contiguous());
         assert!(arr.has_contiguous_rows());
+    }
 
-        // Matrix alias
+    #[test]
+    fn matrix_alias_round_trip() {
         let mat: Matrix<f32> = Matrix::try_full(&[3, 4], 1.0f32).unwrap();
         assert_eq!(mat.shape(), &[3, 4]);
     }
@@ -6657,105 +6669,6 @@ mod tests {
         let arr = Tensor::<f64>::try_full(&[100], 1.0f64).unwrap();
         let sum = arr.sum();
         assert!((sum - 100.0).abs() < 1e-9);
-    }
-
-    #[test]
-    fn elementwise_and_cast() {
-        let data: Vec<f32> = (0..12).map(|i| i as f32).collect();
-        let left = Tensor::<f32>::try_from_slice(&data, &[3, 4]).unwrap();
-        let right = Tensor::<f32>::try_full(&[3, 4], 2.0).unwrap();
-
-        let left_even = left
-            .slice(&[SliceRange::full(), SliceRange::range_step(0, 4, 2)])
-            .unwrap();
-        let right_even = right
-            .slice(&[SliceRange::full(), SliceRange::range_step(0, 4, 2)])
-            .unwrap();
-
-        let added = left_even.try_add_tensor(&right_even).unwrap();
-        assert_eq!(added.shape(), &[3, 2]);
-        assert_eq!(added.as_slice(), &[2.0, 4.0, 6.0, 8.0, 10.0, 12.0]);
-
-        let scaled = left_even.try_mul_scalar(0.5).unwrap();
-        assert_eq!(scaled.as_slice(), &[0.0, 1.0, 2.0, 3.0, 4.0, 5.0]);
-
-        let casted = left_even.try_cast_dtype::<f64>().unwrap();
-        assert_eq!(casted.shape(), &[3, 2]);
-        assert_eq!(casted.as_slice(), &[0.0, 2.0, 4.0, 6.0, 8.0, 10.0]);
-
-        let complex = left_even.try_cast_dtype::<f32c>().unwrap();
-        assert_eq!(complex.shape(), &[3, 2]);
-        assert_eq!(complex.as_slice()[0], f32c::from_real_imag(0.0, 0.0));
-        assert_eq!(complex.as_slice()[5], f32c::from_real_imag(10.0, 0.0));
-
-        let mut out = Tensor::<f32>::try_full(&[3, 4], 0.0).unwrap();
-        left.try_add_tensor_into(&right, &mut out).unwrap();
-        assert_eq!(out.as_slice()[0], 2.0);
-        assert_eq!(out.as_slice()[11], 13.0);
-
-        let mut inplace = Tensor::<f32>::try_from_slice(&data, &[3, 4]).unwrap();
-        inplace.try_add_scalar_inplace(1.0).unwrap();
-        assert_eq!(inplace.as_slice()[0], 1.0);
-        assert_eq!(inplace.as_slice()[11], 12.0);
-
-        let mut trig_out = Tensor::<f32>::try_full(&[3, 2], 0.0).unwrap();
-        {
-            let mut span = trig_out.span();
-            left_even.try_sin_into(&mut span).unwrap();
-        }
-        assert_eq!(trig_out.shape(), &[3, 2]);
-        assert!((trig_out.as_slice()[0] - 0.0).abs() < 1e-6);
-    }
-
-    #[test]
-    fn reductions_axis_and_strided_views() {
-        let data: Vec<f32> = (0..12).map(|i| i as f32).collect();
-        let a = Tensor::<f32>::try_from_slice(&data, &[3, 4]).unwrap();
-        let a_even = a
-            .slice(&[SliceRange::full(), SliceRange::range_step(0, 4, 2)])
-            .unwrap();
-
-        let sum_all = a_even.try_sum_all().unwrap();
-        assert!((sum_all - 30.0).abs() < 1e-6);
-
-        let norm_all = a_even.try_norm_all().unwrap();
-        assert!((norm_all - 14.832396974191326).abs() < 1e-9);
-
-        let (sum_axis0, sumsq_axis0) = a_even.try_moments_axis(0, false).unwrap();
-        assert_eq!(sum_axis0.shape(), &[2]);
-        assert!((sum_axis0.as_slice()[0] - 12.0).abs() < 1e-6);
-        assert!((sum_axis0.as_slice()[1] - 18.0).abs() < 1e-6);
-        assert!((sumsq_axis0.as_slice()[0] - 80.0).abs() < 1e-6);
-        assert!((sumsq_axis0.as_slice()[1] - 140.0).abs() < 1e-6);
-
-        let sum_axis1_keep = a_even.try_sum_axis(-1_i32, true).unwrap();
-        assert_eq!(sum_axis1_keep.shape(), &[3, 1]);
-        assert!((sum_axis1_keep.as_slice()[0] - 2.0).abs() < 1e-6);
-        assert!((sum_axis1_keep.as_slice()[1] - 10.0).abs() < 1e-6);
-        assert!((sum_axis1_keep.as_slice()[2] - 18.0).abs() < 1e-6);
-
-        let MinMaxResult {
-            min_value: min_axis0,
-            min_index: argmin_axis0,
-            max_value: max_axis0,
-            max_index: argmax_axis0,
-        } = a_even.try_minmax_axis(0, false).unwrap();
-        assert_eq!(min_axis0.as_slice(), &[0.0, 2.0]);
-        assert_eq!(max_axis0.as_slice(), &[8.0, 10.0]);
-        assert_eq!(argmin_axis0.as_slice(), &[0, 0]);
-        assert_eq!(argmax_axis0.as_slice(), &[2, 2]);
-
-        let reversed = a
-            .slice(&[SliceRange::full(), SliceRange::range_step(3, 0, -1)])
-            .unwrap();
-        let reversed_sum = reversed.try_sum_axis(-1_i32, false).unwrap();
-        assert_eq!(reversed_sum.shape(), &[3]);
-        assert_eq!(reversed_sum.as_slice(), &[6.0, 18.0, 30.0]);
-
-        let reversed_argmin = reversed.try_argmin_axis(-1_i32, false).unwrap();
-        let reversed_argmax = reversed.try_argmax_axis(-1_i32, false).unwrap();
-        assert_eq!(reversed_argmin.as_slice(), &[2, 2, 2]);
-        assert_eq!(reversed_argmax.as_slice(), &[0, 0, 0]);
     }
 
     #[test]

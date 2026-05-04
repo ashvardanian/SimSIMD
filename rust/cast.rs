@@ -341,4 +341,25 @@ mod tests {
         assert_eq!(narrowed[1].re.to_f32(), bf16::from_f32(-3.5).to_f32());
         assert_eq!(narrowed[1].im.to_f32(), bf16::from_f32(4.25).to_f32());
     }
+
+    #[test]
+    fn cast_via_tensor_view_round_trip() {
+        // Exercises `CastOps::try_cast_dtype` on a strided `TensorView`,
+        // mirroring how callers reach the trait through the tensor-shaped wrapper.
+        use crate::tensor::{SliceRange, Tensor};
+        let data: Vec<f32> = (0..12).map(|i| i as f32).collect();
+        let source = Tensor::<f32>::try_from_slice(&data, &[3, 4]).unwrap();
+        let even_columns = source
+            .slice(&[SliceRange::full(), SliceRange::range_step(0, 4, 2)])
+            .unwrap();
+
+        let widened = even_columns.try_cast_dtype::<f64>().unwrap();
+        assert_eq!(widened.shape(), &[3, 2]);
+        assert_eq!(widened.as_slice(), &[0.0, 2.0, 4.0, 6.0, 8.0, 10.0]);
+
+        let complexified = even_columns.try_cast_dtype::<f32c>().unwrap();
+        assert_eq!(complexified.shape(), &[3, 2]);
+        assert_eq!(complexified.as_slice()[0], f32c::from_real_imag(0.0, 0.0));
+        assert_eq!(complexified.as_slice()[5], f32c::from_real_imag(10.0, 0.0));
+    }
 }
