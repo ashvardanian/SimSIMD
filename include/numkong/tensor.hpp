@@ -31,7 +31,7 @@
 #include <array>   // `std::array`
 #include <cstdio>  // `std::fprintf`, `stderr`
 #include <cstdlib> // `std::abort`
-#include <cstring> // `std::memset`
+#include <cstring> // `std::memcpy`, `std::memcmp`, `std::memset`
 #include <span>    // `std::span`
 #include <tuple>   // `std::tuple_element_t`
 #include <type_traits>
@@ -459,6 +459,9 @@ struct tensor_view {
  */
 template <typename value_type_, std::size_t max_rank_ = 8>
 struct tensor_span {
+    static_assert(!std::is_const_v<value_type_>,
+                  "tensor_span requires a non-const value_type_; use tensor_view<value_type_> for read-only access");
+
     using value_type = value_type_;
     using size_type = std::size_t;
     using difference_type = std::ptrdiff_t;
@@ -734,6 +737,13 @@ struct tensor_span {
 
     /** @brief Flatten to 1D span (requires contiguous layout). Returns empty span if not contiguous. */
     tensor_span flatten() noexcept { return reshape({numel()}); }
+
+    /** @brief Zero-fill every element (declared here, defined after the free `fill_zeros`). */
+    bool fill_zeros() noexcept;
+    /** @brief Fill every element with `value` (declared here, defined after the free `fill`). */
+    bool fill(value_type value) noexcept;
+    /** @brief Copy from a same-shape view (declared here, defined after the free `copy`). */
+    bool copy_from(tensor_view<value_type_, max_rank_> input) noexcept;
 
     /** @brief Remove dimensions of size 1. */
     tensor_span squeeze() noexcept {
@@ -1685,6 +1695,15 @@ struct tensor {
 
     /** @brief Squeeze (mutable span). Removes size-1 dimensions. */
     span_type squeeze() noexcept { return span().squeeze(); }
+
+    /** @brief Zero-fill every element. */
+    bool fill_zeros() noexcept { return span().fill_zeros(); }
+
+    /** @brief Fill every element with `value`. */
+    bool fill(value_type value) noexcept { return span().fill(value); }
+
+    /** @brief Copy from a same-shape view. */
+    bool copy_from(view_type input) noexcept { return span().copy_from(input); }
 };
 
 /** @brief Non-member swap. */
@@ -2058,7 +2077,144 @@ bool elementwise_into_(tensor_view<value_type_, max_rank_> a, tensor_view<value_
     return true;
 }
 
+/** @brief Output-only traversal: walks a span, collapses contiguous tail dims, and invokes
+ *  `leaf(byte_data, byte_count)` on each maximal contiguous byte run. Strided rank-1 leaves
+ *  invoke `leaf` once per element. Sub-byte dtypes require a fully contiguous span. */
+template <typename value_type_, std::size_t max_rank_, typename leaf_function_>
+bool span_for_each_contiguous_run_(tensor_span<value_type_, max_rank_> output, leaf_function_ &&leaf) noexcept {
+    if (!tensor_layout_supported_(output)) return false;
+    if (output.empty()) return true;
+    if (output.rank() >= 2) {
+        auto tail_dims = shared_contiguous_tail_dims_<value_type_, max_rank_>(output.rank(), output.shape().extents,
+                                                                              {output.shape().strides});
+        if (tail_dims >= 2)
+            return span_for_each_contiguous_run_<value_type_, max_rank_>(collapse_contiguous_tail_(output, tail_dims),
+                                                                         std::forward<leaf_function_>(leaf));
+        for (std::size_t row_index = 0; row_index < output.extent(0); ++row_index) {
+            auto signed_index = static_cast<std::ptrdiff_t>(row_index);
+            if (!span_for_each_contiguous_run_<value_type_, max_rank_>(output.slice_leading(signed_index), leaf))
+                return false;
+        }
+        return true;
+    }
+    if (output.byte_data() == nullptr) return false;
+    auto element_count = output.extent(0);
+    if (element_count == 0) return true;
+    if constexpr (dimensions_per_value<value_type_>() > 1) {
+        if (!output.is_contiguous()) return false;
+        auto byte_count = dims_to_values_<value_type_>(element_count) * sizeof(value_type_);
+        leaf(output.byte_data(), byte_count);
+        return true;
+    }
+    else {
+        auto element_stride_bytes = output.stride_bytes(0);
+        if (element_stride_bytes == static_cast<std::ptrdiff_t>(sizeof(value_type_))) {
+            leaf(output.byte_data(), element_count * sizeof(value_type_));
+            return true;
+        }
+        auto *base_byte_data = output.byte_data();
+        for (std::size_t element_index = 0; element_index < element_count; ++element_index)
+            leaf(base_byte_data + static_cast<std::ptrdiff_t>(element_index) * element_stride_bytes,
+                 sizeof(value_type_));
+        return true;
+    }
+}
+
 #pragma endregion Helpers
+
+#pragma region Tensor Fill and Copy
+
+/** @brief Zero-fill every element of `output` via memset on each maximal contiguous run.
+ *  Works for every dtype since `is_memset_zero_safe_v` is true across all numeric_dtypes.
+ *  Returns false on unsupported layout. */
+template <typename value_type_, std::size_t max_rank_>
+bool fill_zeros(tensor_span<value_type_, max_rank_> output) noexcept {
+    static_assert(is_memset_zero_safe_v<value_type_>,
+                  "fill_zeros requires a dtype whose binary-zero is the value-zero");
+    return span_for_each_contiguous_run_<value_type_, max_rank_>(
+        output, [](char *byte_data, std::size_t byte_count) noexcept {
+            std::memset(static_cast<void *>(byte_data), 0, byte_count);
+        });
+}
+
+/** @brief Fill every element of `output` with `value`. Two-step strategy: first memsets the
+ *  buffer to binary zero (avoiding NaN/inf propagation from uninitialised memory), then
+ *  overlays the value via memset (1-byte storage) or a typed scalar broadcast loop
+ *  (multi-byte storage). Returns false on unsupported layout. */
+template <typename value_type_, std::size_t max_rank_>
+bool fill(tensor_span<value_type_, max_rank_> output, value_type_ value) noexcept {
+    if (!fill_zeros<value_type_, max_rank_>(output)) return false;
+    // Skip the overlay when `value` is bitwise-equal to a default-constructed `value_type_`,
+    // since the memset above has already produced exactly that pattern.
+    value_type_ const default_value {};
+    if (std::memcmp(&value, &default_value, sizeof(value_type_)) == 0) return true;
+    if constexpr (sizeof(value_type_) == 1) {
+        unsigned char byte_pattern;
+        std::memcpy(&byte_pattern, &value, 1);
+        return span_for_each_contiguous_run_<value_type_, max_rank_>(
+            output, [byte_pattern](char *byte_data, std::size_t byte_count) noexcept {
+                std::memset(static_cast<void *>(byte_data), byte_pattern, byte_count);
+            });
+    }
+    else {
+        return span_for_each_contiguous_run_<value_type_, max_rank_>(
+            output, [&value](char *byte_data, std::size_t byte_count) noexcept {
+                auto *typed_data = reinterpret_cast<value_type_ *>(byte_data);
+                auto element_count = byte_count / sizeof(value_type_);
+                for (std::size_t element_index = 0; element_index < element_count; ++element_index)
+                    typed_data[element_index] = value;
+            });
+    }
+}
+
+/** @brief Copy `input` element-by-element into `output`. Recursive traversal collapses
+ *  contiguous tail dims into one memcpy per leaf; strided outer dims still recurse.
+ *  Returns false on shape mismatch or unsupported layout. */
+template <typename value_type_, std::size_t max_rank_>
+bool copy(tensor_view<value_type_, max_rank_> input, tensor_span<value_type_, max_rank_> output) noexcept {
+    return elementwise_into_<value_type_, max_rank_>(
+        input, output,
+        [](tensor_view<value_type_, max_rank_> input_leaf, tensor_span<value_type_, max_rank_> output_leaf) {
+            auto byte_count = dims_to_values_<value_type_>(input_leaf.extent(0)) * sizeof(value_type_);
+            std::memcpy(static_cast<void *>(output_leaf.byte_data()), static_cast<void const *>(input_leaf.byte_data()),
+                        byte_count);
+        });
+}
+
+/** @brief Allocating copy: returns a fresh contiguous tensor with the same shape and contents
+ *  as `input`. Returns an empty tensor on allocation failure or empty input. */
+template <typename value_type_, std::size_t max_rank_ = 8, typename allocator_type_ = aligned_allocator<value_type_>>
+[[nodiscard]] tensor<value_type_, allocator_type_, max_rank_> try_copy(
+    tensor_view<value_type_, max_rank_> input) noexcept {
+    using out_tensor_t = tensor<value_type_, allocator_type_, max_rank_>;
+    if (input.empty()) return out_tensor_t {};
+    auto const &input_shape = input.shape();
+    auto result = out_tensor_t::try_empty(input_shape.extents, input_shape.rank);
+    if (result.empty()) return result;
+    if (!copy<value_type_, max_rank_>(input, result.span())) return out_tensor_t {};
+    return result;
+}
+
+#pragma endregion Tensor Fill and Copy
+
+#pragma region Tensor Span Member Sugar
+
+template <typename value_type_, std::size_t max_rank_>
+bool tensor_span<value_type_, max_rank_>::fill_zeros() noexcept {
+    return ashvardanian::numkong::fill_zeros<value_type_, max_rank_>(*this);
+}
+
+template <typename value_type_, std::size_t max_rank_>
+bool tensor_span<value_type_, max_rank_>::fill(value_type value) noexcept {
+    return ashvardanian::numkong::fill<value_type_, max_rank_>(*this, value);
+}
+
+template <typename value_type_, std::size_t max_rank_>
+bool tensor_span<value_type_, max_rank_>::copy_from(tensor_view<value_type_, max_rank_> input) noexcept {
+    return ashvardanian::numkong::copy<value_type_, max_rank_>(input, *this);
+}
+
+#pragma endregion Tensor Span Member Sugar
 
 } // namespace ashvardanian::numkong
 
