@@ -1,9 +1,11 @@
-//! Type casting between scalar formats.
+//! Type casting between scalar formats — slice traits and tensor-shaped wrappers.
 //!
 //! This module provides:
 //!
 //! - [`CastDtype`]: Trait marking types eligible for bulk casting
 //! - [`cast`]: Bulk-converts a slice from one scalar format to another
+//! - [`CastOps`]: Tensor-shaped extension trait — auto-implemented on every
+//!   [`crate::tensor::TensorRef`] so any container can do `tensor.try_cast_dtype::<Destination>()`
 
 use crate::types::{bf16, bf16c, e2m3, e3m2, e4m3, e5m2, f16, f16c, f32c, f64c, StorageElement};
 
@@ -213,6 +215,34 @@ pub fn cast<S: CastDtype, D: CastDtype>(source: &[S], dest: &mut [D]) -> Option<
     }
     Some(())
 }
+
+// region: Tensor-shaped cast (moved from crate::tensor)
+
+use crate::tensor::{try_reborrow_tensor_into, Global, Tensor, TensorError, TensorRef};
+
+/// Extension trait: type casting for any [`TensorRef`] implementor.
+pub trait CastOps<Source: Clone + CastDtype, const MAX_RANK: usize>:
+    TensorRef<Source, MAX_RANK>
+{
+    fn try_cast_dtype<Destination: Clone + CastDtype>(
+        &self,
+    ) -> Result<Tensor<Destination, Global, MAX_RANK>, TensorError> {
+        self.view().try_cast_dtype()
+    }
+}
+
+impl<Source: Clone + CastDtype, const R: usize, C: TensorRef<Source, R>> CastOps<Source, R> for C {}
+
+impl<Source: Clone + CastDtype, const MAX_RANK: usize> Tensor<Source, Global, MAX_RANK> {
+    pub fn try_cast_dtype_into<Destination: Clone + CastDtype>(
+        &self,
+        out: &mut Tensor<Destination, Global, MAX_RANK>,
+    ) -> Result<(), TensorError> {
+        try_reborrow_tensor_into(self, out, |view, span| view.try_cast_dtype_into(span))
+    }
+}
+
+// endregion: Tensor-shaped cast
 
 #[cfg(test)]
 mod tests {
