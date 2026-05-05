@@ -56,6 +56,7 @@ let package = Package(
         .target(
             name: "CNumKong",
             path: "include",
+            sources: ["_dummy.c"],
             publicHeadersPath: ".",
             cSettings: [
                 .define("NK_DYNAMIC_DISPATCH", to: "1"),
