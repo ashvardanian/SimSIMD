@@ -53,9 +53,15 @@ let package = Package(
                 .define("NK_NATIVE_BF16", to: "0"),
             ]
         ),
+        // CNumKong owns the public header umbrella and modulemap; the actual
+        // runtime dispatch lives in CNumKongDispatch. The single `cnumkong_module.c`
+        // source provides one real exported symbol so SwiftPM/Xcode 16+ can link
+        // this target transitively (see swiftlang/swift-package-manager#5706).
+        // Mirrors apple/swift-system's `Sources/CSystem/shims.c` pattern.
         .target(
             name: "CNumKong",
             path: "include",
+            sources: ["cnumkong_module.c"],
             publicHeadersPath: ".",
             cSettings: [
                 .define("NK_DYNAMIC_DISPATCH", to: "1"),
