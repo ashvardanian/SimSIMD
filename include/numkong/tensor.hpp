@@ -117,6 +117,22 @@ struct shape_storage_ {
         return offset;
     }
 
+    /**
+     *  @brief Reset the spare slots [rank, max_rank_) to a harmless 1x0 layout.
+     *
+     *  `tensor_flat_lookup_` iterates a runtime `rank` bound (`flat % extents[d]; flat /= extents[d]`),
+     *  but under `-flto` the compiler unrolls/vectorises that loop to `max_rank_` iterations and
+     *  speculatively evaluates `flat / extents[d]` for every `d` - including `d >= rank`. Leaving
+     *  those extents at the in-class `= {}` zero turns the unused speculative quotient into a
+     *  hardware divide-by-zero trap. Any builder that produces a reduced-rank shape must call this.
+     */
+    constexpr void normalize_spare_() noexcept {
+        for (std::size_t d = rank; d < max_rank_; ++d) {
+            extents[d] = 1;
+            strides[d] = 0;
+        }
+    }
+
     /** @brief Create contiguous (row-major) shape storage. */
     static constexpr shape_storage_ contiguous(std::size_t const *exts, std::size_t rank_val,
                                                std::size_t elem_bytes) noexcept {
@@ -128,6 +144,7 @@ struct shape_storage_ {
             s.strides[i - 1] = stride;
             stride *= static_cast<std::ptrdiff_t>(exts[i - 1]);
         }
+        s.normalize_spare_();
         return s;
     }
 };
@@ -160,6 +177,7 @@ constexpr shape_storage_<max_rank_> make_contiguous_shape_(std::size_t const *ex
                                                  : static_cast<std::size_t>(exts[i - 1]);
         stride *= static_cast<std::ptrdiff_t>(extent_factor);
     }
+    s.normalize_spare_();
     return s;
 }
 
@@ -294,6 +312,7 @@ struct tensor_view {
             sub.extents[d] = shape_.extents[d + 1];
             sub.strides[d] = shape_.strides[d + 1];
         }
+        sub.normalize_spare_(); // keep [rank, max_rank_) at 1x0 so -flto's speculative divides are harmless
         return {data_ + offset, sub};
     }
 
@@ -444,6 +463,7 @@ struct tensor_view {
             result.strides[0] = static_cast<difference_type>(sizeof(value_type));
         }
         result.rank = new_rank;
+        result.normalize_spare_(); // the copy of `shape_` may carry zeros in [new_rank, max_rank_)
         return {data_, result};
     }
 };
@@ -521,6 +541,7 @@ struct tensor_span {
             sub.extents[d] = shape_.extents[d + 1];
             sub.strides[d] = shape_.strides[d + 1];
         }
+        sub.normalize_spare_(); // keep [rank, max_rank_) at 1x0 so -flto's speculative divides are harmless
         return {data_ + offset, sub};
     }
 
@@ -762,6 +783,7 @@ struct tensor_span {
             result.strides[0] = static_cast<difference_type>(sizeof(value_type));
         }
         result.rank = new_rank;
+        result.normalize_spare_(); // the copy of `shape_` may carry zeros in [new_rank, max_rank_)
         return {data_, result};
     }
 };
@@ -897,6 +919,7 @@ tensor_type_ tensor_slice_suffix_(tensor_type_ input, all_t, rest_types_... rest
         result_shape.extents[1 + d] = inner.extent(d);
         result_shape.strides[1 + d] = inner.stride_bytes(d);
     }
+    result_shape.normalize_spare_(); // see shape_storage_::normalize_spare_ — -flto speculative-divide guard
 
     // The data pointer is the inner slice's offset relative to the first row,
     // applied to the original data pointer.
@@ -936,6 +959,7 @@ tensor_type_ tensor_slice_suffix_(tensor_type_ input, range r, rest_types_... re
             result_shape.extents[d] = input.extent(d);
             result_shape.strides[d] = input.stride_bytes(d);
         }
+        result_shape.normalize_spare_();
         using byte_ptr = decltype(input.byte_data());
         return {const_cast<byte_ptr>(input.byte_data() + data_offset), result_shape};
     }
@@ -952,6 +976,7 @@ tensor_type_ tensor_slice_suffix_(tensor_type_ input, range r, rest_types_... re
             result_shape.extents[1 + d] = inner.extent(d);
             result_shape.strides[1 + d] = inner.stride_bytes(d);
         }
+        result_shape.normalize_spare_();
 
         using byte_ptr = decltype(input.byte_data());
         auto inner_byte_offset = inner.byte_data() - first_row.byte_data();
@@ -1875,6 +1900,7 @@ bool for_each_axis_lane_(tensor_view<value_type_, max_rank_> input, std::size_t 
     lane_shape.rank = 1;
     lane_shape.extents[0] = input.extent(axis);
     lane_shape.strides[0] = input.stride_bytes(axis);
+    lane_shape.normalize_spare_();
 
     std::size_t remaining_dims[max_rank_] = {};
     std::size_t remaining_count = 0;
@@ -1968,6 +1994,7 @@ tensor_view<value_type_, max_rank_> collapse_contiguous_tail_(tensor_view<value_
     for (std::size_t i = input.rank() - tail_dims; i < input.rank(); ++i) product *= input.extent(i);
     s.extents[s.rank - 1] = product;
     s.strides[s.rank - 1] = static_cast<std::ptrdiff_t>(sizeof(value_type_));
+    s.normalize_spare_();
     return {input.byte_data(), s};
 }
 
@@ -1985,6 +2012,7 @@ tensor_span<value_type_, max_rank_> collapse_contiguous_tail_(tensor_span<value_
     for (std::size_t i = input.rank() - tail_dims; i < input.rank(); ++i) product *= input.extent(i);
     s.extents[s.rank - 1] = product;
     s.strides[s.rank - 1] = static_cast<std::ptrdiff_t>(sizeof(value_type_));
+    s.normalize_spare_();
     return {input.byte_data(), s};
 }
 
